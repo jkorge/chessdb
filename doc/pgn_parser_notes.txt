@@ -1,0 +1,63 @@
+PFFxTT=P<+/#>
+
+2 =>    pawn push (eg. e5)
+
+3 =>    pawn push with check/mate (eg. e7+)
+        unambiguous, quiet move (eg. Nf6)
+
+4 =>    ambiguous (eg. Rhf1)
+        capture (eg. Bxe7 or exf6)
+        check/mate (eg. Rh8+)
+        pawn promotion (eg. e8=Q)
+
+5 =>    ambiguous capture (eg. Rhxf1)
+        ambiguous check/mate (eg. Rhf1#)
+        capture with check/mate (eg. Bxe7+)
+        highly ambiguous, quiet move (eg. Qh4e1)
+        pawn promotion with check/mate (eg. e8=Q+)
+
+6 =>    ambiguous capture with check/mate (eg. Rhxf1+)
+        highly ambiguous with check/mate (eg. Qh4e1#)
+        highly ambiguous capture (eg. Qh4xe1)
+        pawn promotion with capture (eg. exf8=Q)
+
+7 =>    highly ambiguous capture with check/mate (eg. Qh4xe1+)
+        pawn promotion with capture and check/mate (eg. exf8=Q+)
+
+
+
+char    > meaning
+--------------------
+a-h     > files
+1-8     > ranks
+QRBN    > Piece Type
+x       > capture indicator
++       > check
+#       > mate
+=       > promotion
+
+
+int del_r = abs(ranks[0] - board[idx].second.first);
+int del_f = abs(files[0] - board[idx].second.second);
+
+switch(pt){
+    case king:
+        from_file = board[idx].second.first;
+        from_file = board[idx].second.second;
+        break;
+
+    case queen:
+        ((!del_r) ^ (!del_f)) ^ (del_r == del_f)
+
+    case rook:
+        (!del_r) ^ (!del_f)
+
+    case bishop:
+        del_r == del_f
+
+    case knight:
+        ((del_r == 2) ^ (del_f == 2)) & ((del_r == 1) ^ (del_f == 1))
+
+    case pawn:
+        (del_r == 2) ^ ((del_r == 1) & !del_f) ^ ((del_r == 1) & (del_f == 1))
+}

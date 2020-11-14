@@ -1,0 +1,45 @@
+Database File Format
+-----------------------
+TIMESTAMP
+
+HEADER
+
+DATABASE START
+
+    PGN TAGS
+    MOVETEXT
+    GAME END
+
+    PGN TAGS
+    MOVETEXT
+    GAME END
+
+    ...
+
+    PGN TAGS
+    MOVETEXT
+    GAME END
+
+DATABASE END
+-----------------------
+
+
+
+
+
+
+
+
+Header contains a newline delimited list of strings
+    Order of strings defines their enumeration
+    ie. first string after HEADER START has enum value 0, followed by 1, etc.
+    First string to be enumerated should ALWAYS be "\0" (empty string)
+
+DATABASE START = 11111111
+DATABASE END = EOF
+
+
+key-value pairs
+   5 bytes for each pair
+x 16 pairs for each game
+= 80 bytes per game

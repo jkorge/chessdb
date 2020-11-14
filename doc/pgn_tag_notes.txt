@@ -1,0 +1,78 @@
+Fields found in dataset:
+
+Annotator, Black, BlackClock, BlackCountry, BlackELO, BlackElo, BlackFideId, BlackTeam, BlackTeamCountry, BlackTitle, BlackType, BlackUSCF, Board, Classes, Comment, DELTA, Date, DisplayPlyCount, ECO, Eco, Eve, Event, EventCategory, EventCountry, EventDate, EventRounds, EventType, Eventcountry, Eventdate, Eventrounds, Eventtype, FEN, FULL, FileName, Game, GameType, Hardware, ICCResult, ID, Input, LiveChessVersion, MLFlags, MLNrOfMoves, MOVES, NIC, Opening, Original, Owner, PlyCount, Plycount, PresId, Remark, Result, Round, SCORE, Section, SectionMarker, SetUp, Setup, Site, Source, Source1, Source2, Source3, Source4, Source5, Source6, SourceDate, Sourcedate, Termination, Time, TimeControl, Varation, Variant, Variation, Version, White, WhiteClock, WhiteCountry, WhiteELO, WhiteElo, WhiteFideId, WhiteTeam, WhiteTeamCountry, WhiteTitle, WhiteType, WhiteUSCF
+
+
+
+
+Duplicates from the preceding:
+
+BlackELO        BlackElo
+ECO             Eco
+EventCountry    Eventcountry
+EventDate       Eventdate
+EventRounds     Eventrounds
+EventType       Eventtype
+PlyCount        Plycount
+SetUp           Setup
+SourceDate      Sourcedate
+Variation       Varation    [sic]
+Variation       Variant
+WhiteELO        WhiteElo
+
+
+
+
+Candidates for inclusion:
+
+// Seven Tag Roster
+Event
+Site
+Date
+Round
+White
+Black
+Result
+
+// Other common (and informative) Keys
+ECO
+FEN
+Mode
+TimeControl
+Termination
+
+// Player Rating Keys (saved as ints; rest are strings)
+WhiteElo
+WhiteUSCF
+BlackElo
+BlackUSCF
+
+
+
+
+TimeControl Formats:
+
+    ?       No info
+    -       No TC used
+    M/S     Moves/Seconds           (eg. 40/9000 => 2.5 hours to make 40 moves)
+    S       Seconds                 (eg. 300 => 300 sec. blitz game)
+    S+S     Seconds+Seconds         (eg. 4500+60 => 90 mins plus one extra minute per move)
+    *S      *Seconds                (eg. *180 => 3 minute sandclock)
+
+
+
+
+sandclock:
+    Hourglass with equal amount of sand in each chamber at start of match. Flip after each move.
+    3 min sandclock means each chamber starts with 3 mins of sand.
+
+
+
+
+
+Keys        1 byte int
+Values      4 byte int
+
+Strings values are enumerated in file header
+In data, key byte refers to pgntag enum value
+         value bytes refer to string enumerations in file header

@@ -1,0 +1,23 @@
+All
+	to- not occupied by ally
+	doesn't put own king in check
+	doesn't move past edge of board
+
+King
+	castle iff:
+		king hasn't moved
+		rook hasn't moved
+		king not in check
+		no squares between (inclusive) king and rook occupied
+		no squares between (inclusive) king and rook controlled by opposition
+
+Queen, Rook, Bishop
+	doesn't pass any material
+		ie. unlike knight, these can't jump over other pieces
+
+Pawn
+	push iff:
+		to- not occupied by oppositon
+	capture if:
+		to- occupied by opposition
+		to- was passed during opposition pawn double-push (en passant)
