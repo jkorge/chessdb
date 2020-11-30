@@ -2,24 +2,27 @@
 #define TYPES_H
 
 #include <vector>
+#include <map>
 #include <bitset>
+#include <cstdint>
 
 
 /**************************
     SHORTHAND TYPES
 **************************/
+// BYTE type
 typedef unsigned char BYTE;
+
+// Integer types
+typedef uint8_t uint8;
+typedef unsigned short int ushort;
+typedef unsigned long int ulong;
+typedef unsigned long long int ullong;
+
+// Collections
 typedef std::pair<int, int> ipair;
 typedef std::bitset<8> bs8;
-
-
-typedef struct coords{
-    int arr[2];
-    coords () {}
-    coords (int r, int f) : arr{r, f} {}
-    int& operator[](int i) { return this->arr[i]; }
-    int* operator=(int* i) { return this->arr; }
-} coords;
+typedef std::string str;
 
 /**************************
     MATERIAL
@@ -70,13 +73,13 @@ typedef enum pname {
 
 } pname;
 
-// Piece object for all material
+// Piece struct
 typedef struct pce{
 
     pname name;
     ptype type;
     int rank, file;
-    bool captured = false;
+    bool captured{false};
 
     // Constructors
     pce (pname p, int r, int f) : name{p}, rank{r}, file{f} {
@@ -91,16 +94,21 @@ typedef struct pce{
     // Misc utils
     bool white() { return ((this->name) < 16) & (this->name >= 0); }
     bool black() { return (this->name) >= 16; }
+    void place(int r, int f) { this->rank = r; this->file = f; }
+    void place(int *dst) { this->rank = dst[0]; this->file = dst[1]; }
+    void place(ipair dst) { this->rank = dst.first; this->file = dst.second; }
+
+
 } pce;
 
 /**************************
-    GAME
+    PLY
 **************************/
 
 typedef struct ply{
 
     pce piece;
-    ptype promo;     // ptype for pawn promotions
+    ptype promo;            // ptype for pawn promotions
 
     int dst[2];             // Target coords (change in coords if returned from Decoder)
     int castle;             // 0 => No castle; 1 => kingside; -1 => queenside
@@ -116,10 +124,20 @@ typedef struct ply{
     // Intialize nothing
     ply () {}
 
-    // Initialize everything
+    // Initialize everything (int,int dst)
     ply (pce p, int r, int f, int c, bool cap, bool ch, bool m, ptype po)
         : piece{p},
           dst{r, f},
+          castle{c},
+          capture{cap},
+          check{ch},
+          mate{m},
+          promo{po} {}
+
+    // Initialize everything (array dst)
+    ply (pce p, int *d, int c, bool cap, bool ch, bool m, ptype po)
+        : piece{p},
+          dst{d[0], d[1]},
           castle{c},
           capture{cap},
           check{ch},
@@ -138,7 +156,7 @@ typedef struct ply{
     // Piece to dst (ipair)
     ply (pce p, ipair c) : ply(p, c.first, c.second, 0, false, false, false, pawn) {}
 
-    // Castle (p should have type==king)
+    // Castle (p should have type==king; this isn't validated)
     ply (pce p, int c) : ply(p, -1, -1, c, false, false, false, pawn) {}
 
     // Piece to dst (ints) with promo
@@ -153,40 +171,8 @@ typedef struct ply{
 
 } ply;
 
-typedef struct turn{
-    ply white, black;
-    int game_end;           // Indicates whether the game ended on this turn. 0 => no, 1 => white won, -1 => black won, 2 => draw
-
-    // Constructors
-    turn () {}
-    turn (ply w, ply b, int g) : white{w}, black{b}, game_end{g} {}
-    turn (ply w, ply b) : turn(w, b, 0) {}
-    turn (ply w) : white{w}, game_end{0} {}
-    turn (ply w, int g) : white{w}, game_end{g} {}
-    turn (int g) : game_end{g} {}
-
-    ply operator[](int i) { return (i ? this->black : this->white); }
-
-} turn;
-
-typedef struct game{
-    std::vector<turn> turns;
-    bool over;
-
-    // Constructors
-    game () : over{false} {}
-    game (std::vector<turn> m) : turns{m} { this->over = !m.back().game_end; }
-
-    // Misc utils
-    void append(turn t) { this->turns.push_back(t); this->over = this->turns.back().game_end; }
-    int length() { return this->turns.size(); }
-    int result() { return this->back().game_end; }
-    turn back() { return this->turns.back(); }
-    turn operator[](int i) { return (this->turns)[i]; }
-} game;
-
 /**************************
-    ENCODED GAME
+    ENCODED PLY
 **************************/
 
 typedef struct eply{
@@ -196,25 +182,6 @@ typedef struct eply{
     eply () : name{0}, action{0} {}
     eply (BYTE p, BYTE a) : name{p}, action{a} {}
 } eply;
-
-typedef struct eturn{
-    eply white, black;
-
-    eturn () {}
-    eturn (eply w, eply b) : white{w}, black{b} {}
-    eturn (eply w) : white{w} {}
-} eturn;
-
-typedef struct egame{
-    std::vector<eturn> turns;
-
-    egame () {}
-    egame (std::vector<eturn> t) : turns{t} {}
-
-    void append(eturn t) { this->turns.push_back(t); }
-    int length() { return this->turns.size(); }
-    eturn operator[](int i) { return (this->turns).at(i); }
-} egame;
 
 
 /**************************
@@ -239,7 +206,7 @@ typedef enum pgntag{
 
     // Other common (and informative) Keys
     eco,
-    fen,
+    fenstr,
     mode,
     time_control,
     termination,
@@ -254,22 +221,22 @@ typedef enum pgntag{
 
 typedef struct pgndict : std::map<pgntag, std::string>{
     pgndict () : std::map<pgntag, std::string>{
-        {event, "\0"},
-        {site, "\0"},
-        {date, "\0"},
-        {round, "\0"},
-        {white, "\0"},
-        {black, "\0"},
-        {result, "\0"},
-        {eco, "\0"},
-        {fen, "\0"},
-        {mode, "\0"},
-        {time_control, "\0"},
-        {termination, "\0"},
-        {white_elo, "\0"},
-        {white_uscf, "\0"},
-        {black_elo, "\0"},
-        {black_uscf, "\0"}
+        {event, str()},
+        {site, str()},
+        {date, str()},
+        {round, str()},
+        {white, str()},
+        {black, str()},
+        {result, str()},
+        {eco, str()},
+        {fenstr, str()},
+        {mode, str()},
+        {time_control, str()},
+        {termination, str()},
+        {white_elo, str()},
+        {white_uscf, str()},
+        {black_elo, str()},
+        {black_uscf, str()}
     } {}
 } pgndict;
 

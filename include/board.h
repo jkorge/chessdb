@@ -7,6 +7,7 @@
 #include "types.h"
 #include "util.h"
 #include "chess_set.h"
+#include "log.h"
 
 
 /**************************
@@ -14,11 +15,11 @@
 **************************/
 
 class ChessBoard{
-private:
+
+    static Logger log;                              // Logger instance
+    static const cset roster;                       // Container of pce objects and their starting coords
     pce empty{NONAME};                              // NONAME piece for empty board squares
     void fill_square(pce*, char*);                  // Used by print_board to fill char array for each square printed
-    void place_pieces();                            // Calls its public overload with arg `this->pieces`
-    static const cset roster;                       // Container of pce objects and their starting coords
 
 public:
     /*
@@ -28,6 +29,8 @@ public:
 
     std::map<pname, ipair> board_map;               // Map for reverse lookup (given name get coords)
 
+    // TODO: Find a way to have a distinct vector for each board instance.
+    //       Requires that elements within `pieces` have const memory address
     static std::vector<pce> pieces;                 // Vector of pieces pointed to by board
 
 
@@ -35,7 +38,7 @@ public:
         FUNCS
     */
 
-    ChessBoard();                                   // Assemble pieces on board
+    ChessBoard();                                   // Assemble pieces on board for standard start of chess game
 
     ~ChessBoard();                                  // Reset `pieces` vector for future instances of this class
 
@@ -43,50 +46,55 @@ public:
 
     void reset();                                   // Reset members for new game
 
-    void place_pieces(std::vector<pce>);            // Set board pointers and board_map values omit arg for start of new game; give vector of pieces to resume suspended game
+    void place_pieces(std::vector<pce>);            // Set board pointers and board_map values
 
-    bool square_color(int r, int f);                // Return true if square at (r,f) is dark; false, otherwise
+    static bool is_dark(int, int);                  // Return true if square at (r,f) is dark; false, otherwise
 
-    bool square_color(int *c);                      // Overload of square_color for array inputs
+    static bool is_dark(int*);                      // Overload of square_color for array inputs
 
     bool update(ply&);                              // Update members according to ply. Handles castling/promotions separately. Returns ply.mate
 
-    bool update(turn&);                             // Update overload for turn objects. if(not turn.white.mate){ return turn.black.mate } else{ return turn.white.mate }
-
     void move_piece(pname, int*);                   // Performs member updates when pieces are moved. Called by update
 
-    void castle_rook(pname, int);                   // Computs dst for rook during castle
+    void castle_rook(int, bool);                    // Computs dst for rook during castle
 
-    void check_board(std::ostream& = std::cout);    // Checks that all members agree as to position of pieces
+    void log_consistency();                         // Checks that all members agree as to position of pieces
 
-    void print_board(std::ostream& = std::cout);    // Prints board to console
+    str board_viz();                                // Produces string containing visualization of board array
 
-    void print_map(std::ostream& = std::cout);      // Prints values in board_map to console
+    void log_board();                               // Logs results of board_viz
+
+    void log_map();                                 // Prints values in board_map to console
+
+    bool clear(int*, int*);                         // Checks if every square along line connecting src and dst is empty
 
     ipair operator[](pname);                        // Access coords for piece using []
+
+    pce* operator()(int, int);                      // Access name of piece located @ (r,f)
+    pce* operator()(int*);                          // Overload of previous for array inputs
 };
 
 const cset ChessBoard::roster;
 
+Logger ChessBoard::log{__FILE__};
+
 std::vector<pce> ChessBoard::pieces = ChessBoard::roster.pieces;
 
-ChessBoard::ChessBoard(){ this->place_pieces(); }
+ChessBoard::ChessBoard(){ log.debug(str()); this->reset(); }
 
-ChessBoard::~ChessBoard(){ this->reset(); }
+ChessBoard::~ChessBoard(){ this->clear(); log.debug(str()); }
 
-void ChessBoard::clear(){ for(int j=0; j<64; j++){ this->board[j/8][j%8] = &empty; } }
-
-void ChessBoard::reset(){
-    this->pieces = this->roster.pieces;
-    this->place_pieces();
+void ChessBoard::clear(){
+    log.debug("Clearing board");
+    for(int j=0; j<64; j++){ this->board[j/8][j%8] = &empty; }
 }
 
-void ChessBoard::place_pieces(){ this->place_pieces(this->pieces); }
+void ChessBoard::reset(){ this->place_pieces(this->roster.pieces); }
 
 void ChessBoard::place_pieces(std::vector<pce> pieces){
-
     this->clear();
     this->pieces = pieces;
+    log.debug("Placing pieces on board");
     for(std::vector<pce>::iterator it=this->pieces.begin(); it!=this->pieces.end(); ++it){
         // Point board squares to instances in `pieces` vector
         if(it->captured){ continue; }
@@ -95,35 +103,47 @@ void ChessBoard::place_pieces(std::vector<pce> pieces){
     }
 }
 
-bool ChessBoard::square_color(int r, int f){ return (r%2) == (f%2); }
+bool ChessBoard::is_dark(int r, int f){ return (r%2) == (f%2); }
 
-bool ChessBoard::square_color(int *c){ return (c[0]%2) == (c[1]%2); }
+bool ChessBoard::is_dark(int *c){ return (c[0]%2) == (c[1]%2); }
 
 bool ChessBoard::update(ply &p){
 
-    // Flag whatever piece is already at dst as captured
-    if(p.capture){ this->board[p.dst[0]][p.dst[1]]->captured = true; }
+    if(p.capture){
+        /*
+            En passant captures
+                Capturing piece is a pawn &&
+                Target square is empty &&
+                Square one file step back* contains a pawn
+            Set captured pawn's `captured` flag
+            Point captured pawn's square to `empty`
+
+            *NB: "back" is relative to the captured pawn
+                 eg. black pawn is captured en passant => "back" is plus one rank
+        */
+
+        int back = p.dst[0] + (p.piece.black() ? 1 : -1);
+        if(
+            (p.piece.type == pawn) &&
+            ((*this)(p.dst)->name == NONAME) &&
+            ((*this)(back, p.dst[1])->type == pawn)
+        ){
+            this->board[back][p.dst[1]]->captured = true;
+            this->board[back][p.dst[1]] = &(this->empty);
+        }
+
+        /*
+            Regular Captures
+            Set captured material's `captured` flag
+        */
+        else{ this->board[p.dst[0]][p.dst[1]]->captured = true; }
+    }
 
     // Relocate piece and update members
     this->move_piece(p.piece.name, p.dst);
 
-    // Handle rooks for castle plies
-    if(p.castle){
-        pname rook;
-        switch(p.castle){
-            case 1:
-                // Kingside
-                if(p.piece.white()){ rook = white_rook_h; }
-                else{ rook = black_rook_h; }
-                break;
-            case -1:
-                // Queenside
-                if(p.piece.white()){ rook = white_rook_a; }
-                else{ rook = black_rook_a; }
-                break;
-        }
-        this->castle_rook(rook, p.castle);
-    }
+    // Move rooks for castle plies
+    if(p.castle){ this->castle_rook(p.castle, p.piece.black()); }
 
     // Change type of piece for pawn promotion
     if(p.promo){ this->pieces[p.piece.name].type = p.promo; }
@@ -131,32 +151,28 @@ bool ChessBoard::update(ply &p){
     return p.mate;
 }
 
-bool ChessBoard::update(turn &t){
-    if(!(this->update(t.white))){ return this->update(t.black); }
-    else{ return t.white.mate; }
-}
-
 void ChessBoard::move_piece(pname p, int *dst){
 
-    static pce *piece_ptr;
-    piece_ptr = &(this->pieces[p]);
+    pce *piece_ptr = &(this->pieces[p]);
 
     (this->board)[piece_ptr->rank][piece_ptr->file] = &(this->empty);         // Point src to empty
 
-    piece_ptr->rank = dst[0];                                                 // Update rank/file for piece in `pieces` vector
-    piece_ptr->file = dst[1];
+    piece_ptr->place(dst);                                                    // Update rank/file for piece in `pieces` vector
 
     (this->board)[piece_ptr->rank][piece_ptr->file] = piece_ptr;              // Point dst to piece
 
     this->board_map[p] = std::make_pair(dst[0], dst[1]);                      // Update board_map coords
 }
 
-void ChessBoard::castle_rook(pname p, int c){
-    int dst[2]{pieces[p].rank, pieces[p].file + (-2 * c) + (c < 0)};
-    this->move_piece(p, dst);
+void ChessBoard::castle_rook(int c, bool bply){
+    pname rk = (c > 0)
+               ? (bply ? black_rook_h : white_rook_h)
+               : (bply ? black_rook_a : white_rook_a);
+    int dst[2]{this->pieces[rk].rank, this->pieces[rk].file + (-2 * c) + (c < 0)};
+    this->move_piece(rk, dst);
 }
 
-void ChessBoard::check_board(std::ostream &out){
+void ChessBoard::log_consistency(){
     pname p;
     bool c1, c2, c3;
     int prank, pfile, brank, bfile;
@@ -177,48 +193,76 @@ void ChessBoard::check_board(std::ostream &out){
         // check piece matches map
         c3 = (this->board_map)[p] == std::make_pair(prank, pfile);
 
-        if(!c1){ out << "Board doesn't match piece for " << util::pname2s[p] << std::endl; }
-        if(!c2){ out << "Board doesn't match map for " << util::pname2s[p] << std::endl; }
-        if(!c3){ out << "Map doesn't match piece for " << util::pname2s[p] << std::endl; }
+        if(c1 && c2 && c3){ this->log.debug("Board members consistent"); }
+        if(!c1){ this->log.warn("Board doesn't match piece for ", util::pname2s[p]); }
+        if(!c2){ this->log.warn("Board doesn't match map for ", util::pname2s[p]); }
+        if(!c3){ this->log.warn("Map doesn't match piece for ", util::pname2s[p]); }
     }
 }
 
-void ChessBoard::print_board(std::ostream &out){
-    static char square[]{"[  ]"};
+str ChessBoard::board_viz(){
+    str viz("\n ");
 
     // File headers
-    for(int k=0;k<util::files.size();k++){ if(!k){ out << "  "; } out << " " << util::files[k] << "  "; }
+    for(int k=0; k<8; k++){ viz += str(" ") + util::files[k] + "  "; }
 
     int r, f;
+    char square[]{"[  ]"};
+
+    // Board squares
     for(int i=0; i<64; i++){
+
+        // Rank headers
         r = (63-i)/8; f = i%8;
-        if(!f){ out << std::endl << r+1 << " "; } // rank headers
+        if(!f){ viz += str("\n") + util::rank2c[r] + ' '; }
+
         this->fill_square((this->board)[r][f], square);
-        out << square;
+        viz += square;
     }
-    out << std::endl << std::endl;
+    viz += '\n';
+    return viz;
 }
 
+void ChessBoard::log_board(){ this->log.debug(this->board_viz()); }
+
 void ChessBoard::fill_square(pce *p, char *sq){
-    if(p->name == NONAME){ for(int i=1;i<3;i++){ sq[i] = ' '; } }
+    if(p->name == NONAME){
+        sq[1] = ' ';
+        sq[2] = ' ';
+    }
     else{
         sq[1] = (p->black() ? 'b' : 'w');           // color indicator
         sq[2] = util::ptype2c[p->type];             // Piece type indicator
     }
 }
 
-void ChessBoard::print_map(std::ostream &out){
-
-    int p;
-    std::string t;
-
+void ChessBoard::log_map(){
+    str viz("\n");
     for(std::map<pname, ipair>::iterator it=board_map.begin(); it!=board_map.end(); ++it){
-        out << util::pname2s[it->first];
-        out << " (" << board_map[it->first].first << ", " << board_map[it->first].second << ")" << std::endl;
+        viz += util::pname2s[it->first];
+        viz += str(": ") + util::file2c[board_map[it->first].second] + util::rank2c[board_map[it->first].first];
     }
-    out << std::endl;
+    this->log.debug(viz);
+}
+
+// Determine if line connecting (not including) src and dst is cleared of all material
+// When used for disambiguating, put candidate-piece's coords in src and target square in dst
+bool ChessBoard::clear(int *src, int *dst){
+    int delta[2] = {dst[0]-src[0], dst[1]-src[1]},
+        rstep = delta[0] / (delta[0] ? abs(delta[0]) : 1),
+        fstep = delta[1] / (delta[1] ? abs(delta[1]) : 1);
+
+    for(int r=src[0]+rstep, f=src[1]+fstep; r!=src[0]+delta[0] | f!=src[1]+delta[1]; r+=rstep, f+=fstep){
+        if(this->board[r][f]->name != NONAME){ return false; }
+    }
+    return true;
+
 }
 
 ipair ChessBoard::operator[](pname p){ return this->board_map[p]; }
+pce* ChessBoard::operator()(int r, int f){ return this->board[r][r]; }
+pce* ChessBoard::operator()(int *dst){ return this->board[dst[0]][dst[1]]; }
 
 #endif
+
+

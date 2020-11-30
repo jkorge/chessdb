@@ -1,0 +1,6 @@
+program
+    logs
+        date
+            <program>.log   => contains ALL logs from entire program
+            <header>.log    => contains logs from objects declared in <header>.h (eg. parser.log contains all logs produced by objects/functions in parser.h)
+            <level>.log     => contains logs from entire program that are flagged with <level> (eg. info.log contains all INFO level log lines)

@@ -1,355 +1,329 @@
-#ifndef PGN_
+#ifndef PGN_H
 #define PGN_H
 
-#include <utility>
-#include <string>
-#include <cctype>
+#include <iostream>
 #include <regex>
 #include <vector>
-#include <algorithm>
 
+#include "parsebuf.h"
 #include "types.h"
 #include "util.h"
-#include "encode.h"
-#include "decode.h"
+#include "log.h"
 #include "board.h"
+#include "disamb.h"
 #include "fen.h"
 
-int v = 0, pc = 0;
-int target = 4408;
+/******************************
+    PGN
+******************************/
+template<typename CharT=char, typename Traits=std::char_traits<CharT> >
+class PGN : virtual public ParseBuf<CharT, Traits>{
 
+    typedef typename Traits::int_type int_type;
+    typedef typename Traits::char_type char_type;
+    typedef typename std::basic_string<char_type> string;
+    typedef std::regex_token_iterator<std::string::iterator> rtok;
 
-class PGN {
-private:
-    void disambiguate_loop(pname&, ptype&, int*, int*, ChessBoard&, bool, bool, bool=false, bool=false);
-    bool is_valid_move(ptype, int*, int*, ChessBoard&);
-    bool is_valid_piece(ptype, pname, int*, int*, ChessBoard&);
+    string _delim = {"\n\n"};
+    Logger log{__FILE__};
+
+    void logply(ply);
+
+    void read();
+    void rcharb(char_type);
+    void rchar(char_type, string&);
+    void clear_tags();
+    int_type parse();
+    int_type tags();
+    int_type movetext();
+    std::vector<ply> pplies(std::vector<string>&, bool=false);
+    ply pply(string&, ChessBoard&, bool);
+    int_type cmp(string&, const char*, short=1);
 
 public:
-    FENCE fen_parser;
 
-    void parse_file(std::fstream&, std::vector<game>&, std::vector<pgndict>&);
-    pgndict parse_tagtext(std::string);
-    std::string compact_date(std::string);
-    std::string compact_value(std::string);
-    int check_mate_promo(std::string&, const char*, int=1);
+    pgndict _tags;
+    std::vector<ply> _plies;
 
-    game parse_game(std::string, std::string="");
-    turn parse_turn(std::string, ChessBoard&);
-    ply parse_ply(std::string, ChessBoard&, bool=false, bool=false);
+    PGN(string file) : ParseBuf<CharT,Traits>(file) {}
 
-    pname disambiguate(ptype&, int*, int*, ChessBoard&, bool=false, bool=false);
 };
 
-void PGN::parse_file(std::fstream &fin, std::vector<game> &games, std::vector<pgndict> &game_tags){
+/******************************
+    PGN Member Funcs
+******************************/
 
-    // Containers for file's text
-    std::string line, movetext, tagtext;
-    pgndict tags;
-    int N;
-
-    std::cout << "Parsing games" << std::endl;
-
-    while(getline(fin, line)){
-        N = line.length();
-        // Blank line
-        if(!N){ continue; }
-
-        else if(!line.compare(0,1,"[")){
-            // Line contains tag
-            while(N){
-                tagtext += line;
-                getline(fin, line);
-                N = line.length();
-            }
-            // Collect tag info in `tags` map
-            tags = this->parse_tagtext(tagtext);
-        }
-
-        else{
-
-            // Line contains movetext
-            while(N){
-                // Add space at EOL if not already there and doesn't end in '.'
-                if(line.compare(N-1, 1, " ") & line.compare(N-1, 1, ".")){ line+= " "; }
-                movetext += line;
-                if(!getline(fin, line)){ break; }
-                N = line.length();
-            }
-
-            // Add results to game
-            if(tags[fen].length()){ games.push_back(this->parse_game(movetext, tags[fen])); }
-            else{ games.push_back(this->parse_game(movetext)); }
-            game_tags.push_back(tags);
-
-            // Reset containers for next game
-            movetext.clear();
-            tagtext.clear();
-            tags.clear();
-            // if(!((++v)%10000)){ std::cout << v << "... "; }
-            std::cout << ++v << std::endl;
-        }
-    }
+template<typename CharT, typename Traits>
+void PGN<CharT, Traits>::logply(ply p){
+    int src[] = {p.piece.rank, p.piece.file};
+    log.debug("name:", util::pname2s[p.piece.name]);
+    log.debug("src:", util::coord2s(src));
+    log.debug("dst:", util::coord2s(p.dst));
+    log.debug("promo:", util::ptype2s[p.promo]);
+    log.debug("castle:", p.castle);
+    log.debug("capture:", p.capture);
+    log.debug("check:", p.check);
+    log.debug("mate:", p.mate);
 }
 
-pgndict PGN::parse_tagtext(std::string tagtext){
-    // Tokenize tag lines (eg. `[Event "Cool Chess Tourney, 1920"][Date "1985.10.??"]...`)
+template<typename CharT, typename Traits>
+void PGN<CharT, Traits>::read(){ this->_fdev.xsgetn(this->_buf, BUFSIZE, this->_delim); }
 
-    // Extract key/value from tagtext and tokenize them independently
-    static pgntag key;
-    static std::map<std::string, pgntag>::iterator end = util::s2pgntag.end();
-    static std::string key_token;
-    char *save_ptr_tagtext, *save_ptr_key, *tag_token, *value_token;
-
-    pgndict tags;
-    tag_token = strtok_r(&tagtext[0], util::tag_delims, &save_ptr_tagtext);
-
-    while(tag_token != NULL){
-
-        // Get tag key and make lowercase
-        key_token = strtok_r(&tag_token[0], util::key_delims, &save_ptr_key);
-        util::lowercase(key_token);
-
-        // Ensure this tag is in target keys - not recording every tag found!
-        if(util::s2pgntag.find(key_token) != end){
-
-            // Enum and value token
-            key = util::s2pgntag[key_token];
-            value_token = strtok_r(NULL, util::value_delims, &save_ptr_key);
-
-            // Remove any ? chars in value string
-            if(value_token != NULL){ tags[key] = (key == date) ? this->compact_date(value_token) : this->compact_value(value_token); }
-        }
-
-        tag_token = strtok_r(NULL, util::tag_delims, &save_ptr_tagtext);
-    }
-
-    return tags;
+// Remove all instances of a character from a string
+template<typename CharT, typename Traits>
+void PGN<CharT, Traits>::rchar(PGN<CharT, Traits>::char_type c, PGN<CharT, Traits>::string& s){
+    short idx;
+    while((idx = s.find(c, 0)) != string::npos){ s.erase(idx, 1); }
 }
 
-std::string PGN::compact_date(std::string date){
-    static const char rem = '?';
-    if(date[0] == rem){ date = ""; }
-    else if(date[5] == rem){ date = date.substr(0,4); }
-    else if(date[8] == rem){ date = date.substr(0,7); }
-    return date;
+// Remove all instances of a character from _buf
+template<typename CharT, typename Traits>
+void PGN<CharT, Traits>::rcharb(PGN<CharT, Traits>::char_type c)
+{ this->rchar(c, this->_buf); }
+
+template<typename CharT, typename Traits>
+typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::parse(){
+    int_type size = (this->_buf[0] == '[') ? this->tags() : this->movetext();
+    return this->_fdev.eof ? Traits::eof() : size;
 }
 
-std::string PGN::compact_value(std::string val){ val.erase(std::remove(val.begin(), val.end(), '?'), val.end()); return val; }
-
-game PGN::parse_game(std::string movetext, std::string fen){
-    // if(v>=target){ std::cout << movetext << std::endl << std::endl; }
+template<typename CharT, typename Traits>
+typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::tags(){
     
-    std::vector<turn> turns;
-    std::string turn_string;
+    std::basic_stringstream<CharT, Traits> tmp;
+    string keytok, valtok;
+    int_type pos, size;
+    std::map<std::string, pgntag>::iterator end = util::pgn::s2tag.end();
 
-    // New game board
+    log.info("Parsing Tags");
+    log.debug(this->_buf);
+    size = this->_buf.size();
+
+    this->clear_tags();
+
+    // strip brackets
+    for(const char *c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); c++){ this->rcharb(*c); }
+
+    // Copy _buf to sstream for tokenizing
+    tmp.str(this->_buf);
+    while(std::getline(tmp, this->_buf)){
+
+        pos = this->_buf.find(' ');
+        keytok = this->_buf.substr(0, pos);
+        util::lowercase(keytok);
+
+        if(util::pgn::s2tag.find(keytok) != end){
+            valtok = this->_buf.substr(pos+1);
+            this->rchar(util::pgn::value_delim, valtok);
+            this->_tags[util::pgn::s2tag[keytok]] = valtok;
+        }
+    }
+    this->log.info("End of Tags");
+    return size;
+}
+
+template<typename CharT, typename Traits>
+void PGN<CharT, Traits>::clear_tags(){
+    for(pgndict::iterator it=this->_tags.begin(); it!=this->_tags.end(); ++it){
+        this->_tags[it->first].clear();
+    }
+}
+
+template<typename CharT, typename Traits>
+typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::movetext(){
+    
+    int_type idx, size;
+    rtok end;
+    string turn, p;
+    std::vector<string> ply_s;
+    bool start_on_black;
+
+    this->log.info("Parsing Movetext");
+    this->log.debug(this->_buf);
+    size = this->_buf.size();
+
+    /*
+        TOKENIZE
+    */
+
+    // Concatenate lines (all \n must be preceded by '.' or ' ')
+    while((idx = this->_buf.find('\n')) != string::npos){
+        if((this->_buf[idx-1] != ' ') && (this->_buf[idx-1] != '.')){ this->_buf.insert(idx++, 1, ' '); }
+        this->_buf.erase(idx, 1);
+    }
+
+    // Split on "\d{1,}\." (ie. turn numbers)
+    rtok g(this->_buf.begin(), this->_buf.end(), util::pgn::move_num_r, -1);
+    while(g != end){
+        turn = *g++;
+        if(turn.empty()){ continue; }
+
+        // Add space if continuation (.. or --) is found at beginning of string
+        if(std::regex_match(turn.substr(0,2), util::pgn::missing_ply)){ turn.insert(turn.begin()+2, ' '); }
+
+        // Split again on \s (ie. ply separator)
+        rtok t(turn.begin(), turn.end(), util::ws, -1);
+        while(t != end){
+            p = *t;
+            if(!p.empty()){ ply_s.push_back(p); }
+            t++;
+        }
+    }
+
+    // Remove elided ply (".." or "--")
+    if(start_on_black = std::regex_match(ply_s[0], util::pgn::missing_ply)){ ply_s.erase(ply_s.begin()); }
+
+    /*
+        PARSE PLIES
+    */
+    this->_plies = this->pplies(ply_s, start_on_black);
+
+    return size;
+}
+
+template<typename CharT, typename Traits>
+std::vector<ply>
+PGN<CharT, Traits>::pplies(std::vector<PGN<CharT, Traits>::string>& ply_s, bool start_on_black){
+
     ChessBoard board;
-    if(fen.length()){ this->fen_parser.parse_fen_string(fen, board); }
-    if(v>=target){ board.print_board(); }
+    if(not this->_tags[fenstr].empty()){ start_on_black = fen::parse(this->_tags[fenstr], board); }
 
-    // Regex iterators to delimit on move numbers
-    static std::regex_token_iterator<std::string::iterator> end;
-    std::regex_token_iterator<std::string::iterator> rtok(movetext.begin(), movetext.end(), util::move_num_r, -1);
+    std::vector<ply> res;
+    bool bply = start_on_black ? true : false;
 
-    while(rtok!=end){
-        turn_string = *rtok++;
-        if(turn_string.length()){ turns.push_back(this->parse_turn(turn_string, board)); }
+    for(typename std::vector<string>::iterator it=ply_s.begin(); it!=ply_s.end(); ++it){
+
+        this->log.debug("Parsing:", (bply ? "b" : "w"), *it);
+
+        if(std::regex_match(*it, util::pgn::game_result)){ break; }
+
+        res.push_back(this->pply(*it, board, bply));
+        bply = !bply;
     }
 
-    return {turns};
+    this->log.info("End of Movetext.", res.size(), "plies");
+    return res;
 }
 
-turn PGN::parse_turn(std::string turn_string, ChessBoard& board){
-    // if(v>=target){ std::cout << turn_string << std::endl;}
-    std::string wtok, btok, otok, g;
-    static std::string *tokptrs[]{&wtok, &btok, &otok};
-    static bool missing, btok_outcome, wtok_outcome;
+template<typename CharT, typename Traits>
+ply PGN<CharT, Traits>::pply(PGN<CharT, Traits>::string& p, ChessBoard& board, bool bply){
 
-    // Add space if continuation (..) is found at beginning of string
-    if(turn_string.substr(0,2) == ".."){ turn_string.insert(turn_string.begin()+2, ' '); }
+    // Coord tracking
+    int_type src[2]{-1, -1},
+             dst[2]{-1, -1},
+             *ranks[2]{&dst[0], &src[0]},
+             *files[2]{&dst[1], &src[1]},
+    // Castle tracking
+             castle = 0;
 
-    char *token = strtok(&turn_string[0], " "); int i = 0;
-    while(token != NULL){
-        missing = std::regex_match(token, util::missing_ply);
-        *tokptrs[i++] = missing ? "" : token;
-        token = strtok(NULL, " ");
-    }
-    btok_outcome = std::regex_match(btok, util::game_result);
-    wtok_outcome = std::regex_match(wtok, util::game_result);
-    g = otok.size() ? otok : (btok_outcome ? btok : (wtok_outcome ? wtok : "*"));
+    // Move flags
+    bool check{false}, mate{false}, capture{false};
 
-    return {
-        ((wtok.size()>0) & !wtok_outcome) ? this->parse_ply(wtok, board, false) : ply(),
-        ((btok.size()>0) & !btok_outcome) ? this->parse_ply(btok, board, true) : ply(),
-        util::game_result_values[g]
-    };
-}
+    // Piece info
+    ptype piece_type{pawn}, promo{pawn};
+    pname idx = NONAME;
 
-ply PGN::parse_ply(std::string ply_string, ChessBoard& board, bool black, bool update_board){
-    if(v>=target){ std::cout << ++pc << (black ? "b: " : "w: ") << ply_string << std::endl; }
-    int src[2]{-1, -1};
-    int dst[2]{-1, -1};
-    int castle = 0;
-    bool check = false, mate = false, capture = false;
-    ptype piece_type = pawn, promo = pawn;
-    pname idx;
-
-    check = (bool) this->check_mate_promo(ply_string, "+");
-    mate = (bool) this->check_mate_promo(ply_string, "#");
-    promo = static_cast<ptype>(this->check_mate_promo(ply_string, "=", 2));
+    // Parse and remove flags
+    check = (bool) this->cmp(p, "+");
+    check = (bool) this->cmp(p, "#");
+    promo = static_cast<ptype>(this->cmp(p, "=", 2));
 
     // Castle
-    bool kingside = !ply_string.compare("O-O");
-    bool queenside = !ply_string.compare("O-O-O");
+    bool kingside{!p.compare("O-O")}, queenside{!p.compare("O-O-O")};
     if(kingside | queenside){
 
-        idx = static_cast<pname>(white_king_e + (black * 16));
-        piece_type = king;
+        this->log.debug(kingside ? "Kingside" : "Queenside", "castle");
 
-        src[0] = board[idx].first;
-        dst[0] = src[0];
+        castle = kingside + (-1 * queenside);
+        idx = disamb::K(bply);
 
+        dst[0] = src[0] = board[idx].first;
         src[1] = board[idx].second;
         dst[1] = src[1] + (queenside ? -2 : 2);
-
-        castle = (kingside * 1) + (queenside * -1);
     }
     else{
-        // Parse ranks and files separately
-        // Use pointers to src and dst
-        int *ranks[2]{&dst[0], &src[0]};
-        int *files[2]{&dst[1], &src[1]};
-        int f = 0, r = 0;
-        char c;
+        int_type f = 0, r = 0;
+        char_type c;
 
-        // Iterate over ply and collect characters into relevant containers
-        for(std::string::reverse_iterator it=ply_string.rbegin(); it!=ply_string.rend(); ++it){
+        for(typename string::reverse_iterator it=p.rbegin(); it!=p.rend(); ++it){
             c = *it;
             if(util::ispiece(c)){ piece_type = util::c2ptype[c]; }
             else if(util::isfile(c)){ *files[f++] = util::c2file[c]; }
             else if(isdigit(c)){ *ranks[r++] = (c - '0') - 1; }
             else if(c == 'x'){ capture = true; }
-            else{ std::cout << "Unrecognized character: " << c << std::endl; std::cout << ply_string << std::endl; }
+            else{ this->log.error("Unrecognized character in ply:", c); }
         }
 
-        // Remove ambiguity - determine missing src values and return piece name
-        idx = this->disambiguate(piece_type, src, dst, board, capture, black);
+        this->log.debug("piece_type:", util::ptype2s[piece_type]);
+        this->log.debug("src:", util::coord2s(src));
+        this->log.debug("dst:", util::coord2s(dst));
+
+        idx = (src[0]==-1 || src[1]==-1)
+              ? disamb::pgnply(piece_type, src, dst, board, bply, capture)
+              : board.board[src[0]][src[1]]->name;
+
+        this->log.debug(util::pname2s[idx]);
     }
 
-    // Collect results into ply object
-    ply res{pce{idx, src}, dst[0], dst[1], castle, capture, check, mate, promo};
+    if(idx == NONAME){ this->log.error("Failed to disambiguate:", p); }
 
-    // Update board
+    this->log.debug("Constructing ply object");
+    ply res{pce{idx, src}, dst, castle, capture, check, mate, promo};
+
+    this->log.debug("Updating board");
     board.update(res);
-    if(v>=target){ board.print_board(); }
+    board.log_board();
 
+    this->log.debug("Returning ply");
     return res;
 }
 
-int PGN::check_mate_promo(std::string &str, const char *c, int l){
-
-    static size_t mod;
-    static int retval;
-
-    mod = str.find(c);
-    if(mod != std::string::npos){
-        retval = (l==2) ? (int) util::c2ptype[str[mod+1]] : 1;
-        str.erase(mod, l);
+template<typename CharT, typename Traits>
+typename PGN<CharT, Traits>::int_type
+PGN<CharT, Traits>::cmp(PGN<CharT, Traits>::string& p, const char *c, short l){
+    size_t mod;
+    short retval;
+    if((mod = p.find(c)) != string::npos){
+        retval = (l==2) ? (int_type) util::c2ptype[p[mod+1]] : 1;
+        p.erase(mod, l);
     }
     else{ retval = 0; }
-
     return retval;
 }
 
-pname PGN::disambiguate(ptype &piece_type, int *src, int *dst, ChessBoard &board, bool capture, bool black){
 
-    if(src[0]!=-1 & src[1]!=-1){ return board.board[src[0]][src[1]]->name; }
+/******************************
+    PGNStream
+******************************/
 
-    static pname idx;
+template<typename CharT=char, typename Traits=std::char_traits<CharT> >
+class PGNStream : public std::basic_istream<CharT, Traits>{
 
-    // Kings are always unambiguous
-    if(piece_type == king){
-        idx = black ? black_king_e : white_king_e;
-        src[0] = board[idx].first;
-        src[1] = board[idx].second;
-    }
+    // Underlying buffer
+    PGN<CharT, Traits> _pbuf;
 
-    // Pawns are close to unambiguous
-    else if(piece_type == pawn){
-        int one = 1 - (2*black), two = 2 - (4*black);
-        if(capture){ src[0] = dst[0]-one; }
-        else{
-            src[1] = dst[1];
-            src[0] = (board.board[dst[0]-one][dst[1]]->type == pawn) ? dst[0]-one : dst[0]-two;
-        }
-        idx = board.board[src[0]][src[1]]->name;
-    }
+public:
 
-    // Get all pieces of the right type and check if they can execute the given move
-    else{
-        std::vector<pname> candidates;
-        for(int i=0; i<15; i++){
-            idx = static_cast<pname>(i + (16*black));
-            if(board.pieces[idx].captured | board.pieces[idx].type!=piece_type){ continue; }
-            else{ candidates.push_back(idx); }
-        }
-        for(std::vector<pname>::iterator it=candidates.begin(); it!=candidates.end(); ++it){
-            idx = *it;
-            if(this->is_valid_piece(piece_type, idx, src, dst, board)){ break; }
-        }
-    }
-    return idx;
+    PGNStream(std::basic_string<CharT>& file) : _pbuf(file), std::basic_istream<CharT, Traits>(&_pbuf) {}
+    pgndict tags();
+    std::vector<ply> moves();
+};
+
+/******************************
+    PGNStream Member Funcs
+******************************/
+
+template<typename CharT, typename Traits>
+pgndict PGNStream<CharT, Traits>::tags(){
+    this->get();
+    return this->_pbuf._tags;
 }
 
-bool PGN::is_valid_move(ptype piece_type, int *src, int *delta, ChessBoard &board){
-    // Knight moves don't require clear path
-    if(piece_type == knight){
-        delta[0] = abs(delta[0]); delta[1] = abs(delta[1]);
-        return ((delta[0]==2) ^ (delta[1]==2)) & ((delta[0]==1) ^ (delta[1]==1));
-    }
-    // If candidate piece isn't a knight, then delta must indicate a rook or bishop move
-    else if(piece_type==bishop && !(abs(delta[0]) == abs(delta[1]))){ return false; }
-    else if(piece_type==rook && !(!delta[0] ^ !delta[1])){ return false; }
-    else if(piece_type==queen && !((!delta[0] ^ !delta[1]) ^ (abs(delta[0]) == abs(delta[1])))){ return false; }
-
-
-    int m = delta[1] ? delta[0]/delta[1] : 2;
-    int rstep = m ? 1 - (2 * (delta[0]<0)) : 0;
-    int fstep = (m<2) ? 1 - (2 * (delta[1]<0)) : 0;
-
-    for(int r=src[0]+rstep, f=src[1]+fstep; r!=src[0]+delta[0] | f!=src[1]+delta[1]; r+=rstep, f+=fstep){
-        if(board.board[r][f]->name != NONAME){ return false; }
-    }
-    return true;
-
+template<typename CharT, typename Traits>
+std::vector<ply> PGNStream<CharT, Traits>::moves(){
+    this->get();
+    return this->_pbuf._plies;
 }
-
-bool PGN::is_valid_piece(ptype piece_type, pname idx, int *src, int *dst, ChessBoard &board){
-    static int delta[2], curr[2];
-
-    curr[0] = board[idx].first;
-    curr[1] = board[idx].second;
-
-    delta[0] = dst[0]-curr[0];
-    delta[1] = dst[1]-curr[1];
-
-    if(src[0]==-1 & src[1]==-1){
-        if(this->is_valid_move(piece_type, curr, delta, board)){
-            src[0] = curr[0];
-            src[1] = curr[1];
-            return true;
-        }
-    }
-    else if(curr[0]==src[0] | curr[1]==src[1]){
-        src[0] = curr[0];
-        src[1] = curr[1];
-        return true;
-    }
-    return false;
-}
-
-
 
 
 #endif

@@ -58,7 +58,7 @@ public:
     void queen_ply(int*, int*, BYTE*);
     void king_ply(int*, int*, BYTE*);
 
-    void encode_header(std::vector<pgndict>&, std::map<int, std::string>&);
+    void encode_header(std::vector<pgndict>&, std::map<int, str>&);
 };
 
 eply Encoder::cply;
@@ -219,12 +219,12 @@ void Encoder::king_ply(int *from, int *to, BYTE *act){
 };
 
 
-void Encoder::encode_header(std::vector<pgndict> &tags, std::map<int,std::string> &dst){
+void Encoder::encode_header(std::vector<pgndict> &tags, std::map<int,str> &dst){
 
     // First value ALWAYS
     dst[0] = "\0";
 
-    std::unordered_set<std::string> vals;
+    std::unordered_set<str> vals;
     int i = 1;
 
     // Collect all strings from pgndicts into unorderd_set
@@ -236,7 +236,7 @@ void Encoder::encode_header(std::vector<pgndict> &tags, std::map<int,std::string
     }
 
     // Enumerate them
-    for(std::unordered_set<std::string>::iterator it=vals.begin(); it!=vals.end(); ++it){
+    for(std::unordered_set<str>::iterator it=vals.begin(); it!=vals.end(); ++it){
         dst[i] = *it;
     }
 }

@@ -12,29 +12,15 @@
 
 
 namespace util{
-
-/**************************
-    UTIL VARS
-**************************/
-
     /*
-        GAME
+        UTILITY OBJECTS FOR ENTIRE PROJECT
     */
 
-    // Regex for game results (1-0, 0-1, 1/2-1/2, *)
-    static const std::regex game_result("\\s*((1/)*[0-9]-[0-9](/2)*|\\*)\\s*");
-    static std::map<std::string, int> game_result_values{
-        {"1-0", 1},
-        {"0-1", -1},
-        {"1/2-1/2", 2},
-        {"*", 0}
-    };
-
-    // Regex for continuation (eg. "1... Rc5" implies white's move is missing)
-    static const std::regex missing_ply("(-{2}|\\.{2})");
+    // Whitespace regex
+    const std::regex ws("\\s");
 
     // Get string from pname
-    std::map<pname, std::string> pname2s{
+    std::map<pname, str> pname2s{
         {white_pawn_a, "white_pawn_a"},
         {white_pawn_b, "white_pawn_b"},
         {white_pawn_c, "white_pawn_c"},
@@ -72,13 +58,8 @@ namespace util{
         {NONAME, "none"}
     };
 
-
-    /*
-        BOARD
-    */
-
     // Map pieces to their starting positions for a standard game of chess
-    static const std::map<pname, ipair> start_coords{
+    const std::map<pname, ipair> start_coords{
         {white_pawn_a, std::make_pair(1,0)},
         {white_pawn_b, std::make_pair(1,1)},
         {white_pawn_c, std::make_pair(1,2)},
@@ -114,21 +95,9 @@ namespace util{
         {black_king_e, std::make_pair(7,4)}
     };
 
-    /*
-        PGN/SAN
-    */
-
     // Piece and file identifiers
-    static const std::string pieces = "KQRBN";
-    static const std::string files = "abcdefgh";
-
-    // Delimiters for parsing PGN tags
-    static const char tag_delims[]{"[]"};
-    static const char key_delims[]{" "};
-    static const char value_delims[]{"\""};
-
-    // Delimiter for parsing moves in SAN
-    static const std::regex move_num_r("(\\d{1,}\\.)");
+    const str pieces = "KQRBN";
+    const str files = "abcdefgh";
 
     // Get file from char
     std::map<char, int> c2file{
@@ -154,6 +123,18 @@ namespace util{
         {7, 'h'}
     };
 
+    // Get char from rank
+    std::map<int, char> rank2c{
+        {0, '1'},
+        {1, '2'},
+        {2, '3'},
+        {3, '4'},
+        {4, '5'},
+        {5, '6'},
+        {6, '7'},
+        {7, '8'}
+    };
+
     // Get ptype from char
     std::map<char, ptype> c2ptype{
         {'K', king},
@@ -177,7 +158,7 @@ namespace util{
     };
 
     // pytpes as strings for iostreams
-    std::map<ptype, std::string> ptype2s{
+    std::map<ptype, str> ptype2s{
         {king, "king"},
         {queen, "queen"},
         {rook, "rook"},
@@ -187,74 +168,139 @@ namespace util{
         {NOTYPE, "none"}
     };
 
-    // Get pgntag from string
-    std::map<std::string, pgntag> s2pgntag{
-        {"event", event},
-        {"site", site},
-        {"date", date},
-        {"round", round},
-        {"white", white},
-        {"black", black},
-        {"result", result},
-        {"eco", eco},
-        {"fen", fen},
-        {"mode", mode},
-        {"timecontrol", time_control},
-        {"termination", termination},
-        {"whiteelo", white_elo},
-        {"blackelo", black_elo},
-        {"whiteuscf", white_uscf},
-        {"blackuscf", black_uscf}
+    /* Map of (square color, piece color) to bishop names
+        outer key => flag for dark square
+        inner key => flag for black ply
+    */
+    std::map<bool, std::map<bool, pname>> bmap{
+        {true,  {{true, black_bishop_f}, {false, white_bishop_c}}},
+        {false, {{true, black_bishop_c}, {false, white_bishop_f}}}
     };
 
-    // Get string from pgntag
-    std::map<pgntag, std::string> pgntag2s{
-        {event, "event"},
-        {site, "site"},
-        {date, "date"},
-        {round, "round"},
-        {white, "white"},
-        {black, "black"},
-        {result, "result"},
-        {eco, "eco"},
-        {fen, "fen"},
-        {mode, "mode"},
-        {time_control, "timecontrol"},
-        {termination, "termination"},
-        {white_elo, "whiteelo"},
-        {black_elo, "blackelo"},
-        {white_uscf, "whiteuscf"},
-        {black_uscf, "blackuscf"}
-    };
+    // True if c in util::pieces
+    bool ispiece(char c){ return pieces.find(c) != str::npos; }
 
-/**************************
-    FUNCS
-**************************/
+    // True if c in util::files
+    bool isfile(char c){ return files.find(c) != str::npos; }
 
-    bool ispiece(char c){
-        if(pieces.find(c) != std::string::npos){ return true; }
-        else{ return false; }
-    }
-
-    bool isfile(char c){
-        if(files.find(c) != std::string::npos){ return true; }
-        else{ return false; }
-    }
-
+    // Compute piece type from its name (doesn't work for promoted pawns)
     ptype name2type(pname pn){
         int v = pn%16;
         return static_cast<ptype>(v/8 + v/10 + v/12 + v/14 + v/15);
     }
 
+    bool inbounds(int r, int f){ return (r>=0 && r<8) && (f>=0 && f<8); }
+    bool inbounds(int *dst){ return (dst[0]>=0 && dst[0]<8) && (dst[1]>=0 && dst[1]<8); }
+    bool inbounds(ipair dst){ return (dst.first>=0 && dst.first<8) && (dst.second>=0 && dst.second<8); }
+
+    str coord2s(int *src){ return str("(") + std::to_string(src[0]) + ", " + std::to_string(src[1]) + ')'; }
+
+    str coord2s(int r, int f){ return str("(") + std::to_string(r) + ", " + std::to_string(f) + ')'; }
+
     void uppercase(char *start, char *end){ std::transform(start, end, start, toupper); }
 
-    void uppercase(std::string& str){ std::transform(str.begin(), str.end(), str.begin(), toupper); }
+    void uppercase(str& s){ std::transform(s.begin(), s.end(), s.begin(), toupper); }
 
     void lowercase(char *start, char *end){ std::transform(start, end, start, tolower); }
 
-    void lowercase(std::string& str){ std::transform(str.begin(), str.end(), str.begin(), tolower); }
+    void lowercase(str& s){ std::transform(s.begin(), s.end(), s.begin(), tolower); }
 
+    namespace pgn{
+        /*
+            UTILITY OBJECTS FOR PGN PARSING
+        */
+
+        // Regex for game results (1-0, 0-1, 1/2-1/2, *)
+        const std::regex game_result("\\s*((1/)*[0-9]-[0-9](/2)*|\\*)\\s*");
+
+        // Int values for each outcome
+        const std::map<str, int> game_result_values{
+            {"1-0", 1},
+            {"0-1", -1},
+            {"1/2-1/2", 2},
+            {"*", 0}
+        };
+
+        // Regex for continuation (eg. "1... Rc5" implies white's move is missing - usually preceded by FEN tag)
+        const std::regex missing_ply("(-{2}|\\.{2})");
+
+        // Delimiters for parsing PGN tags
+        const char tag_delims[]{"[]"};
+        const char key_delim = ' ';
+        const char value_delim = '\"';
+
+        // Delimiter for parsing moves in SAN
+        const std::regex move_num_r("(\\d{1,}\\.)");
+
+        // Get pgntag from string
+        std::map<str, pgntag> s2tag{
+            {"event", event},
+            {"site", site},
+            {"date", date},
+            {"round", round},
+            {"white", white},
+            {"black", black},
+            {"result", result},
+            {"eco", eco},
+            {"fen", fenstr},
+            {"mode", mode},
+            {"timecontrol", time_control},
+            {"termination", termination},
+            {"whiteelo", white_elo},
+            {"blackelo", black_elo},
+            {"whiteuscf", white_uscf},
+            {"blackuscf", black_uscf}
+        };
+
+        // Get string from pgntag
+        std::map<pgntag, str> tag2s{
+            {event, "event"},
+            {site, "site"},
+            {date, "date"},
+            {round, "round"},
+            {white, "white"},
+            {black, "black"},
+            {result, "result"},
+            {eco, "eco"},
+            {fenstr, "fen"},
+            {mode, "mode"},
+            {time_control, "timecontrol"},
+            {termination, "termination"},
+            {white_elo, "whiteelo"},
+            {black_elo, "blackelo"},
+            {white_uscf, "whiteuscf"},
+            {black_uscf, "blackuscf"}
+        };
+    }
+
+    namespace fen{
+        /*
+            UTILITY OBJECTS FOR FEN PARSING
+        */
+
+        const char black_pieces[7]{"pnbrqk"};
+        const char white_pieces[7]{"PNBRQK"};
+        const std::regex delim("/");
+
+        // FEN string for new (standard) game of chess
+        const str new_game("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+        std::map<char, ptype> c2type{
+            {'p',pawn},
+            {'n',knight},
+            {'b',bishop},
+            {'r',rook},
+            {'q',queen},
+            {'k',king},
+
+            {'P',pawn},
+            {'N',knight},
+            {'B',bishop},
+            {'R',rook},
+            {'Q',queen},
+            {'K',king}
+        };
+    }
 }
-
 
 #endif

@@ -1,0 +1,87 @@
+IO
+    starts/ends fstream
+    manages read/write ops
+
+FileLoader
+    Reads from fstream
+    Preprocesses text for munging
+        e.g. separate tags from movetext for each game in pgn file
+
+Parser
+    Interprets input data
+    Data is handed to Parser from FileLoader
+    PGN:
+        Convert from text to encode-able data
+        tag text => map<tagkeys,tagvalues>
+        movetext => vector<map<movekeys, values> >
+    FEN:
+        Return board that matches the state described in FEN string
+
+//////////////////////////////////////////////////
+
+FileLoader f("/path/to/file.pgn");
+PGN p;
+Encoder enc;
+FileSaver fs("/path/to/file.chessdb")
+while(not f.eof()){
+    // Stream from FileLoader to Parser (parser stores in internal buffer)
+    f >> p;
+
+    // Parse buffer
+    p.parse();
+
+    // Stream from Parser to Encoder (encoder stores in internal buffer)
+    p >> enc;
+
+    // Encode buffer
+    enc.encode();
+
+    // Stream from Encoder to FileSaver
+    // FileSaver appends new data to file
+    enc >> fs;
+}
+
+// This call will prepend data in file with a header before closing
+// May need to write to temp file first to make this work right???
+fs.close();
+
+//////////////////////////////////////////////////
+
+
+
+movekeys    value types
+-------------------------
+piece       enum
+src         int[2]   
+dst         int[2]
+castle      int
+capture     bool
+check       bool
+mate        bool
+promo       enum
+bply        bool
+turn        int
+
+tagkeys         value types***
+-----------------------------
+event           string
+site            string
+year            int
+month           int
+day             int
+round           string
+white           string
+black           string
+result          int
+eco             string
+fen             string
+mode            string
+timecontrol     string
+termination     string
+whiteelo        int
+blackelo        int
+whiteuscf       int
+blackuscf       int
+
+* all fields listed as `int` will be saved as `short int`
+** strings will be saved to db file as `short int`s representing their enumeration in the file's header
