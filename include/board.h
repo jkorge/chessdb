@@ -18,7 +18,6 @@ class ChessBoard{
 
     static Logger log;                              // Logger instance
     static const cset roster;                       // Container of pce objects and their starting coords
-    pce empty{NONAME};                              // NONAME piece for empty board squares
     void fill_square(pce*, char*);                  // Used by print_board to fill char array for each square printed
 
 public:
@@ -26,7 +25,6 @@ public:
         VARS
     */
     pce *board[8][8];                               // Array of pointers to pieces (given coords get piece)
-
     std::map<pname, ipair> board_map;               // Map for reverse lookup (given name get coords)
 
     // TODO: Find a way to have a distinct vector for each board instance.
@@ -68,25 +66,29 @@ public:
 
     bool clear(int*, int*);                         // Checks if every square along line connecting src and dst is empty
 
-    ipair operator[](pname);                        // Access coords for piece using []
+    void pins();                                    // Updates status of pieces' pins
 
+    void clear_pins();                              // Resets all pieces' pin status
+
+    ipair operator[](pname);                        // Access coords for piece using []
     pce* operator()(int, int);                      // Access name of piece located @ (r,f)
     pce* operator()(int*);                          // Overload of previous for array inputs
+    pce* operator()(ipair dst);                     // Overload of previous for integer pair inputs
 };
 
 const cset ChessBoard::roster;
 
-Logger ChessBoard::log{__FILE__};
+Logger ChessBoard::log;
 
 std::vector<pce> ChessBoard::pieces = ChessBoard::roster.pieces;
 
-ChessBoard::ChessBoard(){ log.debug(str()); this->reset(); }
+ChessBoard::ChessBoard(){ this->log.debug(str()); this->reset(); }
 
-ChessBoard::~ChessBoard(){ this->clear(); log.debug(str()); }
+ChessBoard::~ChessBoard(){ this->clear(); this->log.debug(str()); }
 
 void ChessBoard::clear(){
-    log.debug("Clearing board");
-    for(int j=0; j<64; j++){ this->board[j/8][j%8] = &empty; }
+    this->log.debug("Clearing board");
+    for(int j=0; j<64; j++){ this->board[j/8][j%8] = nullptr; }
 }
 
 void ChessBoard::reset(){ this->place_pieces(this->roster.pieces); }
@@ -94,7 +96,7 @@ void ChessBoard::reset(){ this->place_pieces(this->roster.pieces); }
 void ChessBoard::place_pieces(std::vector<pce> pieces){
     this->clear();
     this->pieces = pieces;
-    log.debug("Placing pieces on board");
+    this->log.debug("Placing pieces on board");
     for(std::vector<pce>::iterator it=this->pieces.begin(); it!=this->pieces.end(); ++it){
         // Point board squares to instances in `pieces` vector
         if(it->captured){ continue; }
@@ -118,18 +120,17 @@ bool ChessBoard::update(ply &p){
             Set captured pawn's `captured` flag
             Point captured pawn's square to `empty`
 
-            *NB: "back" is relative to the captured pawn
-                 eg. black pawn is captured en passant => "back" is plus one rank
+            *NB: "back" is relative to the catpuring pawn
+                 eg. white pawn captures en passant => "back" is minus one rank
         */
-
         int back = p.dst[0] + (p.piece.black() ? 1 : -1);
         if(
             (p.piece.type == pawn) &&
-            ((*this)(p.dst)->name == NONAME) &&
+            (not (*this)(p.dst)) &&
             ((*this)(back, p.dst[1])->type == pawn)
         ){
             this->board[back][p.dst[1]]->captured = true;
-            this->board[back][p.dst[1]] = &(this->empty);
+            this->board[back][p.dst[1]] = nullptr;
         }
 
         /*
@@ -148,6 +149,8 @@ bool ChessBoard::update(ply &p){
     // Change type of piece for pawn promotion
     if(p.promo){ this->pieces[p.piece.name].type = p.promo; }
 
+    this->pins();
+
     return p.mate;
 }
 
@@ -155,7 +158,7 @@ void ChessBoard::move_piece(pname p, int *dst){
 
     pce *piece_ptr = &(this->pieces[p]);
 
-    (this->board)[piece_ptr->rank][piece_ptr->file] = &(this->empty);         // Point src to empty
+    (this->board)[piece_ptr->rank][piece_ptr->file] = nullptr;                // Point src to empty
 
     piece_ptr->place(dst);                                                    // Update rank/file for piece in `pieces` vector
 
@@ -226,7 +229,7 @@ str ChessBoard::board_viz(){
 void ChessBoard::log_board(){ this->log.debug(this->board_viz()); }
 
 void ChessBoard::fill_square(pce *p, char *sq){
-    if(p->name == NONAME){
+    if(not p){
         sq[1] = ' ';
         sq[2] = ' ';
     }
@@ -253,15 +256,55 @@ bool ChessBoard::clear(int *src, int *dst){
         fstep = delta[1] / (delta[1] ? abs(delta[1]) : 1);
 
     for(int r=src[0]+rstep, f=src[1]+fstep; r!=src[0]+delta[0] | f!=src[1]+delta[1]; r+=rstep, f+=fstep){
-        if(this->board[r][f]->name != NONAME){ return false; }
+        if(this->board[r][f]){ return false; }
     }
     return true;
 
 }
 
+void ChessBoard::clear_pins(){ for(short i=0; i<this->pieces.size(); i++){ if(this->pieces[i].pin.val){ this->pieces[i].pin = util::nullpin; } } }
+
+void ChessBoard::pins(){
+
+    this->clear_pins();
+
+    for(pname kname : {white_king_e, black_king_e}){
+
+        int kloc[2] = {this->pieces[kname].rank, this->pieces[kname].file};
+
+        for(short i=0; i<util::xrays.size(); i++){
+
+            pce *nearest[2];
+            int c = 0;
+            ipair steps = util::xrays[i];
+
+            for(short r=kloc[0]+steps.first, f=kloc[1]+steps.second; util::inbounds(r,f); r+=steps.first, f+=steps.second){
+                
+                // Record two nearest (to the king) pieces along the ray
+                if(this->board[r][f]){ nearest[c] = this->board[r][f]; c++; }
+
+                if(c==2){
+                    ptype n_1_t = nearest[1]->type;
+                    bool n_0_sk = nearest[0]->black() == kname>16,                              // Nearest is same color as king
+                         n_1_dk = nearest[1]->black() == kname<16,                              // Second nearest is different color
+                         n_1_bp = (n_1_t == bishop || n_1_t == queen) && (i < 4),               // Second nearest is bishop and ray is diagonal
+                         n_1_rp = (n_1_t == rook || n_1_t == queen) && (i >= 4);                // Second nearest is rook and ray is horizontal/vertical
+
+                    if(n_0_sk && n_1_dk && (n_1_bp || n_1_rp)){
+                        this->log.debug(util::pname2s[nearest[0]->name], "is pinned by", util::pname2s[nearest[1]->name]);
+                        nearest[0]->pin = pint{true, nearest[1]->name, i};
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
+
 ipair ChessBoard::operator[](pname p){ return this->board_map[p]; }
-pce* ChessBoard::operator()(int r, int f){ return this->board[r][r]; }
+pce* ChessBoard::operator()(int r, int f){ return this->board[r][f]; }
 pce* ChessBoard::operator()(int *dst){ return this->board[dst[0]][dst[1]]; }
+pce* ChessBoard::operator()(ipair dst){ return this->board[dst.first][dst.second]; }
 
 #endif
 
