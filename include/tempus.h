@@ -2,10 +2,10 @@
 #define TEMPUS_H
 
 #include <cstdio>
-#include <chrono>
 #include <ctime>
-#include <string>
 #include <ratio>
+#include <string>
+#include <chrono>
 
 typedef unsigned long ulong;
 typedef unsigned long long ullong;
@@ -180,6 +180,24 @@ namespace Tempus{
         nstr = std::to_string(n);
         return str(tm) + "." + str(n_dec_chars - nstr.length(), '0') + nstr;
         
+    }
+
+    str strtime(ullong t0, const char *spec=tm_spec){
+
+        char tm[n_time_chars];
+        str nstr;
+
+        ulong n = t0 % std::nano::den;
+        Nanosecond T(t0 - n);
+        long t = duration_cast(T, sec).count();
+
+        nstr = std::to_string(n);
+        nstr = str(n_dec_chars - nstr.length(), '0') + nstr;
+
+        std::strftime(tm, n_time_chars, spec, std::gmtime(&t));
+
+        return str(tm) + "." + nstr;
+
     }
 
     str strtime(const char *spec=tm_spec){ return strtime(nsec, spec); }

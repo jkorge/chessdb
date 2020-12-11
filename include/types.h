@@ -1,10 +1,9 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include <vector>
-#include <map>
-#include <bitset>
 #include <cstdint>
+#include <map>
+#include <regex>
 
 
 /**************************
@@ -14,105 +13,135 @@
 typedef unsigned char BYTE;
 
 // Integer types
-typedef uint8_t uint8;
 typedef unsigned short int ushort;
 typedef unsigned long int ulong;
 typedef unsigned long long int ullong;
 
-// Collections
-typedef std::pair<int, int> ipair;
-typedef std::bitset<8> bs8;
+// Fixed width
+typedef uint64_t U64;
+
+// String
 typedef std::string str;
+
+// Alias for square numbers
+typedef int square;
+
+// regex_token_iterators
+typedef std::regex_token_iterator<std::string::const_iterator> crtok;
+typedef std::regex_token_iterator<std::string::iterator> rtok;
+
+/**************************
+    CONSTANTS
+**************************/
+
+#define C64(constantU64) constantU64##ULL
+
+constexpr U64 DEBRUIJN64_   = C64(0x03f79d71b4cb0a89);
+constexpr U64 MAINDIAG_     = C64(0x8040201008040201);
+constexpr U64 ANTIDIAG_     = C64(0x0102040810204080);
+constexpr U64 ALL_          = C64(0xffffffffffffffff);
+constexpr U64 RANK_         = C64(0xff);
+constexpr U64 FILE_         = C64(0x0101010101010101);
+constexpr U64 ONE_          = C64(0x01);
+constexpr U64 ZERO_         = C64(0x00);
+constexpr U64 A1            = C64(0x00);
+constexpr U64 H8            = C64(0x8000000000000000);
+
+#undef C64
+
+constexpr int i64[64] = {
+     0, 47,  1, 56, 48, 27,  2, 60,
+    57, 49, 41, 37, 28, 16,  3, 61,
+    54, 58, 35, 52, 50, 42, 21, 44,
+    38, 32, 29, 23, 17, 11,  4, 62,
+    46, 55, 26, 59, 40, 36, 15, 53,
+    34, 51, 20, 43, 31, 22, 10, 45,
+    25, 39, 14, 33, 19, 30,  9, 24,
+    13, 18,  8, 12,  7,  6,  5, 63
+};
+
+/********************************
+    COORDINATE REPRESENTATIONS
+********************************/
+
+template<typename T>
+struct coords{
+    T rf[2];
+
+    coords (T r, T f) : rf{r,f} {}
+    coords (T* _rf) : rf{_rf} {}
+};
+
+namespace {
+    // Least significant 1-bit
+    inline square bitscan_(const U64& src){ return i64[((src ^ (src-1)) * DEBRUIJN64_) >> 58]; }
+
+    // sq => sq
+    inline square sq_(const square& src){ return src; }
+
+    // mask => sq
+    inline square sq_(const U64& src){ return bitscan_(src); }
+
+    // coords => sq
+    template<typename T>
+    inline square sq_(const coords<T>& src){ return (8*src.rf[0]) + src.rf[1]; }
+
+    // sq => mask
+    inline U64 mask_(const square& src){ return ONE_ << src; }
+
+    // mask => mask
+    inline U64 mask_(const U64& src){ return src; }
+
+    // coords => mask
+    template<typename T>
+    inline U64 mask_(const coords<T>& src){ return mask_(sq_(src)); }
+
+    // sq => coords
+    inline coords<int> rf_(const square& src){ return {src/8, src%8}; }
+
+    // mask => coords
+    inline coords<int> rf_(const U64& src){ return rf_(sq_(src)); }
+
+    // coords => coords
+    template<typename T>
+    inline coords<T> rf_(const coords<T>& src){ return src; }
+}
+
+// Generic functions to route to preceding
+template<typename T>
+inline square sq(T&& src){ return sq_(src); }
+
+template<typename T>
+inline U64 mask(T&& src){ return mask_(src); }
+
+template<typename T>
+inline coords<int> rf(T&& src){ return rf_(src); }
+
+template<typename T>
+inline square bitscan(const T& src){ return bitscan_(mask(src)); }
 
 /**************************
     MATERIAL
 **************************/
 
+// Material color
+typedef enum color{ white = 1, black = -1, NOCOLOR = 0 } color;
+color operator!(const color& c){ return static_cast<color>(black * c); }
+
 // Types of material
 typedef enum ptype {pawn = 0, knight, bishop, rook, queen, king, NOTYPE = -1} ptype;
-
-// Identifiers for all 32 pieces
-// <player>_<type>_<starting file>
-typedef enum pname {
-
-    white_pawn_a = 0,
-    white_pawn_b,
-    white_pawn_c,
-    white_pawn_d,
-    white_pawn_e,
-    white_pawn_f,
-    white_pawn_g,
-    white_pawn_h,
-    white_knight_b,
-    white_knight_g,
-    white_bishop_c,
-    white_bishop_f,
-    white_rook_a,
-    white_rook_h,
-    white_queen_d,
-    white_king_e,
-
-    black_pawn_a,
-    black_pawn_b,
-    black_pawn_c,
-    black_pawn_d,
-    black_pawn_e,
-    black_pawn_f,
-    black_pawn_g,
-    black_pawn_h,
-    black_knight_b,
-    black_knight_g,
-    black_bishop_c,
-    black_bishop_f,
-    black_rook_a,
-    black_rook_h,
-    black_queen_d,
-    black_king_e,
-
-    NONAME = -1   // For unoccupied board squares
-
-} pname;
-
-// Piece struct
-typedef struct pce{
-
-    pname name;
-    ptype type;
-    int rank, file;
-    bool captured{false};
-
-    // Constructors
-    pce (pname p, int r, int f) : name{p}, rank{r}, file{f} {
-        if(p==NONAME){ this->type = NOTYPE; }
-        else{ int v = p%16; this->type = static_cast<ptype>((v/8) + (v/10) + (v/12) + (v/14) + (v/15)); }
-    }
-    pce (pname p, int* c) : pce(p, c[0], c[1]) {}
-    pce (pname p, ipair c) : pce(p, c.first, c.second) {}
-    pce (pname p) : pce(p, -1, -1) {}
-    pce () : pce(NONAME, -1, -1) {}
-
-    // Misc utils
-    bool white() { return ((this->name) < 16) & (this->name >= 0); }
-    bool black() { return (this->name) >= 16; }
-    void place(int r, int f) { this->rank = r; this->file = f; }
-    void place(int *dst) { this->rank = dst[0]; this->file = dst[1]; }
-    void place(ipair dst) { this->rank = dst.first; this->file = dst.second; }
-
-
-} pce;
 
 /**************************
     PLY
 **************************/
 
-typedef struct ply{
+struct ply{
 
-    pce piece;
-    ptype promo;            // ptype for pawn promotions
+    color c;
+    ptype type, promo;
+    U64 src, dst;
 
-    int dst[2];             // Target coords (change in coords if returned from Decoder)
     int castle;             // 0 => No castle; 1 => kingside; -1 => queenside
-
     bool capture;
     bool check;
     bool mate;
@@ -124,64 +153,42 @@ typedef struct ply{
     // Intialize nothing
     ply () {}
 
-    // Initialize everything (int,int dst)
-    ply (pce p, int r, int f, int c, bool cap, bool ch, bool m, ptype po)
-        : piece{p},
-          dst{r, f},
-          castle{c},
-          capture{cap},
-          check{ch},
-          mate{m},
-          promo{po} {}
+    // Initialize everything
+    ply (U64 s, U64 d, ptype tp, ptype po, color col, int cas, bool cap, bool ch, bool m)
+        : src(s),
+          dst(d),
+          type(tp),
+          promo(po),
+          c(col),
+          castle(cas),
+          capture(cap),
+          check(ch),
+          mate(m) {}
 
-    // Initialize everything (array dst)
-    ply (pce p, int *d, int c, bool cap, bool ch, bool m, ptype po)
-        : piece{p},
-          dst{d[0], d[1]},
-          castle{c},
-          capture{cap},
-          check{ch},
-          mate{m},
-          promo{po} {}
-
-    // Piece
-    ply (pce p) : ply(p, -1, -1, 0, false, false, false, pawn) {}
-
-    // Pice to dst (ints)
-    ply (pce p, int r, int f) : ply(p, r, f, 0, false, false, false, pawn) {}
-
-    // Piece to dst (array)
-    ply (pce p, int *d) : ply(p, d[0], d[1], 0, false, false, false, pawn) {}
-
-    // Piece to dst (ipair)
-    ply (pce p, ipair c) : ply(p, c.first, c.second, 0, false, false, false, pawn) {}
-
-    // Castle (p should have type==king; this isn't validated)
-    ply (pce p, int c) : ply(p, -1, -1, c, false, false, false, pawn) {}
-
-    // Piece to dst (ints) with promo
-    ply (pce p, int r, int f, ptype po) : ply(p, r, f, 0, false, false, false, po) {}
-
-    // Piece to dst (array) with promo
-    ply (pce p, int *d, ptype po) : ply(p, d[0], d[1], 0, false, false, false, po) {}
-
-    // Piece to dst (ipair) with promo
-    ply (pce p, ipair c, ptype po) : ply(p, c.first, c.second, 0, false, false, false, po) {}
-
-
-} ply;
+    // Initialize everything
+    ply (int s, int d, ptype tp, ptype po, color col, int cas, bool cap, bool ch, bool m)
+        : src(1ULL << s),
+          dst(1ULL << d),
+          type(tp),
+          promo(po),
+          c(col),
+          castle(cas),
+          capture(cap),
+          check(ch),
+          mate(m) {}
+};
 
 /**************************
     ENCODED PLY
 **************************/
 
-typedef struct eply{
+struct eply{
     BYTE name, action;
 
     // Constructors
     eply () : name{0}, action{0} {}
     eply (BYTE p, BYTE a) : name{p}, action{a} {}
-} eply;
+};
 
 
 /**************************
@@ -200,8 +207,8 @@ typedef enum pgntag{
     site,
     date,
     round,
-    white,
-    black,
+    playerw,
+    playerb,
     result,
 
     // Other common (and informative) Keys
@@ -219,14 +226,14 @@ typedef enum pgntag{
 
 } pgntag;
 
-typedef struct pgndict : std::map<pgntag, std::string>{
+struct pgndict : std::map<pgntag, std::string>{
     pgndict () : std::map<pgntag, std::string>{
         {event, str()},
         {site, str()},
         {date, str()},
         {round, str()},
-        {white, str()},
-        {black, str()},
+        {playerw, str()},
+        {playerb, str()},
         {result, str()},
         {eco, str()},
         {fenstr, str()},
@@ -238,6 +245,6 @@ typedef struct pgndict : std::map<pgntag, std::string>{
         {black_elo, str()},
         {black_uscf, str()}
     } {}
-} pgndict;
+};
 
 #endif

@@ -1,11 +1,9 @@
 #ifndef PARSEBUF_H
 #define PARSEBUF_H
 
-#include <iostream>
 #include "file_base.h"
-#include "types.h"
 
-#define BUFSIZE 2048
+#define BUFSIZE 4096
 
 /******************************
     ParseBuf
@@ -30,12 +28,11 @@ protected:
     FileBase<CharT, Traits> _fdev;
 
     virtual void read();
+    virtual int_type parse();
+
     void set_get(int_type);
-    char_type next();
-    char_type xnext();
     int_type uflow();
     int_type underflow();
-    virtual int_type parse();
     int_type sync();
 
 
@@ -49,49 +46,35 @@ template<typename CharT, typename Traits>
 void ParseBuf<CharT, Traits>::read(){ this->_fdev.xsgetn(this->_buf, BUFSIZE); }
 
 template<typename CharT, typename Traits>
+typename ParseBuf<CharT, Traits>::int_type
+ParseBuf<CharT, Traits>::parse(){ return this->_buf.size(); }
+
+template<typename CharT, typename Traits>
 void ParseBuf<CharT, Traits>::set_get(ParseBuf<CharT, Traits>::int_type sz){ this->setg(&this->_buf[0], &this->_buf[0], &this->_buf[0] + sz); }
-
-template<typename CharT, typename Traits>
-typename ParseBuf<CharT, Traits>::char_type
-ParseBuf<CharT, Traits>::next(){ return Traits::to_char_type(this->sgetc()); }     // Does NOT advance get ptr
-
-template<typename CharT, typename Traits>
-typename ParseBuf<CharT, Traits>::char_type
-ParseBuf<CharT, Traits>::xnext(){ return Traits::to_char_type(this->sbumpc()); }
 
 template<typename CharT, typename Traits>
 typename ParseBuf<CharT, Traits>::int_type
 ParseBuf<CharT, Traits>::uflow(){
     int_type res = this->underflow();
-    if(not Traits::eq_int_type(res, Traits::eof())){ this->sync(); }
+    if(res != Traits::eof()){ this->sync(); }
     return res;
 }
 
 template<typename CharT, typename Traits>
 typename ParseBuf<CharT, Traits>::int_type
 ParseBuf<CharT, Traits>::underflow(){
+    // Check for eof, read from file, update get ptrs
     int_type size;
-    if(this->gptr() >= this->egptr()){
-        // Read from file
-        this->read();
-        if(this->_fdev.eof){ return Traits::eof(); }
-        this->set_get(this->_buf.size());
-        
-        // check for eof; parse data if not eof
-        size = Traits::eq_int_type(this->sgetc(), Traits::eof()) ? 0 : this->parse();
-        this->set_get(size);
-    }
-
+    if(!this->_fdev.eof()){ this->read(); }
+    this->set_get(this->_buf.size());
     return (this->gptr() == this->egptr()) ? Traits::eof() : Traits::to_int_type(*this->gptr());
 }
 
 template<typename CharT, typename Traits>
 typename ParseBuf<CharT, Traits>::int_type
-ParseBuf<CharT, Traits>::parse(){ return this->_buf.size(); }
-
-template<typename CharT, typename Traits>
-typename ParseBuf<CharT, Traits>::int_type
 ParseBuf<CharT, Traits>::sync(){
+    // Parse and clear buffer
+    if(!this->_buf.empty()){ this->parse(); }
     this->_buf.clear();
     this->set_get(0);
     return 0;

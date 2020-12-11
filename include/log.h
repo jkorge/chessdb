@@ -66,11 +66,11 @@
 */
 
 #ifndef dlvl
-    #warning "Setting default log level to DEBUG"
-    #define __DLVL__ DEBUG
+    #warning "Setting default log level to NONE"
+    #define __DLVL__ NONE
 #elif (dlvl != DEBUG) && (dlvl != INFO) && (dlvl != WARN) && (dlvl != ERROR)
-    #warning "Unrecognized log level specified. Defaulting to DEBUG"
-    #define __DLVL__ DEBUG
+    #warning "Unrecognized log level specified. Defaulting to NONE"
+    #define __DLVL__ NONE
 #else
     // #pragma message "Setting default log level to " XSTFY(dlvl)
     #define __DLVL__ dlvl
@@ -82,13 +82,18 @@
   **************************************************************************************************
 */
 
+void mkdirs(const std::filesystem::path& d){ if(!std::filesystem::is_directory(d)){ std::filesystem::create_directories(d); } }
+
+typedef std::string str;
+
 // Log level enum
 typedef enum LEVEL {
     ALL = 0,
     DEBUG,
     INFO,
     WARN,
-    ERROR
+    ERROR,
+    NONE
 } LEVEL;
 
 // Map levels to strings for writing to ostreams
@@ -104,61 +109,78 @@ const char dt_spec[7] = "%Y%m%d";
 const char tm_spec[7] = "%H%M%S";
 const char *dttm_spec[2] = {dt_spec, tm_spec};
 
+// logs/YYYYmmddTHHMMSS/
+const std::filesystem::path _log_dir = std::filesystem::path("logs/").append(Tempus::strdatetime(dttm_spec));
+
+
 /*
     LOGGERBASE
         Contains core functionality for logging
 */
 class LoggerBase{
-protected:
-    str _srcfile;                                                   // File name of src code which constructs this object
+
+    // Container for log txt and call stack details
+    struct loc{
+
+        // Template type for _txt allows std::string and C-string/string-literal
+        template<class Source>
+        loc(
+            const Source& _txt,
+            const char *_dttm=Tempus::strdatetime().c_str(),
+            const char *_func=__builtin_FUNCTION(),
+            unsigned int _lineno=__builtin_LINE()
+        ) noexcept : txt(_txt), dttm(_dttm), func(_func), lineno(_lineno) {}
+
+        std::string txt;
+        const std::string dttm, func;
+        unsigned int lineno;
+    };
+
+    // separates level/time block from process info block in log text
+    const str sep = "<->";
 
 public:
-    typedef std::string str;
     LEVEL minl;                                                     // Will only write logs of minl or greater
     str filename;                                                   // Log file name
 
-    LoggerBase(short, std::filesystem::path, bool=false);           // Constructor - parses log filenames and creates log directories (if not already created)
+    LoggerBase(LEVEL, short, std::filesystem::path, bool=false);           // Constructor - parses log filenames and creates log directories (if not already created)
     ~LoggerBase();                                                  // Destructor - closes file stream
 
     template<typename... Ts>
-    void logb(str, str, LEVEL, str, short, Ts...);                  // Buffer and write to output stream(s). Clears buffer
+    void logb(loc&, LEVEL, Ts&&...);                                // Buffer and write to output stream(s)
     void open();                                                    // Open handle to log file
     void close();                                                   // Close handle to log file
 
 private:
-    static const str sep;                                           // Separator string for log prefix (separates level/time block from process info block)
-    static const std::filesystem::path _log_dir;
+
+    str _srcfile;                                                   // File name of src code which constructs this object
     short _pid;                                                     // PID of calling process
     bool _log_to_console;                                           // Whether this instance should output to console
     std::stringstream _f_log;                                       // String stream for buffering/formatting log text
     std::ofstream _os;                                              // ostream to log file
 
     void write(std::ostream& = std::cout);                          // Write to stream (with operator<<)
-    void format(str, str, LEVEL, str, short);                       // Format text and save to _f_log
+    void format(loc&, LEVEL);                                       // Format text and save to _f_log
     void clear();                                                   // Empty _f_log and clear _f_log's state flags
     bool is_open();                                                 // Check if underlying file is open (calls this->_os.is_open)
-    void out();                                                     // Calls this->write for all applicable ostreams
+    void out();                                                     // Calls this->write for all applicable ostreams (this->_os and/or std::cout)
 
     template<typename T, typename... Ts>
-    void concat(std::stringstream&, T, Ts...);                      // Adds data from parameter pack to text
-    void concat(std::stringstream&);                                // Base function for recursive `concat`
+    void concat(std::stringstream&, T&, Ts&&...);                   // Adds data from parameter pack to text
+    void concat(std::stringstream&);                                // Base function for recursive `concat` - does nothing
 
     friend class RootLogger;
     friend class Logger;
 };
 
-
-const str LoggerBase::sep("<->");
-const std::filesystem::path LoggerBase::_log_dir = std::filesystem::path("logs/").append(Tempus::strdatetime(dttm_spec));
-
-LoggerBase::LoggerBase(short pid, std::filesystem::path _srcf, bool log_to_console) : _pid(pid), _log_to_console(log_to_console) {
+LoggerBase::LoggerBase(LEVEL lvl, short pid, std::filesystem::path _srcf, bool log_to_console) : minl(lvl), _pid(pid), _log_to_console(log_to_console) {
     
     this->_srcfile = _srcf.string();
     _srcf = _srcf.replace_extension(".log").filename();
     
     // logs/YYYYmmddTHHMMSS/<srcfile_stem>.log
-    if(not std::filesystem::is_directory(this->_log_dir)){ std::filesystem::create_directories(this->_log_dir); }
-    this->filename = (this->_log_dir / _srcf).string();
+    if(this->minl != NONE){ mkdirs(_log_dir); }
+    this->filename = (_log_dir / _srcf).string();
 
     // log "true/false" instead of "1/0"
     this->_f_log.setf(std::ios_base::boolalpha);
@@ -171,7 +193,7 @@ LoggerBase::~LoggerBase(){
 
 void LoggerBase::write(std::ostream& ostrm){ ostrm << this->_f_log.str(); ostrm.flush(); }
 
-void LoggerBase::format(str txt, str dttm, LEVEL lvl, str function, short line){
+void LoggerBase::format(loc& fmt, LEVEL lvl){
 
     // [Level] Timestamp <-> PID [File:Function:LineNo] <log_text>
     this->_f_log
@@ -179,15 +201,15 @@ void LoggerBase::format(str txt, str dttm, LEVEL lvl, str function, short line){
     // [Level]
                     << "[" << std::setw(5) << std::left << lstrings[lvl] << "] "
     // Timestamp
-                    << dttm << " "
+                    << fmt.dttm << " "
     // "<->"
                     << this->sep << " "
     // PID
                     << std::setw(5) << std::right << this->_pid << " "
     // [File:Function:LineNo]
-                    << "[" << this->_srcfile << ":" << function << ":" << line << "] "
+                    << "[" << this->_srcfile << ":" << fmt.func << ":" << fmt.lineno << "] "
     // <log_text>
-                    << txt << std::endl;
+                    << fmt.txt << std::endl;
 }
 
 void LoggerBase::clear(){
@@ -196,15 +218,15 @@ void LoggerBase::clear(){
 }
 
 template<typename... Ts>
-void LoggerBase::logb(str txt, str dttm, LEVEL lvl, str function, short line, Ts... Args){
+void LoggerBase::logb(loc& fmt, LEVEL lvl, Ts&&... Args){
 
     if(sizeof...(Args)){
-        std::stringstream tmp(txt, std::ios::out | std::ios::app);
+        std::stringstream tmp(fmt.txt, std::ios::out | std::ios::app);
         this->concat(tmp, Args...);
-        txt = tmp.str();
+        fmt.txt = tmp.str();
     }
 
-    this->format(txt, dttm, lvl, function, line);
+    this->format(fmt, lvl);
     this->out();
 }
 
@@ -222,7 +244,7 @@ bool LoggerBase::is_open(){ return this->_os.is_open(); }
 void LoggerBase::concat(std::stringstream &tmp){}
 
 template<typename T, typename... Ts>
-void LoggerBase::concat(std::stringstream &tmp, T val, Ts... Args){
+void LoggerBase::concat(std::stringstream& tmp, T& val, Ts&&... Args){
     tmp << " " << val;
     if(sizeof...(Args)){ this->concat(tmp, Args...); }
 }
@@ -235,8 +257,8 @@ void LoggerBase::concat(std::stringstream &tmp, T val, Ts... Args){
 
 class RootLogger : public LoggerBase{
 public:
-    RootLogger(bool log_to_file=false) : LoggerBase(getpid(), __NAME__, __CONLOG__) {
-        this->minl = ALL;
+    RootLogger(LEVEL lvl=ALL, bool log_to_file=false) : LoggerBase(lvl, getpid(), __NAME__, __CONLOG__) {
+        this->minl = lvl;
         if(log_to_file){ this->open(); }
     };
 
@@ -252,7 +274,7 @@ private:
 
 /*
     LOGGER
-        Writes to <_srcfile> log file (eg. Logger instance in `dep.cpp` writes to `dep.log`)
+        Writes to <_srcfile> log file (eg. Logger instance in `foo.cpp` writes to `foo.log`)
         All logs are sent to RootLogger member first
 */
 
@@ -260,69 +282,48 @@ class Logger : public LoggerBase{
     
     static RootLogger rlog;
 
-    struct loc{
-        loc(
-            str _txt,
-            str _dttm=Tempus::strdatetime(),
-            str _func=__builtin_FUNCTION(),
-            int _lineno=__builtin_LINE()
-        ) noexcept : txt(_txt), dttm(_dttm), func(_func), lineno(_lineno) {}
-
-        loc(
-            const char *_txt,
-            str _dttm=Tempus::strdatetime(),
-            str _func=__builtin_FUNCTION(),
-            int _lineno=__builtin_LINE()
-        ) noexcept : txt(_txt), dttm(_dttm), func(_func), lineno(_lineno) {}
-
-        str txt, dttm, func;
-        int lineno;
-    };
-
-public:
-
-    Logger(LEVEL lvl=__DLVL__, str _srcfile=__builtin_FILE()) : LoggerBase(getpid(), _srcfile, false){
-        this->minl = lvl;
-        this->open();
-    }
-
     template<typename... Ts>
-    void log(str txt, LEVEL lvl, str dttm, str function, short line, Ts... Args){
-        if(lvl >= this->minl){
-            // Format and write
-            this->logb(txt, dttm, lvl, function, line, Args...);
-            // Send to root logger
-            this->rlog.log(this->_f_log);
-        }
+    void log(loc fmt, LEVEL lvl, Ts&&... Args){
+        // Format and write
+        this->logb(fmt, lvl, Args...);
+        // Send to root logger
+        this->rlog.log(this->_f_log);
         this->clear();
     }
 
-    template<typename... Ts>
-    void debug(loc, Ts... Args);
+public:
 
-    template<typename... Ts>
-    void info(loc, Ts... Args);
+    Logger(LEVEL lvl=__DLVL__, const char *_srcfile=__builtin_FILE()) : LoggerBase(lvl, getpid(), _srcfile, false){
+        this->minl = lvl;
+        if(this->minl != NONE){ this->open(); }
+    }
 
-    template<typename... Ts>
-    void warn(loc, Ts... Args);
+    template<typename Source, typename... Ts>
+    void debug(const Source&, Ts&&...);
 
-    template<typename... Ts>
-    void error(loc, Ts... Args);
+    template<typename Source, typename... Ts>
+    void info(const Source&, Ts&&...);
+
+    template<typename Source, typename... Ts>
+    void warn(const Source&, Ts&&...);
+
+    template<typename Source, typename... Ts>
+    void error(const Source&, Ts&&...);
 
 };
 
-RootLogger Logger::rlog(__RFLOG__);
+RootLogger Logger::rlog(__DLVL__, __RFLOG__);
 
-template<typename... Ts>
-inline void Logger::debug(loc fmt, Ts... Args){ this->log(fmt.txt, DEBUG, fmt.dttm, fmt.func, fmt.lineno, Args...); }
+template<typename Source, typename... Ts>
+inline void Logger::debug(const Source& fmt, Ts&&... Args){ if(DEBUG >= this->minl){ this->log(fmt, DEBUG, Args...); } }
 
-template<typename... Ts>
-inline void Logger::info(loc fmt, Ts... Args){ this->log(fmt.txt, INFO, fmt.dttm, fmt.func, fmt.lineno, Args...); }
+template<typename Source, typename... Ts>
+inline void Logger::info(const Source& fmt, Ts&&... Args){ if(INFO >= this->minl){ this->log(fmt, INFO, Args...); } }
 
-template<typename... Ts>
-inline void Logger::warn(loc fmt, Ts... Args){ this->log(fmt.txt, WARN, fmt.dttm, fmt.func, fmt.lineno, Args...); }
+template<typename Source, typename... Ts>
+inline void Logger::warn(const Source& fmt, Ts&&... Args){ if(WARN >= this->minl){ this->log(fmt, WARN, Args...); } }
 
-template<typename... Ts>
-inline void Logger::error(loc fmt, Ts... Args){ this->log(fmt.txt, ERROR, fmt.dttm, fmt.func, fmt.lineno, Args...); }
+template<typename Source, typename... Ts>
+inline void Logger::error(const Source& fmt, Ts&&... Args){ if(ERROR >= this->minl){ this->log(fmt, ERROR, Args...); } }
 
 #endif

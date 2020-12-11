@@ -1,14 +1,14 @@
 #ifndef PGN_H
 #define PGN_H
 
-#include <iostream>
 #include <regex>
 #include <vector>
 
-#include "parsebuf.h"
+#include "log.h"
 #include "types.h"
 #include "util.h"
-#include "log.h"
+#include "parsebuf.h"
+
 #include "board.h"
 #include "disamb.h"
 #include "fen.h"
@@ -22,28 +22,40 @@ class PGN : virtual public ParseBuf<CharT, Traits>{
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
     typedef typename std::basic_string<char_type> string;
-    typedef std::regex_token_iterator<std::string::iterator> rtok;
 
     string _delim = {"\n\n"};
-    Logger log{__FILE__};
+    Logger log;
+    ChessBoard board = ChessBoard();
 
-    void logply(ply);
-
+    // ParseBuf overrides
     void read();
+    int_type parse();
+
+    // Util functions
     void rcharb(char_type);
     void rchar(char_type, string&);
     void clear_tags();
-    int_type parse();
+    void fixendl(string&);
+    bool badendl(const string&);
+    bool elided(const string&);
+
+    // Parsing functions
     int_type tags();
     int_type movetext();
-    std::vector<ply> pplies(std::vector<string>&, bool=false);
-    ply pply(string&, ChessBoard&, bool);
-    int_type cmp(string&, const char*, short=1);
+    string ptok(string&);
+    void tokenize();
+    bool isend(const string&);
+    void pplies(color=white);
+    ply pply(string&, color);
+    ply pcastle(bool, color, bool, bool);
+    ply prest(const string&, color, bool, bool, ptype);
+    int_type cmp(string&, const char, short=1);
 
 public:
 
     pgndict _tags;
     std::vector<ply> _plies;
+    std::vector<string> _tokens;
 
     PGN(string file) : ParseBuf<CharT,Traits>(file) {}
 
@@ -53,21 +65,21 @@ public:
     PGN Member Funcs
 ******************************/
 
-template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::logply(ply p){
-    int src[] = {p.piece.rank, p.piece.file};
-    log.debug("name:", util::pname2s[p.piece.name]);
-    log.debug("src:", util::coord2s(src));
-    log.debug("dst:", util::coord2s(p.dst));
-    log.debug("promo:", util::ptype2s[p.promo]);
-    log.debug("castle:", p.castle);
-    log.debug("capture:", p.capture);
-    log.debug("check:", p.check);
-    log.debug("mate:", p.mate);
-}
-
+/*
+    ParseBuf Overrides
+*/
 template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::read(){ this->_fdev.xsgetn(this->_buf, BUFSIZE, this->_delim); }
+
+template<typename CharT, typename Traits>
+typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::parse(){
+    int_type size = (this->_buf[0] == '[') ? this->tags() : this->movetext();
+    return this->_fdev.eof() ? Traits::eof() : size;
+}
+
+/*
+    Util Functions
+*/
 
 // Remove all instances of a character from a string
 template<typename CharT, typename Traits>
@@ -78,49 +90,7 @@ void PGN<CharT, Traits>::rchar(PGN<CharT, Traits>::char_type c, PGN<CharT, Trait
 
 // Remove all instances of a character from _buf
 template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::rcharb(PGN<CharT, Traits>::char_type c)
-{ this->rchar(c, this->_buf); }
-
-template<typename CharT, typename Traits>
-typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::parse(){
-    int_type size = (this->_buf[0] == '[') ? this->tags() : this->movetext();
-    return this->_fdev.eof ? Traits::eof() : size;
-}
-
-template<typename CharT, typename Traits>
-typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::tags(){
-    
-    std::basic_stringstream<CharT, Traits> tmp;
-    string keytok, valtok;
-    int_type pos, size;
-    std::map<std::string, pgntag>::iterator end = util::pgn::s2tag.end();
-
-    log.info("Parsing Tags");
-    log.debug(this->_buf);
-    size = this->_buf.size();
-
-    this->clear_tags();
-
-    // strip brackets
-    for(const char *c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); c++){ this->rcharb(*c); }
-
-    // Copy _buf to sstream for tokenizing
-    tmp.str(this->_buf);
-    while(std::getline(tmp, this->_buf)){
-
-        pos = this->_buf.find(' ');
-        keytok = this->_buf.substr(0, pos);
-        util::lowercase(keytok);
-
-        if(util::pgn::s2tag.find(keytok) != end){
-            valtok = this->_buf.substr(pos+1);
-            this->rchar(util::pgn::value_delim, valtok);
-            this->_tags[util::pgn::s2tag[keytok]] = valtok;
-        }
-    }
-    this->log.info("End of Tags");
-    return size;
-}
+void PGN<CharT, Traits>::rcharb(PGN<CharT, Traits>::char_type c){ this->rchar(c, this->_buf); }
 
 template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::clear_tags(){
@@ -130,166 +100,199 @@ void PGN<CharT, Traits>::clear_tags(){
 }
 
 template<typename CharT, typename Traits>
-typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::movetext(){
-    
-    int_type idx, size;
-    rtok end;
-    string turn, p;
-    std::vector<string> ply_s;
-    bool start_on_black;
+void PGN<CharT, Traits>::fixendl(PGN<CharT, Traits>::string& buf){
+    int_type idx;
+    while((idx = buf.find('\n')) != string::npos){
+        // All \n must be preceded by '.' or ' '
+        if(badendl(buf.substr(idx-1,2))){ buf.insert(idx++, 1, ' '); }
+        buf.erase(idx, 1);
+    }
+}
+
+template<typename CharT, typename Traits>
+inline bool PGN<CharT, Traits>::badendl(const PGN<CharT, Traits>::string& substr){ return std::regex_match(substr, util::pgn::nds); }
+
+template<typename CharT, typename Traits>
+inline bool PGN<CharT, Traits>::elided(const PGN<CharT, Traits>::string& substr){ return std::regex_match(substr, util::pgn::missing_ply); }
+
+/*
+    Parsing Functions
+*/
+
+template<typename CharT, typename Traits>
+typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::tags(){
+    this->log.info("Parsing Tags");
+    this->log.debug(this->_buf);
+    int_type size = this->_buf.size();
+
+    this->clear_tags();
+
+    // strip brackets
+    for(const char *c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); c++){ this->rcharb(*c); }
+
+    // Copy _buf to sstream for tokenizing
+    std::basic_stringstream<CharT, Traits> bufstr(this->_buf);
+    while(std::getline(bufstr, this->_buf)){
+
+        int_type pos = this->_buf.find(' ');
+        string keytok = this->_buf.substr(0, pos);
+        util::lowercase(keytok);
+
+        if(util::pgn::s2tag.find(keytok) != util::pgn::s2tag.end()){
+            string valtok = this->_buf.substr(pos+1);
+            this->rchar(util::pgn::value_delim, valtok);
+            this->_tags[util::pgn::s2tag[keytok]] = valtok;
+        }
+    }
+    this->log.info("End of Tags");
+    return size;
+}
+
+template<typename CharT, typename Traits>
+typename PGN<CharT, Traits>::int_type
+PGN<CharT, Traits>::movetext(){
 
     this->log.info("Parsing Movetext");
     this->log.debug(this->_buf);
-    size = this->_buf.size();
 
-    /*
-        TOKENIZE
-    */
+    // Return value
+    int_type size = this->_buf.size();
 
-    // Concatenate lines (all \n must be preceded by '.' or ' ')
-    while((idx = this->_buf.find('\n')) != string::npos){
-        if((this->_buf[idx-1] != ' ') && (this->_buf[idx-1] != '.')){ this->_buf.insert(idx++, 1, ' '); }
-        this->_buf.erase(idx, 1);
-    }
+    // Check start for elided white ply at start of movetext
+    bool black_starts = std::regex_search(this->_buf.substr(0,6), util::pgn::black_starts);
 
-    // Split on "\d{1,}\." (ie. turn numbers)
-    rtok g(this->_buf.begin(), this->_buf.end(), util::pgn::move_num_r, -1);
-    while(g != end){
-        turn = *g++;
-        if(turn.empty()){ continue; }
+    // Concatenate lines
+    this->fixendl(this->_buf);
 
-        // Add space if continuation (.. or --) is found at beginning of string
-        if(std::regex_match(turn.substr(0,2), util::pgn::missing_ply)){ turn.insert(turn.begin()+2, ' '); }
+    // Tokenize into individual plies
+    this->tokenize();
 
-        // Split again on \s (ie. ply separator)
-        rtok t(turn.begin(), turn.end(), util::ws, -1);
-        while(t != end){
-            p = *t;
-            if(!p.empty()){ ply_s.push_back(p); }
-            t++;
-        }
-    }
+    // Parse ply tokens
+    this->pplies(black_starts ? black : white);
 
-    // Remove elided ply (".." or "--")
-    if(start_on_black = std::regex_match(ply_s[0], util::pgn::missing_ply)){ ply_s.erase(ply_s.begin()); }
-
-    /*
-        PARSE PLIES
-    */
-    this->_plies = this->pplies(ply_s, start_on_black);
+    this->log.info("End of Movetext.");
+    this->log.debug("Ply count:", this->_plies.size());
 
     return size;
 }
 
 template<typename CharT, typename Traits>
-std::vector<ply>
-PGN<CharT, Traits>::pplies(std::vector<PGN<CharT, Traits>::string>& ply_s, bool start_on_black){
-
-    ChessBoard board;
-    if(not this->_tags[fenstr].empty()){ start_on_black = fen::parse(this->_tags[fenstr], board); }
-
-    std::vector<ply> res;
-    bool bply = start_on_black ? true : false;
-
-    for(typename std::vector<string>::iterator it=ply_s.begin(); it!=ply_s.end(); ++it){
-
-        this->log.debug("Parsing:", (bply ? "b" : "w"), *it);
-
-        if(std::regex_match(*it, util::pgn::game_result)){ break; }
-
-        res.push_back(this->pply(*it, board, bply));
-        bply = !bply;
-    }
-
-    this->log.info("End of Movetext.", res.size(), "plies");
-    return res;
+typename PGN<CharT, Traits>::string
+PGN<CharT, Traits>::ptok(PGN<CharT, Traits>::string& tok){
+    if(isdigit(tok[0])){ tok.erase(0, tok.find('.')+1); }
+    while((tok[0] == '.') | (tok[0] == '-')){ tok.erase(0,1); }
+    return tok;
 }
 
 template<typename CharT, typename Traits>
-ply PGN<CharT, Traits>::pply(PGN<CharT, Traits>::string& p, ChessBoard& board, bool bply){
+void PGN<CharT, Traits>::tokenize(){
 
-    // Coord tracking
-    int_type src[2]{-1, -1},
-             dst[2]{-1, -1},
-             *ranks[2]{&dst[0], &src[0]},
-             *files[2]{&dst[1], &src[1]},
-    // Castle tracking
-             castle = 0;
+    this->_tokens.clear();
+    std::stringstream str(this->_buf);
+    string tok;
+    while(!str.eof()){
+        str >> tok;
+        this->_tokens.emplace_back(this->ptok(tok));
+    }
+}
 
-    // Move flags
-    bool check{false}, mate{false}, capture{false};
+template<typename CharT, typename Traits>
+bool PGN<CharT, Traits>::isend(const PGN<CharT, Traits>::string& tok){
+    if(
+        (tok ==       "*") ||
+        (tok ==     "1-0") ||
+        (tok ==     "0-1") ||
+        (tok == "1/2-1/2")
+    )   { return true; }
+    else{ return false; }
+}
 
-    // Piece info
-    ptype piece_type{pawn}, promo{pawn};
-    pname idx = NONAME;
+template<typename CharT, typename Traits>
+void PGN<CharT, Traits>::pplies(color c){
+
+    this->board.newgame();
+    this->_plies.clear();
+
+    if(!this->_tags[fenstr].empty()){ c = fen::parse(this->_tags[fenstr], this->board); }
+
+    for(typename std::vector<string>::iterator it=this->_tokens.begin(); it!=this->_tokens.end(); ++it){
+
+        this->log.debug("Parsing:", util::color2c(c), *it);
+
+        if((*it).empty()){ continue; }
+        else if(this->isend(*it)){ break; }
+
+        this->_plies.emplace_back(board.update(this->pply(*it, c)));
+        c = !c;
+    }
+}
+
+template<typename CharT, typename Traits>
+ply PGN<CharT, Traits>::pply(PGN<CharT, Traits>::string& p, color c){
 
     // Parse and remove flags
-    check = (bool) this->cmp(p, "+");
-    check = (bool) this->cmp(p, "#");
-    promo = static_cast<ptype>(this->cmp(p, "=", 2));
+    bool check = (bool) this->cmp(p, '+');
+    bool mate = (bool) this->cmp(p, '#');
+    ptype promo = static_cast<ptype>(this->cmp(p, '=', 2));
 
-    // Castle
-    bool kingside{!p.compare("O-O")}, queenside{!p.compare("O-O-O")};
-    if(kingside | queenside){
+    bool kingside{!p.compare("O-O")},
+         queenside{!p.compare("O-O-O")};
 
-        this->log.debug(kingside ? "Kingside" : "Queenside", "castle");
+    // Shortcut for castles
+    if(kingside | queenside){ return this->pcastle(queenside, c, check, mate); }
+    else                    { return this->prest(p, c, check, mate, promo); }
+}
 
-        castle = kingside + (-1 * queenside);
-        idx = disamb::K(bply);
+template<typename CharT, typename Traits>
+ply PGN<CharT, Traits>::pcastle(bool qs, color c, bool check, bool mate){
+    U64 src = this->board.board(king, c),
+        dst = qs ? (src >> 2) : (src << 2);
+    return {src, dst, king, pawn, c, qs ? -1 : 1, false, check, mate};
+}
 
-        dst[0] = src[0] = board[idx].first;
-        src[1] = board[idx].second;
-        dst[1] = src[1] + (queenside ? -2 : 2);
+template<typename CharT, typename Traits>
+ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string& p, color c, bool check, bool mate, ptype promo){
+    int_type f = 0, r = 0;
+    square srcsq = 0, dstsq = 0;
+    bool capture = false;
+    ptype pt = pawn;
+
+    for(typename string::const_reverse_iterator it=p.rbegin(); it!=p.rend(); ++it){
+        char_type ch = *it;
+        if(util::ispiece(ch)){ pt = util::c2ptype(ch); }
+        else if(util::isfile(ch)){ (!f++ ? dstsq : srcsq) += util::c2file(ch); }
+        else if(isdigit(ch)){ (!r++ ? dstsq : srcsq) += 8*util::c2rank(ch); }
+        else if(ch == 'x'){ capture = true; }
+        else{ this->log.error("Unrecognized character in ply:", ch); }
     }
+
+    U64 dst = mask(dstsq);
+    U64 src(0);
+    if(r==2 && f==2) { src = mask(srcsq); }
     else{
-        int_type f = 0, r = 0;
-        char_type c;
-
-        for(typename string::reverse_iterator it=p.rbegin(); it!=p.rend(); ++it){
-            c = *it;
-            if(util::ispiece(c)){ piece_type = util::c2ptype[c]; }
-            else if(util::isfile(c)){ *files[f++] = util::c2file[c]; }
-            else if(isdigit(c)){ *ranks[r++] = (c - '0') - 1; }
-            else if(c == 'x'){ capture = true; }
-            else{ this->log.error("Unrecognized character in ply:", c); }
-        }
-
-        this->log.debug("piece_type:", util::ptype2s[piece_type]);
-        this->log.debug("src:", util::coord2s(src));
-        this->log.debug("dst:", util::coord2s(dst));
-
-        idx = (src[0]==-1 || src[1]==-1)
-              ? disamb::pgnply(piece_type, src, dst, board, bply, capture)
-              : board.board[src[0]][src[1]]->name;
-
-        this->log.debug(util::pname2s[idx]);
+        if(r==2)     { src = board.rmasks[srcsq]; }
+        else if(f==2){ src = board.fmasks[srcsq]; }
+        src = disamb::pgn(src, dst, pt, c, this->board, capture);
     }
 
-    if(idx == NONAME){ this->log.error("Failed to disambiguate:", p); }
-
-    this->log.debug("Constructing ply object");
-    ply res{pce{idx, src}, dst, castle, capture, check, mate, promo};
-
-    this->log.debug("Updating board");
-    board.update(res);
-    board.log_board();
-
-    this->log.debug("Returning ply");
-    return res;
+    return {src, dst, pt, promo, c, 0, capture, check, mate};
 }
 
 template<typename CharT, typename Traits>
 typename PGN<CharT, Traits>::int_type
-PGN<CharT, Traits>::cmp(PGN<CharT, Traits>::string& p, const char *c, short l){
-    size_t mod;
-    short retval;
-    if((mod = p.find(c)) != string::npos){
-        retval = (l==2) ? (int_type) util::c2ptype[p[mod+1]] : 1;
+PGN<CharT, Traits>::cmp(PGN<CharT, Traits>::string& p, const char ch, short l){
+    short retval = 0, mod;
+    if((mod = p.find(ch)) != string::npos){
+        retval = (l==2) ? (int_type) util::c2ptype(p[mod+1]) : 1;
         p.erase(mod, l);
     }
-    else{ retval = 0; }
     return retval;
 }
+
+
+
+
+
 
 
 /******************************

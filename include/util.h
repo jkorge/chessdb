@@ -9,8 +9,6 @@
 
 #include "types.h"
 
-
-
 namespace util{
     /*
         UTILITY OBJECTS FOR ENTIRE PROJECT
@@ -19,183 +17,181 @@ namespace util{
     // Whitespace regex
     const std::regex ws("\\s");
 
-    // Get string from pname
-    std::map<pname, str> pname2s{
-        {white_pawn_a, "white_pawn_a"},
-        {white_pawn_b, "white_pawn_b"},
-        {white_pawn_c, "white_pawn_c"},
-        {white_pawn_d, "white_pawn_d"},
-        {white_pawn_e, "white_pawn_e"},
-        {white_pawn_f, "white_pawn_f"},
-        {white_pawn_g, "white_pawn_g"},
-        {white_pawn_h, "white_pawn_h"},
-        {white_knight_b, "white_knight_b"},
-        {white_knight_g, "white_knight_g"},
-        {white_bishop_c, "white_bishop_c"},
-        {white_bishop_f, "white_bishop_f"},
-        {white_rook_a, "white_rook_a"},
-        {white_rook_h, "white_rook_h"},
-        {white_queen_d, "white_queen_d"},
-        {white_king_e, "white_king_e"},
+    // Newline string
+    const str endl = str("\n");
 
-        {black_pawn_a, "black_pawn_a"},
-        {black_pawn_b, "black_pawn_b"},
-        {black_pawn_c, "black_pawn_c"},
-        {black_pawn_d, "black_pawn_d"},
-        {black_pawn_e, "black_pawn_e"},
-        {black_pawn_f, "black_pawn_f"},
-        {black_pawn_g, "black_pawn_g"},
-        {black_pawn_h, "black_pawn_h"},
-        {black_knight_b, "black_knight_b"},
-        {black_knight_g, "black_knight_g"},
-        {black_bishop_c, "black_bishop_c"},
-        {black_bishop_f, "black_bishop_f"},
-        {black_rook_a, "black_rook_a"},
-        {black_rook_h, "black_rook_h"},
-        {black_queen_d, "black_queen_d"},
-        {black_king_e, "black_king_e"},
+    // Starting positions for a standard game of chess
+    const U64 white_pawns = 0x000000000000ff00,
+        white_knights = 0x0000000000000042,
+        white_bishops = 0x0000000000000024,
+        white_rooks = 0x0000000000000081,
+        white_queen = 0x0000000000000008,
+        white_king = 0x0000000000000010;
 
-        {NONAME, "none"}
-    };
+    const U64 black_pawns = white_pawns << 40,
+        black_knights = white_knights << 56,
+        black_bishops =  white_bishops << 56,
+        black_rooks =  white_rooks << 56,
+        black_queen =  white_queen << 56,
+        black_king =  white_king << 56;
 
-    // Map pieces to their starting positions for a standard game of chess
-    const std::map<pname, ipair> start_coords{
-        {white_pawn_a, std::make_pair(1,0)},
-        {white_pawn_b, std::make_pair(1,1)},
-        {white_pawn_c, std::make_pair(1,2)},
-        {white_pawn_d, std::make_pair(1,3)},
-        {white_pawn_e, std::make_pair(1,4)},
-        {white_pawn_f, std::make_pair(1,5)},
-        {white_pawn_g, std::make_pair(1,6)},
-        {white_pawn_h, std::make_pair(1,7)},
-        {white_knight_b, std::make_pair(0,1)},
-        {white_knight_g, std::make_pair(0,6)},
-        {white_bishop_c, std::make_pair(0,2)},
-        {white_bishop_f, std::make_pair(0,5)},
-        {white_rook_a, std::make_pair(0,0)},
-        {white_rook_h, std::make_pair(0,7)},
-        {white_queen_d, std::make_pair(0,3)},
-        {white_king_e, std::make_pair(0,4)},
+    std::map<color,std::map<ptype, U64> > start_coords{
+        {
+            white,
+            {
+                {pawn,   white_pawns},
+                {knight, white_knights},
+                {bishop, white_bishops},
+                {rook,   white_rooks},
+                {queen,  white_queen},
+                {king,   white_king}
+            }
+        },
 
-        {black_pawn_a, std::make_pair(6,0)},
-        {black_pawn_b, std::make_pair(6,1)},
-        {black_pawn_c, std::make_pair(6,2)},
-        {black_pawn_d, std::make_pair(6,3)},
-        {black_pawn_e, std::make_pair(6,4)},
-        {black_pawn_f, std::make_pair(6,5)},
-        {black_pawn_g, std::make_pair(6,6)},
-        {black_pawn_h, std::make_pair(6,7)},
-        {black_knight_b, std::make_pair(7,1)},
-        {black_knight_g, std::make_pair(7,6)},
-        {black_bishop_c, std::make_pair(7,2)},
-        {black_bishop_f, std::make_pair(7,5)},
-        {black_rook_a, std::make_pair(7,0)},
-        {black_rook_h, std::make_pair(7,7)},
-        {black_queen_d, std::make_pair(7,3)},
-        {black_king_e, std::make_pair(7,4)}
+        {
+            black,
+            {
+                {pawn,   black_pawns},
+                {knight, black_knights},
+                {bishop, black_bishops},
+                {rook,   black_rooks},
+                {queen,  black_queen},
+                {king,   black_king}
+            }
+        }
     };
 
     // Piece and file identifiers
     const str pieces = "KQRBN";
     const str files = "abcdefgh";
+    const str ranks = "12345678";
 
     // Get file from char
-    std::map<char, int> c2file{
-        {'a', 0},
-        {'b', 1},
-        {'c', 2},
-        {'d', 3},
-        {'e', 4},
-        {'f', 5},
-        {'g', 6},
-        {'h', 7}
-    };
-
-    // Get char from file
-    std::map<int, char> file2c{
-        {0, 'a'},
-        {1, 'b'},
-        {2, 'c'},
-        {3, 'd'},
-        {4, 'e'},
-        {5, 'f'},
-        {6, 'g'},
-        {7, 'h'}
-    };
-
-    // Get char from rank
-    std::map<int, char> rank2c{
-        {0, '1'},
-        {1, '2'},
-        {2, '3'},
-        {3, '4'},
-        {4, '5'},
-        {5, '6'},
-        {6, '7'},
-        {7, '8'}
-    };
-
-    // Get ptype from char
-    std::map<char, ptype> c2ptype{
-        {'K', king},
-        {'Q', queen},
-        {'R', rook},
-        {'B', bishop},
-        {'N', knight},
-        {'^', pawn},
-        {'_', NOTYPE}
-    };
-
-    // Get char from ptype
-    std::map<ptype, char> ptype2c{
-        {king, 'K'},
-        {queen, 'Q'},
-        {rook, 'R'},
-        {bishop, 'B'},
-        {knight, 'N'},
-        {pawn, '^'},
-        {NOTYPE, '_'}
-    };
-
-    // pytpes as strings for iostreams
-    std::map<ptype, str> ptype2s{
-        {king, "king"},
-        {queen, "queen"},
-        {rook, "rook"},
-        {bishop, "bishop"},
-        {knight, "knight"},
-        {pawn, "pawn"},
-        {NOTYPE, "none"}
-    };
-
-    /* Map of (square color, piece color) to bishop names
-        outer key => flag for dark square
-        inner key => flag for black ply
-    */
-    std::map<bool, std::map<bool, pname>> bmap{
-        {true,  {{true, black_bishop_f}, {false, white_bishop_c}}},
-        {false, {{true, black_bishop_c}, {false, white_bishop_f}}}
-    };
-
-    // True if c in util::pieces
-    bool ispiece(char c){ return pieces.find(c) != str::npos; }
-
-    // True if c in util::files
-    bool isfile(char c){ return files.find(c) != str::npos; }
-
-    // Compute piece type from its name (doesn't work for promoted pawns)
-    ptype name2type(pname pn){
-        int v = pn%16;
-        return static_cast<ptype>(v/8 + v/10 + v/12 + v/14 + v/15);
+    int c2file(char f){
+        switch(f){
+            case 'a': return 0;
+            case 'b': return 1;
+            case 'c': return 2;
+            case 'd': return 3;
+            case 'e': return 4;
+            case 'f': return 5;
+            case 'g': return 6;
+            default: return 7;
+        }
     }
 
-    bool inbounds(int r, int f){ return (r>=0 && r<8) && (f>=0 && f<8); }
-    bool inbounds(int *dst){ return (dst[0]>=0 && dst[0]<8) && (dst[1]>=0 && dst[1]<8); }
-    bool inbounds(ipair dst){ return (dst.first>=0 && dst.first<8) && (dst.second>=0 && dst.second<8); }
+    // Get char from file
+    char file2c(int f){
+        switch(f){
+            case 0: return 'a';
+            case 1: return 'b';
+            case 2: return 'c';
+            case 3: return 'd';
+            case 4: return 'e';
+            case 5: return 'f';
+            case 6: return 'g';
+            default: return 'h';
+        }
+    }
 
-    str coord2s(int *src){ return str("(") + std::to_string(src[0]) + ", " + std::to_string(src[1]) + ')'; }
+    // Get rank from char
+    int c2rank(char r){
+        switch(r){
+            case '1': return 0;
+            case '2': return 1;
+            case '3': return 2;
+            case '4': return 3;
+            case '5': return 4;
+            case '6': return 5;
+            case '7': return 6;
+            default: return 7;
+        }
+    }
 
-    str coord2s(int r, int f){ return str("(") + std::to_string(r) + ", " + std::to_string(f) + ')'; }
+    // Get char from rank
+    char rank2c(int r){
+        switch(r){
+            case 0: return '1';
+            case 1: return '2';
+            case 2: return '3';
+            case 3: return '4';
+            case 4: return '5';
+            case 5: return '6';
+            case 6: return '7';
+            default: return '8';
+        }
+    }
+
+    // Get ptype from char
+    ptype c2ptype(char p){
+        switch(p){
+            case '^': return pawn;
+            case 'N': return knight;
+            case 'B': return bishop;
+            case 'R': return rook;
+            case 'Q': return queen;
+            case 'K': return king;
+            default: return NOTYPE;
+        }
+    }
+
+    // Get char from ptype
+    char ptype2c(ptype p){
+        switch(p){
+            case pawn: return '^';
+            case knight: return 'N';
+            case bishop: return 'B';
+            case rook: return 'R';
+            case queen: return 'Q';
+            case king: return 'K';
+            default: return '_';
+        }
+    }
+
+    // Get string from ptype
+    str ptype2s(ptype p){
+        switch(p){
+            case pawn: return "pawn";
+            case knight: return "knight";
+            case bishop: return "bishop";
+            case rook: return "rook";
+            case queen: return "queen";
+            case king: return "king";
+            default: return "none";
+        }
+    }
+
+    // Get string from color
+    str color2s(color c){
+        switch(c){
+            case white: return "white";
+            case black: return "black";
+            default: return "none";
+        }
+    }
+
+    // Get char from color
+    char color2c(color c){
+        switch(c){
+            case white: return 'w';
+            case black: return 'b';
+            default: return ' ';
+        }
+    }
+
+    // Iterators to end of regex_token_iterator results
+    std::regex_token_iterator<std::string::iterator> rtokend;
+    std::regex_token_iterator<std::string::const_iterator> crtokend;
+
+    template<typename T=int>
+    str coord2s_(const coords<T>& src){ return str("(") + std::to_string(src.rf[0]) + ", " + std::to_string(src.rf[1]) + ')';; }
+
+    template<typename T>
+    str coord2s(T&& src){ return coord2s_(rf(src)); }
+
+    bool ispiece(char c){ return pieces.find(c) != str::npos; }
+
+    bool isfile(char c){ return files.find(c) != str::npos; }
 
     void uppercase(char *start, char *end){ std::transform(start, end, start, toupper); }
 
@@ -224,13 +220,19 @@ namespace util{
         // Regex for continuation (eg. "1... Rc5" implies white's move is missing - usually preceded by FEN tag)
         const std::regex missing_ply("(-{2}|\\.{2})");
 
+        // Delimiter for parsing moves in SAN
+        const std::regex move_num_r("(\\d{1,}\\.)");
+
+        // Regex for movetext that opens with an elided white ply
+        const std::regex black_starts("\\d{1,}\\.{3}");
+
+        // Regex for newline NOT preceded by dot or space
+        std::regex nds("[^\\.\\s]\\n");
+
         // Delimiters for parsing PGN tags
         const char tag_delims[]{"[]"};
         const char key_delim = ' ';
         const char value_delim = '\"';
-
-        // Delimiter for parsing moves in SAN
-        const std::regex move_num_r("(\\d{1,}\\.)");
 
         // Get pgntag from string
         std::map<str, pgntag> s2tag{
@@ -238,8 +240,8 @@ namespace util{
             {"site", site},
             {"date", date},
             {"round", round},
-            {"white", white},
-            {"black", black},
+            {"white", playerw},
+            {"black", playerb},
             {"result", result},
             {"eco", eco},
             {"fen", fenstr},
@@ -258,8 +260,8 @@ namespace util{
             {site, "site"},
             {date, "date"},
             {round, "round"},
-            {white, "white"},
-            {black, "black"},
+            {playerw, "white"},
+            {playerb, "black"},
             {result, "result"},
             {eco, "eco"},
             {fenstr, "fen"},
@@ -285,21 +287,21 @@ namespace util{
         // FEN string for new (standard) game of chess
         const str new_game("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
-        std::map<char, ptype> c2type{
-            {'p',pawn},
-            {'n',knight},
-            {'b',bishop},
-            {'r',rook},
-            {'q',queen},
-            {'k',king},
-
-            {'P',pawn},
-            {'N',knight},
-            {'B',bishop},
-            {'R',rook},
-            {'Q',queen},
-            {'K',king}
-        };
+        ptype c2type(char p){
+            switch(p){
+                case 'p': return pawn;
+                case 'P': return pawn;
+                case 'n': return knight;
+                case 'N': return knight;
+                case 'b': return bishop;
+                case 'B': return bishop;
+                case 'r': return rook;
+                case 'R': return rook;
+                case 'q': return queen;
+                case 'Q': return queen;
+                default: return king;
+            }
+        }
     }
 }
 
