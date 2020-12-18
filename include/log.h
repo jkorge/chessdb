@@ -298,32 +298,32 @@ public:
         if(this->minl != NONE){ this->open(); }
     }
 
-    template<typename Source, typename... Ts>
-    void debug(const Source&, Ts&&...);
+    template<typename... Ts>
+    void debug(loc, Ts&&...);
 
-    template<typename Source, typename... Ts>
-    void info(const Source&, Ts&&...);
+    template<typename... Ts>
+    void info(loc, Ts&&...);
 
-    template<typename Source, typename... Ts>
-    void warn(const Source&, Ts&&...);
+    template<typename... Ts>
+    void warn(loc, Ts&&...);
 
-    template<typename Source, typename... Ts>
-    void error(const Source&, Ts&&...);
+    template<typename... Ts>
+    void error(loc, Ts&&...);
 
 };
 
 RootLogger Logger::rlog(__DLVL__, __RFLOG__);
 
-template<typename Source, typename... Ts>
-inline void Logger::debug(const Source& fmt, Ts&&... Args){ if(DEBUG >= this->minl){ this->log(fmt, DEBUG, Args...); } }
+template<typename... Ts>
+inline void Logger::debug(loc fmt, Ts&&... Args){ if(DEBUG >= this->minl){ this->log(fmt, DEBUG, Args...); } }
 
-template<typename Source, typename... Ts>
-inline void Logger::info(const Source& fmt, Ts&&... Args){ if(INFO >= this->minl){ this->log(fmt, INFO, Args...); } }
+template<typename... Ts>
+inline void Logger::info(loc fmt, Ts&&... Args){ if(INFO >= this->minl){ this->log(fmt, INFO, Args...); } }
 
-template<typename Source, typename... Ts>
-inline void Logger::warn(const Source& fmt, Ts&&... Args){ if(WARN >= this->minl){ this->log(fmt, WARN, Args...); } }
+template<typename... Ts>
+inline void Logger::warn(loc fmt, Ts&&... Args){ if(WARN >= this->minl){ this->log(fmt, WARN, Args...); } }
 
-template<typename Source, typename... Ts>
-inline void Logger::error(const Source& fmt, Ts&&... Args){ if(ERROR >= this->minl){ this->log(fmt, ERROR, Args...); } }
+template<typename... Ts>
+inline void Logger::error(loc fmt, Ts&&... Args){ if(ERROR >= this->minl){ this->log(fmt, ERROR, Args...); } }
 
 #endif
