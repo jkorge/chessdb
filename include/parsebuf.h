@@ -19,7 +19,7 @@ class ParseBuf : virtual public std::basic_streambuf<CharT, Traits> {
     
 public:
 
-    ParseBuf(string file) : std::basic_streambuf<CharT, Traits>(), _fdev(file, "r") {}
+    ParseBuf(string file) : std::basic_streambuf<CharT, Traits>(), _fdev(file, "rb") {}
     ~ParseBuf(){ this->_fdev.close(); }
 
 protected:
@@ -33,7 +33,7 @@ protected:
     void set_get(int_type);
     int_type uflow();
     int_type underflow();
-    int_type sync();
+    int sync();
 
 
 };
@@ -71,8 +71,7 @@ ParseBuf<CharT, Traits>::underflow(){
 }
 
 template<typename CharT, typename Traits>
-typename ParseBuf<CharT, Traits>::int_type
-ParseBuf<CharT, Traits>::sync(){
+int ParseBuf<CharT, Traits>::sync(){
     // Parse and clear buffer
     if(!this->_buf.empty()){ this->parse(); }
     this->_buf.clear();

@@ -49,7 +49,11 @@ template<typename CharT, typename Traits>
 void FileBase<CharT, Traits>::xsgetn(
     typename FileBase<CharT, Traits>::string& buf,
     std::streamsize n
-){ std::fread(buf.data(), sizeof(CharT), n, this->_M_file); }
+){
+    char_type tmp[n];
+    std::fread(tmp, sizeof(char_type), n, this->_M_file);
+    buf = tmp;
+}
 
 // Read into string buf. Reads up to n bytes, EOF, or delim (whichever comes first)
 template<typename CharT, typename Traits>
@@ -59,9 +63,10 @@ void FileBase<CharT, Traits>::xsgetn(
     typename FileBase<CharT, Traits>::char_type delim
 ){
     int_type c;
-    for(short i=0; i<n; i++){
+    for(int i=0; i<n; i++){
         if((c = std::fgetc(this->_M_file)) == Traits::eof()){ break; }
         else if(c == delim){ break; }
+        else if(c == '\r'){ continue; }
         else{ buf.push_back(Traits::to_char_type(c)); }
     }
 }
@@ -75,20 +80,24 @@ void FileBase<CharT, Traits>::xsgetn(
     typename FileBase<CharT, Traits>::string& delim
 ){
 
-    char_type c;
+    int_type c;
+    char_type ch;
     string s(delim.size(), ' ');
 
     if(std::fgets(s.data(), delim.size()+1, this->_M_file) != NULL){
-        for(short i=delim.size(); i<n; i++){
+        for(int i=delim.size(); i<n; i++){
             if(s == delim){
                 s.clear();
                 break;
             }
             else{
-                buf.push_back(s[0]);
-                s.erase(0, 1);
                 if((c = std::fgetc(this->_M_file)) == Traits::eof()){ break; }
-                else{ s.push_back(Traits::to_char_type(c)); }
+                else if((ch = Traits::to_char_type(c)) == '\r'){ continue; }
+                else{
+                    buf.push_back(s[0]);
+                    s.erase(0, 1);
+                    s.push_back(ch);
+                }
             }
         }
         buf += s;
