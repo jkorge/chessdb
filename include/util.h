@@ -76,20 +76,20 @@ namespace util{
             case 'e': return 4;
             case 'f': return 5;
             case 'g': return 6;
-            default: return 7;
+            default:  return 7;
         }
     }
 
     // Get char from file
     char file2c(int f){
         switch(f){
-            case 0: return 'a';
-            case 1: return 'b';
-            case 2: return 'c';
-            case 3: return 'd';
-            case 4: return 'e';
-            case 5: return 'f';
-            case 6: return 'g';
+            case 0:  return 'a';
+            case 1:  return 'b';
+            case 2:  return 'c';
+            case 3:  return 'd';
+            case 4:  return 'e';
+            case 5:  return 'f';
+            case 6:  return 'g';
             default: return 'h';
         }
     }
@@ -104,20 +104,20 @@ namespace util{
             case '5': return 4;
             case '6': return 5;
             case '7': return 6;
-            default: return 7;
+            default:  return 7;
         }
     }
 
     // Get char from rank
     char rank2c(int r){
         switch(r){
-            case 0: return '1';
-            case 1: return '2';
-            case 2: return '3';
-            case 3: return '4';
-            case 4: return '5';
-            case 5: return '6';
-            case 6: return '7';
+            case 0:  return '1';
+            case 1:  return '2';
+            case 2:  return '3';
+            case 3:  return '4';
+            case 4:  return '5';
+            case 5:  return '6';
+            case 6:  return '7';
             default: return '8';
         }
     }
@@ -131,33 +131,33 @@ namespace util{
             case 'R': return rook;
             case 'Q': return queen;
             case 'K': return king;
-            default: return NOTYPE;
+            default:  return NOTYPE;
         }
     }
 
     // Get char from ptype
     char ptype2c(ptype p){
         switch(p){
-            case pawn: return '^';
+            case pawn:   return '^';
             case knight: return 'N';
             case bishop: return 'B';
-            case rook: return 'R';
-            case queen: return 'Q';
-            case king: return 'K';
-            default: return '_';
+            case rook:   return 'R';
+            case queen:  return 'Q';
+            case king:   return 'K';
+            default:     return '_';
         }
     }
 
     // Get string from ptype
     str ptype2s(ptype p){
         switch(p){
-            case pawn: return "pawn";
+            case pawn:   return "pawn";
             case knight: return "knight";
             case bishop: return "bishop";
-            case rook: return "rook";
-            case queen: return "queen";
-            case king: return "king";
-            default: return "none";
+            case rook:   return "rook";
+            case queen:  return "queen";
+            case king:   return "king";
+            default:     return "none";
         }
     }
 
@@ -166,7 +166,7 @@ namespace util{
         switch(c){
             case white: return "white";
             case black: return "black";
-            default: return "none";
+            default:    return "none";
         }
     }
 
@@ -175,7 +175,7 @@ namespace util{
         switch(c){
             case white: return 'w';
             case black: return 'b';
-            default: return ' ';
+            default:    return ' ';
         }
     }
 
@@ -184,22 +184,28 @@ namespace util{
     std::regex_token_iterator<std::string::const_iterator> crtokend;
 
     template<typename T=int>
-    str coord2s_(const coords<T>& src){ return str("(") + std::to_string(src.rf[0]) + ", " + std::to_string(src.rf[1]) + ')';; }
+    str coord2s_(const coords<T>& src){ return str("(") + std::to_string(src[0]) + ", " + std::to_string(src[1]) + ')';; }
 
     template<typename T>
     str coord2s(T&& src){ return coord2s_(rf(src)); }
 
-    bool ispiece(char c){ return pieces.find(c) != str::npos; }
+    template<typename CharT>
+    bool ispiece(CharT c){ return pieces.find(c) != str::npos; }
 
-    bool isfile(char c){ return files.find(c) != str::npos; }
+    template<typename CharT>
+    bool isfile(CharT c){ return files.find(c) != str::npos; }
 
-    void uppercase(char *start, char *end){ std::transform(start, end, start, toupper); }
+    template<typename CharT>
+    void uppercase(CharT *start, CharT *end){ std::transform(start, end, start, toupper); }
 
-    void uppercase(str& s){ std::transform(s.begin(), s.end(), s.begin(), toupper); }
+    template<typename CharT>
+    void uppercase(std::basic_string<CharT>& s){ std::transform(s.begin(), s.end(), s.begin(), toupper); }
 
-    void lowercase(char *start, char *end){ std::transform(start, end, start, tolower); }
+    template<typename CharT>
+    void lowercase(CharT *start, CharT *end){ std::transform(start, end, start, tolower); }
 
-    void lowercase(str& s){ std::transform(s.begin(), s.end(), s.begin(), tolower); }
+    template<typename CharT>
+    void lowercase(std::basic_string<CharT>& s){ std::transform(s.begin(), s.end(), s.begin(), tolower); }
 
     namespace pgn{
         /*
@@ -279,9 +285,6 @@ namespace util{
         /*
             UTILITY OBJECTS FOR FEN PARSING
         */
-
-        const char black_pieces[7]{"pnbrqk"};
-        const char white_pieces[7]{"PNBRQK"};
         const std::regex delim("/");
 
         // FEN string for new (standard) game of chess
@@ -299,7 +302,7 @@ namespace util{
                 case 'R': return rook;
                 case 'q': return queen;
                 case 'Q': return queen;
-                default: return king;
+                default:  return king;
             }
         }
     }
