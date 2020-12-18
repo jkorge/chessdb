@@ -16,7 +16,7 @@
 /******************************
     PGN
 ******************************/
-template<typename CharT=char, typename Traits=std::char_traits<CharT> >
+template<typename CharT, typename Traits=std::char_traits<CharT> >
 class PGN : virtual public ParseBuf<CharT, Traits>{
 
     typedef typename Traits::int_type int_type;
@@ -37,7 +37,6 @@ class PGN : virtual public ParseBuf<CharT, Traits>{
     void clear_tags();
     void fixendl(string&);
     bool badendl(const string&);
-    bool elided(const string&);
 
     // Parsing functions
     int_type tags();
@@ -112,9 +111,6 @@ void PGN<CharT, Traits>::fixendl(PGN<CharT, Traits>::string& buf){
 template<typename CharT, typename Traits>
 inline bool PGN<CharT, Traits>::badendl(const PGN<CharT, Traits>::string& substr){ return std::regex_match(substr, util::pgn::nds); }
 
-template<typename CharT, typename Traits>
-inline bool PGN<CharT, Traits>::elided(const PGN<CharT, Traits>::string& substr){ return std::regex_match(substr, util::pgn::missing_ply); }
-
 /*
     Parsing Functions
 */
@@ -123,6 +119,7 @@ template<typename CharT, typename Traits>
 typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::tags(){
     this->log.info("Parsing Tags");
     this->log.debug(this->_buf);
+    // std::cout << this->_buf << std::endl;
     int_type size = this->_buf.size();
 
     this->clear_tags();
@@ -154,6 +151,7 @@ PGN<CharT, Traits>::movetext(){
 
     this->log.info("Parsing Movetext");
     this->log.debug(this->_buf);
+    // std::cout << this->_buf << std::endl;
 
     // Return value
     int_type size = this->_buf.size();
@@ -299,7 +297,7 @@ PGN<CharT, Traits>::cmp(PGN<CharT, Traits>::string& p, const char ch, short l){
     PGNStream
 ******************************/
 
-template<typename CharT=char, typename Traits=std::char_traits<CharT> >
+template<typename CharT, typename Traits=std::char_traits<CharT> >
 class PGNStream : public std::basic_istream<CharT, Traits>{
 
     // Underlying buffer

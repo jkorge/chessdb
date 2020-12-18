@@ -17,9 +17,9 @@ public:
     U64 lines[64][64];                                      // Bitmaps of lines between all pairs of squares
 
     std::vector<U64> rmasks, fmasks, dmasks, amasks,
-                     wpattack, bpattack, nattack,           // Bit mask of pawn/knight attacks
-                     rattack, battack, qattack,             //             rook/bishop/queen attacks
-                     kattack;
+                     wpattack, bpattack, nattack,           // Bitmaps of pawn/knight attacks
+                     rattack, battack, qattack,             //            rook/bishop/queen attacks
+                     kattack;                               //            king attacks
 
     U64 state{0};                                           // Current occupancy bitmap of game board
     bool changed{true};                                     // Flag indicating if board has changed since last read
@@ -361,19 +361,19 @@ void BitBoard::remove(const T& src){
 
 // Remove all pieces from all occupancy maps
 void BitBoard::remove(){
-    this->white_pawns   &= ZERO_;
-    this->white_knights &= ZERO_;
-    this->white_bishops &= ZERO_;
-    this->white_rooks   &= ZERO_;
-    this->white_queens  &= ZERO_;
-    this->white_king    &= ZERO_;
+    this->white_pawns   = ZERO_;
+    this->white_knights = ZERO_;
+    this->white_bishops = ZERO_;
+    this->white_rooks   = ZERO_;
+    this->white_queens  = ZERO_;
+    this->white_king    = ZERO_;
 
-    this->black_pawns   &= ZERO_;
-    this->black_knights &= ZERO_;
-    this->black_bishops &= ZERO_;
-    this->black_rooks   &= ZERO_;
-    this->black_queens  &= ZERO_;
-    this->black_king    &= ZERO_;
+    this->black_pawns   = ZERO_;
+    this->black_knights = ZERO_;
+    this->black_bishops = ZERO_;
+    this->black_rooks   = ZERO_;
+    this->black_queens  = ZERO_;
+    this->black_king    = ZERO_;
 
     this->changed = true;
 }
@@ -408,10 +408,8 @@ bool BitBoard::colinear(const Ts& src, const Td& dst){
     int ssq = sq(src),
         dsq = sq(dst);
 
-    return (this->rmasks[ssq] & this->rmasks[dsq]) ||
-           (this->fmasks[ssq] & this->fmasks[dsq]) ||
-           (this->dmasks[ssq] & this->dmasks[dsq]) ||
-           (this->amasks[ssq] & this->amasks[dsq]);
+    if(this->lines[ssq][dsq]){ return true; }
+    else{ return false; }
 }
 
 /*
@@ -465,7 +463,7 @@ U64 BitBoard::amask(const T& sq){
 }
 
 /*
-    Bitmap of squares attacked by pt when positioned on sq
+    Bitmap of squares attacked by pt when positioned on src
 */
 
 template<typename T>
@@ -492,7 +490,7 @@ U64 BitBoard::attackfrom(const T& src, ptype pt, color c){
 template<typename Ts, typename Td>
 U64 BitBoard::linebt(const Ts& src, const Td& dst, bool endp){
     U64 res = this->lines[sq(src)][sq(dst)];
-    if(endp){ res |= mask(src) | mask(dst); }
+    if(endp && res){ res |= mask(src) | mask(dst); }
     return res;
 }
 

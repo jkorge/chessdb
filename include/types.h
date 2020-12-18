@@ -64,12 +64,13 @@ constexpr int i64[64] = {
     COORDINATE REPRESENTATIONS
 ********************************/
 
-template<typename T>
+template<typename T=int>
 struct coords{
-    T rf[2];
+    T _rf[2];
 
-    coords (T r, T f) : rf{r,f} {}
-    coords (T* _rf) : rf{_rf} {}
+    coords (T r, T f) : _rf{r,f} {}
+    coords (T* _rf) : _rf{_rf} {}
+    T operator[](int i) const{ return _rf[i]; }
 };
 
 namespace {
@@ -84,7 +85,7 @@ namespace {
 
     // coords => sq
     template<typename T>
-    inline square sq_(const coords<T>& src){ return (8*src.rf[0]) + src.rf[1]; }
+    inline square sq_(const coords<T>& src){ return (8*src[0]) + src[1]; }
 
     // sq => mask
     inline U64 mask_(const square& src){ return ONE_ << src; }
@@ -154,10 +155,10 @@ struct ply{
     ply () {}
 
     // Initialize everything
-    ply (U64 s, U64 d, ptype tp, ptype po, color col, int cas, bool cap, bool ch, bool m)
+    ply (U64 s, U64 d, ptype pt, ptype po, color col, int cas, bool cap, bool ch, bool m)
         : src(s),
           dst(d),
-          type(tp),
+          type(pt),
           promo(po),
           c(col),
           castle(cas),
@@ -166,10 +167,10 @@ struct ply{
           mate(m) {}
 
     // Initialize everything
-    ply (int s, int d, ptype tp, ptype po, color col, int cas, bool cap, bool ch, bool m)
+    ply (int s, int d, ptype pt, ptype po, color col, int cas, bool cap, bool ch, bool m)
         : src(1ULL << s),
           dst(1ULL << d),
-          type(tp),
+          type(pt),
           promo(po),
           c(col),
           castle(cas),
@@ -183,11 +184,11 @@ struct ply{
 **************************/
 
 struct eply{
-    BYTE name, action;
+    BYTE piece, action;
 
     // Constructors
-    eply () : name{0}, action{0} {}
-    eply (BYTE p, BYTE a) : name{p}, action{a} {}
+    eply () : piece{0}, action{0} {}
+    eply (BYTE p, BYTE a) : piece{p}, action{a} {}
 };
 
 

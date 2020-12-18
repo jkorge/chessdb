@@ -33,23 +33,23 @@ namespace fen{
     color parse(str fs, ChessBoard& board){
 
         log.info("Parsing FEN string:", fs);
-
+        color c;
         // FEN matches setup for new game - no processing needed
         if(!fs.compare(util::fen::new_game)){
             log.debug("FEN string for standard new game");
             board.newgame();
-            return white;
+            c = white;
         }
-        
-        rtok end;
-        rtok fentok(fs.begin(), fs.end(), util::ws, -1);
-
-        // First field in FEN string contains board arrangment
-        arrange(*fentok++, board);
-        // Second field indicates next player to move
-        color c = (*fentok++) == "b" ? black : white;
-        // Remaining fields (castling availability, en passants, etc.) unused for now
-        while(fentok != end){ fentok++; }
+        else{
+            rtok end;
+            rtok fentok(fs.begin(), fs.end(), util::ws, -1);
+            // First field in FEN string contains board arrangment
+            arrange(*fentok++, board);
+            // Second field indicates next player to move
+            c = (*fentok++) == "b" ? black : white;
+            // Remaining fields (castling availability, en passants, etc.) unused for now
+            while(fentok != end){ fentok++; }
+        }
 
         return c;
     }

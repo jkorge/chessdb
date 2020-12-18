@@ -92,7 +92,7 @@ const ply& ChessBoard::update(const ply& p){
     if(p.promo){ this->promote(p.c, p.dst, p.promo); }
     this->pinsearch();
 
-    // this->log_board();
+    this->log_board();
 
     return p;
 }
