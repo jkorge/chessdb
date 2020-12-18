@@ -1,273 +1,255 @@
-Piece ID	8-bit unsigned int
-	Pieces are enum from 0-31 (white_pawn_a, ..., black_king_e)
-	Queens have extra info on 3rd most sig. bit
-		0 => piece's movement is encoded according to bishop encoding
-		1 => piece's movement is encoded according to rook encoding
-	Pawns have extra info on all 3 most sig. bit - promotion encoding
-		001 => knight
-		010 => bishop
-		011 => rook
-		100 => queen
-Move		8-bit unsigned int
+Piece       8-bit unsigned int
+-----------------------------------------------------------------------------------------------------------------------
+    Pieces are enum from 0-11
+        white pawn      0
+        white knight    1
+        white bishop    2
+        white rook      3
+        white queen     4
+        white king      5
 
-c = castle
-f = change in file
-r = change in rank
-a = axis (/ or \ for bishop; - or | for rook; /,\,-,| for queen; rank/file for knight)
-d = direction (+/- 1)
-m = magnitude
-o = one-step sign (0 for pos)
-t = two-step sign (0 for pos)
-s = side (white = 0; black = 1)
-n = pawn movement encoding bits
-p = promotion type (1-4 for knight-queen)
+        black pawn      6
+        black knight    7
+        black bishop    8
+        black rook      9
+        black queen     10
+        black king      11
+
+    Queens have extra info on 3rd most sig. bit
+        0 => piece's movement is encoded according to bishop encoding
+        1 => piece's movement is encoded according to rook encoding
+
+    Pawns have extra info on all 3 most sig. bit - promotion encoding
+        000 => no promotion
+        001 => knight
+        010 => bishop
+        011 => rook
+        100 => queen
+
+
+Action      8-bit unsigned int
+-----------------------------------------------------------------------------------------------------------------------
+key:
+    c = castle
+    f = change in file
+    r = change in rank
+    a = axis (/ or \ for bishop; - or | for rook; /,\,-,| for queen; rank/file for knight)
+    d = direction (+/-)
+    m = magnitude
+    o = one-step sign (0 for pos)
+    t = two-step sign (0 for pos)
 
 for all move encodings, 3 most significant bits encode capture, check, and mate:
-	000 => none
-	001 => capture
-	010 => check
-	100 => mate
+    000 => none
+    001 => capture
+    010 => check
+    100 => mate
 
 King
-	000cffrr
-Queen
-	000admmm
-Rook/Bishop
-	000admmm
+    000 cffrr
+Bishop/Rook/Queen
+    000 admmm
 Knight
-	00000oat
+    000 00aot
 Pawn
-	00000snn
+    000 0ffrr
 
 
 King
-	2 bits for change in rank
-		00 => 0
-		01 => 1
-		10 => -1
-	2 bits for change in file
-		same as rank
-		11 => +/- 2 (use castle bit to determine sign)
-	1 bits for castling
-		0 => kingside
-		1 => queenside
+    2 bits for change in rank
+        00 => 0
+        01 => 1
+        10 => -1
+    2 bits for change in file
+        same as rank
+    1 bits for castling
+        0 => kingside
+            corequisite: file bits = 01
+        1 => queenside
+            corequisite: file bits = 10
 
 Queen
-	1 bits for axis
-		/ = 00
-		\ = 01
-		- = 10
-		| = 11
-	4 bits for magnitude (sign bit + 3 bit mag)
+    1 bit for axis (use piece encoding to determine axis)
+        / = 00
+        \ = 01
+        - = 00
+        | = 01
+    1 bit for direction (pos or neg along axis)
+    3 bits for magnitude
 
 Rook
-	1 bit for axis
-	4 bits for magnitude
+    1 bit for axis
+    1 bit for direction
+    3 bits for magnitude
 
 Bishop
-	1 bit for axis
-	4 bits for magnitude
+    1 bit for axis
+    1 bit for direction
+    3 bits for magnitude
 
 Knight
-	1 bit for rank/file choice (ie. which axis to take the two-step on)
-		rank = 0
-		file = 1
-	1 bit for 2-step (sign bit)
-	1 bit for 1-step (sign bit)
+    1 bit for rank/file choice (ie. which axis to take the two-step on)
+        rank = 0
+        file = 1
+    1 bit for 2-step (sign bit)
+    1 bit for 1-step (sign bit)
 
 Pawn
-	1 bit for side (white or black)
-	1 bit for push flag
-	1 bit for direction of capture (lesser (0) or greater (1) file)
-	3 bits for promote flag
-		1 = knight
-		2 = bishop
-		3 = rook
-		4 = queen
+    2 bits for change in rank
+        01 => change by magnitude 1
+        10 => change by magnitude 2
+        direction of change is determined from piece color
+    2 bits for change in file
+        00 => no change
+        01 => +1
+        10 => -1
 
-each player action is 2 bytes:
-	pieceID		actionID	Description
-	00000000	00000001	push white's a pawn
-	00010100	00000010	double push black's e pawn
-	00011100	00001001	Black queenside castle
+each ply is 2 bytes
+examples:
+    piece       action      Description
+    --------    ---------   ------------
+    00000000    000 00001   push white pawn
+    00000110    000 00010   double push black pawn
+    00001011    000 11000   Black queenside castle
 
 special cases:
-	00000000	00000000	Draw
-	11111111	00000000	Resign
+    00000000    00000000    Draw
+    11111111    00000000    Resign
 
 
 king moves:
-				rank	file
-	00000001	+1		0
-	00000010	-1		0
-	00000100	0		+1
-	00000101	+1		+1
-	00000110	-1		+1
-	00001000	0		-1
-	00001001	+1		-1
-	00001010	-1		-1
-	00001100	0		+2
-	00011100	0		-2
+                rank    file
+    000 00001   +1      0
+    000 00010   -1      0
+    000 00100   0       +1
+    000 00101   +1      +1
+    000 00110   -1      +1
+    000 01000   0       -1
+    000 01001   +1      -1
+    000 01010   -1      -1
+    
+    000 10100   0       +2
+    000 11000   0       -2
 
 pawn moves:
-	00000010	push (white)
-	00000011	double-push (white)
-	01000000	capture lesser file (white)
-	01000001	capture greater file (white)
-
-	00000110	push (black)
-	00000111	double-push (black)
-	01000100	capture lesser file (black)
-	01000101	capture greater file (black)
-
-	00001xxx	promote to knight
-	00010xxx	promote to bishop
-	00011xxx	promote to rook
-	00100xxx	promote to queen
+                rank    file
+    000 00001   +/-1    0
+    000 00010   +/-2    0
+    001 00101   +/-1    +1
+    001 01001   +/-1    -1
 
 knight moves:
-				rank	file
-	00000000	+2		+1
-	00000001	-2, 	+1
-	00000010	+1, 	+2
-	00000011	+1, 	-2
-	00000100	+2, 	-1
-	00000101	-2, 	-1
-	00000110	-1, 	+2
-	00000111	-1, 	-2
+                rank    file
+    000 00000   +2,     +1
+    000 00001   -2,     +1
+    000 00010   +2,     -1
+    000 00011   -2,     -1
+
+    000 00100   +1,     +2
+    000 00101   +1,     -2
+    000 00110   -1,     +2
+    000 00111   -1,     -2
 
 bishop moves:
-				axis	mag
-	00000001	/		1
-	00000010	/		2
-	00000011	/		3
-	00000100	/		4
-	00000101	/		5
-	00000110	/		6
-	00000111	/		7
+                axis    mag
+    000 00001   /       1
+    000 00010   /       2
+    000 00011   /       3
+    000 00100   /       4
+    000 00101   /       5
+    000 00110   /       6
+    000 00111   /       7
 
-	00011001	\		-1
-	00011010	\		-2
-	00011011	\		-3
-	00011100	\		-4
-	00011101	\		-5
-	00011110	\		-6
-	00011111	\		-7
+    000 11001   \       -1
+    000 11010   \       -2
+    000 11011   \       -3
+    000 11100   \       -4
+    000 11101   \       -5
+    000 11110   \       -6
+    000 11111   \       -7
 
-	00010001	\		1
-	00010010	\		2
-	00010011	\		3
-	00010100	\		4
-	00010101	\		5
-	00010110	\		6
-	00010111	\		7
+    000 10001   \       1
+    000 10010   \       2
+    000 10011   \       3
+    000 10100   \       4
+    000 10101   \       5
+    000 10110   \       6
+    000 10111   \       7
 
-	00001001	/		-1
-	00001010	/		-2
-	00001011	/		-3
-	00001100	/		-4
-	00001101	/		-5
-	00001110	/		-6
-	00001111	/		-7
+    000 01001   /       -1
+    000 01010   /       -2
+    000 01011   /       -3
+    000 01100   /       -4
+    000 01101   /       -5
+    000 01110   /       -6
+    000 01111   /       -7
 
 rook moves:
-				axis	mag
-	00000001	-		1
-	00000010	-		2
-	00000011	-		3
-	00000100	-		4
-	00000101	-		5
-	00000110	-		6
-	00000111	-		7
+                axis    mag
+    000 00001   -       1
+    000 00010   -       2
+    000 00011   -       3
+    000 00100   -       4
+    000 00101   -       5
+    000 00110   -       6
+    000 00111   -       7
 
-	00001001	-		-1
-	00001010	-		-2
-	00001011	-		-3
-	00001100	-		-4
-	00001101	-		-5
-	00001110	-		-6
-	00001111	-		-7
+    000 01001   -       -1
+    000 01010   -       -2
+    000 01011   -       -3
+    000 01100   -       -4
+    000 01101   -       -5
+    000 01110   -       -6
+    000 01111   -       -7
 
-	00010001	|		1
-	00010010	|		2
-	00010011	|		3
-	00010100	|		4
-	00010101	|		5
-	00010110	|		6
-	00010111	|		7
+    000 10001   |       1
+    000 10010   |       2
+    000 10011   |       3
+    000 10100   |       4
+    000 10101   |       5
+    000 10110   |       6
+    000 10111   |       7
 
-	00011001	|		-1
-	00011010	|		-2
-	00011011	|		-3
-	00011100	|		-4
-	00011101	|		-5
-	00011110	|		-6
-	00011111	|		-7
+    000 11001   |       -1
+    000 11010   |       -2
+    000 11011   |       -3
+    000 11100   |       -4
+    000 11101   |       -5
+    000 11110   |       -6
+    000 11111   |       -7
 
 
 
 queen moves:
-				axis	mag
-	00000001	/		1
-	00000010	/		2
-	00000011	/		3
-	00000100	/		4
-	00000101	/		5
-	00000110	/		6
-	00000111	/		7
+                axis    mag
+    000 00001   / or -  1
+    000 00010   / or -  2
+    000 00011   / or -  3
+    000 00100   / or -  4
+    000 00101   / or -  5
+    000 00110   / or -  6
+    000 00111   / or -  7
 
-	00001001	/		-1
-	00001010	/		-2
-	00001011	/		-3
-	00001100	/		-4
-	00001101	/		-5
-	00001110	/		-6
-	00001111	/		-7
+    000 01001   / or -  -1
+    000 01010   / or -  -2
+    000 01011   / or -  -3
+    000 01100   / or -  -4
+    000 01101   / or -  -5
+    000 01110   / or -  -6
+    000 01111   / or -  -7
 
-	00010001	\		1
-	00010010	\		2
-	00010011	\		3
-	00010100	\		4
-	00010101	\		5
-	00010110	\		6
-	00010111	\		7
+    000 10001   \ or |  1
+    000 10010   \ or |  2
+    000 10011   \ or |  3
+    000 10100   \ or |  4
+    000 10101   \ or |  5
+    000 10110   \ or |  6
+    000 10111   \ or |  7
 
-	00011001	\		-1
-	00011010	\		-2
-	00011011	\		-3
-	00011100	\		-4
-	00011101	\		-5
-	00011110	\		-6
-	00011111	\		-7
-
-	00100001	-		1
-	00100010	-		2
-	00100011	-		3
-	00100100	-		4
-	00100101	-		5
-	00100110	-		6
-	00100111	-		7
-
-	00101001	-		-1
-	00101010	-		-2
-	00101011	-		-3
-	00101100	-		-4
-	00101101	-		-5
-	00101110	-		-6
-	00101111	-		-7
-
-	00110001	|		1
-	00110010	|		2
-	00110011	|		3
-	00110100	|		4
-	00110101	|		5
-	00110110	|		6
-	00110111	|		7
-
-	00111001	|		-1
-	00111010	|		-2
-	00111011	|		-3
-	00111100	|		-4
-	00111101	|		-5
-	00111110	|		-6
-	00111111	|		-7
+    000 11001   \ or |  -1
+    000 11010   \ or |  -2
+    000 11011   \ or |  -3
+    000 11100   \ or |  -4
+    000 11101   \ or |  -5
+    000 11110   \ or |  -6
+    000 11111   \ or |  -7
