@@ -141,7 +141,7 @@ void ChessBoard::pinch(color c){
     }
 }
 
-void ChessBoard::log_board(){ this->log.debug(this->display()); }
+void ChessBoard::log_board(){ if(this->log.minl <= DEBUG){ this->log.debug(this->display()); } }
 
 
 #endif
