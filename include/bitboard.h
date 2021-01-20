@@ -226,8 +226,8 @@ BitBoard::BitBoard(){
     /*
         LINE BETWEEN ALL PAIRS OF SQUARES (0 if none exists)
     */
-    for(int s1=0; s1<63; ++s1){
-        for(int s2=0; s2<63; ++s2){
+    for(int s1=0; s1<64; ++s1){
+        for(int s2=0; s2<64; ++s2){
             if(this->battack[s1] & mask(s2)){
                 this->lines[s1][s2] = (
                     this->battack[s1] &
@@ -490,7 +490,7 @@ U64 BitBoard::attackfrom(const T& src, ptype pt, color c){
 template<typename Ts, typename Td>
 U64 BitBoard::linebt(const Ts& src, const Td& dst, bool endp){
     U64 res = this->lines[sq(src)][sq(dst)];
-    if(endp && res){ res |= mask(src) | mask(dst); }
+    if(endp){ res |= mask(src) | mask(dst); }
     return res;
 }
 
@@ -533,11 +533,11 @@ U64 BitBoard::shift(const T& src, U rs, U fs){
 
 str BitBoard::display(){
     
-    str viz(util::endl + " ");
+    str viz = util::endl;
     U64 grid = this->board();
 
     // File headers
-    for(int k=0; k<8; k++){ viz += str(" ") + util::files[k] + "  "; }
+    for(int k=0; k<8; k++){ viz += str("   ") + util::files[k]; }
 
     char square[]{"[  ]"};
 
