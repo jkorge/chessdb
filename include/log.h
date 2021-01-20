@@ -140,16 +140,16 @@ class LoggerBase{
     const str sep = "<->";
 
 public:
-    LEVEL minl;                                                     // Will only write logs of minl or greater
-    str filename;                                                   // Log file name
+    LEVEL minl;                                                             // Will only write logs of minl or greater
+    str filename;                                                           // Log file name
 
-    LoggerBase(LEVEL, short, std::filesystem::path, bool=false);           // Constructor - parses log filenames and creates log directories (if not already created)
-    ~LoggerBase();                                                  // Destructor - closes file stream
+    LoggerBase(LEVEL, short, std::filesystem::path, bool=false, int=0);     // Constructor - parses log filenames and creates log directories (if not already created)
+    ~LoggerBase();                                                          // Destructor - closes file stream
 
     template<typename... Ts>
-    void logb(loc&, LEVEL, Ts&&...);                                // Buffer and write to output stream(s)
-    void open();                                                    // Open handle to log file
-    void close();                                                   // Close handle to log file
+    void logb(loc&, LEVEL, Ts&&...);                                        // Buffer and write to output stream(s)
+    void open();                                                            // Open handle to log file
+    void close();                                                           // Close handle to log file
 
 private:
 
@@ -173,10 +173,13 @@ private:
     friend class Logger;
 };
 
-LoggerBase::LoggerBase(LEVEL lvl, short pid, std::filesystem::path _srcf, bool log_to_console) : minl(lvl), _pid(pid), _log_to_console(log_to_console) {
+LoggerBase::LoggerBase(LEVEL lvl, short pid, std::filesystem::path _srcf, bool log_to_console, int cnt) : minl(lvl), _pid(pid), _log_to_console(log_to_console) {
     
     this->_srcfile = _srcf.string();
-    _srcf = _srcf.replace_extension(".log").filename();
+    // _srcf = _srcf.replace_extension(".log").filename();
+    _srcf = _srcf.replace_extension("").filename();
+    _srcf += std::to_string(cnt);
+    _srcf = _srcf.replace_extension(".log");
     
     // logs/YYYYmmddTHHMMSS/<srcfile_stem>.log
     if(this->minl != NONE){ mkdirs(_log_dir); }
@@ -184,6 +187,7 @@ LoggerBase::LoggerBase(LEVEL lvl, short pid, std::filesystem::path _srcf, bool l
 
     // log "true/false" instead of "1/0"
     this->_f_log.setf(std::ios_base::boolalpha);
+
 }
 
 LoggerBase::~LoggerBase(){
@@ -293,7 +297,7 @@ class Logger : public LoggerBase{
 
 public:
 
-    Logger(LEVEL lvl=__DLVL__, const char *_srcfile=__builtin_FILE()) : LoggerBase(lvl, getpid(), _srcfile, false){
+    Logger(int cnt=0, LEVEL lvl=__DLVL__, const char *_srcfile=__builtin_FILE()) : LoggerBase(lvl, getpid(), _srcfile, false, cnt){
         this->minl = lvl;
         if(this->minl != NONE){ this->open(); }
     }
