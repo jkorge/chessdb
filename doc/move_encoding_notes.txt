@@ -1,25 +1,48 @@
 Piece       8-bit unsigned int
 -----------------------------------------------------------------------------------------------------------------------
-    Pieces are enum from 0-11
-        white pawn      0
-        white knight    1
-        white bishop    2
-        white rook      3
-        white queen     4
-        white king      5
+    Pieces are enum from 0-31:
+        white_rook_a        0
+        white_knight_b      1
+        white_bishop_c      2
+        white_queen_d       3
+        white_king_e        4
+        white_bishop_f      5
+        white_knight_g      6
+        white_rook_h        7
 
-        black pawn      6
-        black knight    7
-        black bishop    8
-        black rook      9
-        black queen     10
-        black king      11
+        white_pawn_a        8
+        white_pawn_b        9
+        white_pawn_c        10
+        white_pawn_d        11
+        white_pawn_e        12
+        white_pawn_f        13
+        white_pawn_g        14
+        white_pawn_h        15
+
+        black_pawn_a        16
+        black_pawn_b        17
+        black_pawn_c        18
+        black_pawn_d        19
+        black_pawn_e        20
+        black_pawn_f        21
+        black_pawn_g        22
+        black_pawn_h        23
+
+        black_rook_a        24
+        black_knight_b      25
+        black_bishop_c      26
+        black_queen_d       27
+        black_king_e        28
+        black_bishop_f      29
+        black_knight_g      30
+        black_rook_h        31
 
     Queens have extra info on 3rd most sig. bit
         0 => piece's movement is encoded according to bishop encoding
         1 => piece's movement is encoded according to rook encoding
 
     Pawns have extra info on all 3 most sig. bit - promotion encoding
+    Indicates how the piece is expected to move (ie. AFTER being promoted)
         000 => no promotion
         001 => knight
         010 => bishop
@@ -38,6 +61,7 @@ key:
     m = magnitude
     o = one-step sign (0 for pos)
     t = two-step sign (0 for pos)
+    p = promotion
 
 for all move encodings, 3 most significant bits encode capture, check, and mate:
     000 => none
@@ -52,7 +76,7 @@ Bishop/Rook/Queen
 Knight
     000 00aot
 Pawn
-    000 0ffrr
+    000 ppp<rr/ff>
 
 
 King
@@ -95,22 +119,28 @@ Knight
     1 bit for 1-step (sign bit)
 
 Pawn
-    2 bits for change in rank
-        01 => change by magnitude 1
-        10 => change by magnitude 2
-        direction of change is determined from piece color
-    2 bits for change in file
-        00 => no change
-        01 => +1
-        10 => -1
+    2 bits for change in rank/file
+        if NOT capturing:
+            01 => change rank by magnitude 1
+            10 => change rank by magnitude 2
+            direction of change in rank is determined from piece color
+        if capturing:
+            01 => capture lesser file
+            10 => capture greater file
+    3 bits for promotion
+        000 => no promo
+        001 => knight
+        010 => bishop
+        011 => rook
+        100 => queen
 
 each ply is 2 bytes
 examples:
     piece       action      Description
     --------    ---------   ------------
-    00000000    000 00001   push white pawn
-    00000110    000 00010   double push black pawn
-    00001011    000 11000   Black queenside castle
+    00001000    000 00001   push white pawn
+    00010000    000 00010   double push black pawn
+    00011100    000 11000   Black queenside castle
 
 special cases:
     00000000    00000000    Draw
@@ -133,10 +163,15 @@ king moves:
 
 pawn moves:
                 rank    file
-    000 00001   +/-1    0
-    000 00010   +/-2    0
-    001 00101   +/-1    +1
-    001 01001   +/-1    -1
+    000 000 01   +/-1    0
+    000 000 10   +/-2    0
+    001 000 01   +/-1    -1
+    001 000 10   +/-1    +1
+
+    000 001 01  promote to knight
+    000 010 01  promote to bishop
+    000 011 01  promote to rook
+    000 100 01  promote to queen
 
 knight moves:
                 rank    file
