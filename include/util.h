@@ -161,6 +161,48 @@ namespace util{
         }
     }
 
+    str pname2s(pname n){
+        switch(n){
+            case white_rook_a:   return "white_rook_a";
+            case white_knight_b: return "white_knight_b";
+            case white_bishop_c: return "white_bishop_c";
+            case white_queen_d:  return "white_queen_d";
+            case white_king_e:   return "white_king_e";
+            case white_bishop_f: return "white_bishop_f";
+            case white_knight_g: return "white_knight_g";
+            case white_rook_h:   return "white_rook_h";
+
+            case white_pawn_a:   return "white_pawn_a";
+            case white_pawn_b:   return "white_pawn_b";
+            case white_pawn_c:   return "white_pawn_c";
+            case white_pawn_d:   return "white_pawn_d";
+            case white_pawn_e:   return "white_pawn_e";
+            case white_pawn_f:   return "white_pawn_f";
+            case white_pawn_g:   return "white_pawn_g";
+            case white_pawn_h:   return "white_pawn_h";
+
+            case black_pawn_a:   return "black_pawn_a";
+            case black_pawn_b:   return "black_pawn_b";
+            case black_pawn_c:   return "black_pawn_c";
+            case black_pawn_d:   return "black_pawn_d";
+            case black_pawn_e:   return "black_pawn_e";
+            case black_pawn_f:   return "black_pawn_f";
+            case black_pawn_g:   return "black_pawn_g";
+            case black_pawn_h:   return "black_pawn_h";
+
+            case black_rook_a:   return "black_rook_a";
+            case black_knight_b: return "black_knight_b";
+            case black_bishop_c: return "black_bishop_c";
+            case black_queen_d:  return "black_queen_d";
+            case black_king_e:   return "black_king_e";
+            case black_bishop_f: return "black_bishop_f";
+            case black_knight_g: return "black_knight_g";
+            case black_rook_h:   return "black_rook_h";
+
+            default:             return "NONAME";
+        }
+    }
+
     // Get string from color
     str color2s(color c){
         switch(c){
@@ -180,11 +222,11 @@ namespace util{
     }
 
     // Iterators to end of regex_token_iterator results
-    std::regex_token_iterator<std::string::iterator> rtokend;
-    std::regex_token_iterator<std::string::const_iterator> crtokend;
+    rtok rtokend;
+    crtok crtokend;
 
     template<typename T=int>
-    str coord2s_(const coords<T>& src){ return str("(") + std::to_string(src[0]) + ", " + std::to_string(src[1]) + ')';; }
+    str coord2s_(const coords<T>& src){ return str("(") + std::to_string(src[0]) + ", " + std::to_string(src[1]) + ')'; }
 
     template<typename T>
     str coord2s(T&& src){ return coord2s_(rf(src)); }
@@ -207,6 +249,9 @@ namespace util{
     template<typename CharT>
     void lowercase(std::basic_string<CharT>& s){ std::transform(s.begin(), s.end(), s.begin(), tolower); }
 
+    // Flip least-significant bit
+    inline void lsbflip(U64& x){ x &= x-1; }
+
     namespace pgn{
         /*
             UTILITY OBJECTS FOR PGN PARSING
@@ -223,13 +268,13 @@ namespace util{
             {"*", 0}
         };
 
-        // Regex for continuation (eg. "1... Rc5" implies white's move is missing - usually preceded by FEN tag)
+        // Regex for elided ply (".." or "--")
         const std::regex missing_ply("(-{2}|\\.{2})");
 
         // Delimiter for parsing moves in SAN
         const std::regex move_num_r("(\\d{1,}\\.)");
 
-        // Regex for movetext that opens with an elided white ply
+        // Regex for movetext that opens with an elided white ply (e.g. "1... Rd8")
         const std::regex black_starts("\\d{1,}\\.{3}");
 
         // Regex for newline NOT preceded by dot or space

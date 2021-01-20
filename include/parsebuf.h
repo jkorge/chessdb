@@ -3,7 +3,9 @@
 
 #include "file_base.h"
 
+#ifndef BUFSIZE
 #define BUFSIZE 4096
+#endif
 
 /******************************
     ParseBuf
@@ -19,7 +21,7 @@ class ParseBuf : virtual public std::basic_streambuf<CharT, Traits> {
     
 public:
 
-    ParseBuf(string file) : std::basic_streambuf<CharT, Traits>(), _fdev(file, "rb") {}
+    ParseBuf(const string& file) : std::basic_streambuf<CharT, Traits>(), _fdev(file, "rb") {}
     ~ParseBuf(){ this->_fdev.close(); }
 
 protected:

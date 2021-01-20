@@ -21,7 +21,7 @@ public:
     string _fname, _mode;
     std::FILE* _M_file {NULL};
 
-    FileBase(string fname, string mode) : _fname(fname), _mode(mode){ this->open(); }
+    FileBase(const string& fname, const string& mode) : _fname(fname), _mode(mode){ this->open(); }
     ~FileBase(){ this->close(); }
     void open();
     void close();

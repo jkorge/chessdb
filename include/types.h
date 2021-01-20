@@ -44,10 +44,16 @@ constexpr U64 RANK_         = C64(0xff);
 constexpr U64 FILE_         = C64(0x0101010101010101);
 constexpr U64 ONE_          = C64(0x01);
 constexpr U64 ZERO_         = C64(0x00);
-constexpr U64 A1            = C64(0x00);
+constexpr U64 A1            = C64(0x01);
 constexpr U64 H8            = C64(0x8000000000000000);
 
 #undef C64
+
+const BYTE CAPTURE_{1<<5};
+const BYTE CHECK_{1<<6};
+const BYTE MATE_{1<<7};
+const BYTE QABISHOP_{0};
+const BYTE QAROOK_{1<<5};
 
 constexpr int i64[64] = {
      0, 47,  1, 56, 48, 27,  2, 60,
@@ -68,13 +74,15 @@ template<typename T=int>
 struct coords{
     T _rf[2];
 
+    coords () {}
     coords (T r, T f) : _rf{r,f} {}
     coords (T* _rf) : _rf{_rf} {}
     T operator[](int i) const{ return _rf[i]; }
+    coords<T> operator+(const coords<T>& other){ return {this->_rf[0] + other[0], this->_rf[1] + other[1]}; }
 };
 
 namespace {
-    // Least significant 1-bit
+    // Index of least significant 1-bit (aka square number)
     inline square bitscan_(const U64& src){ return i64[((src ^ (src-1)) * DEBRUIJN64_) >> 58]; }
 
     // sq => sq
@@ -132,6 +140,47 @@ color operator!(const color& c){ return static_cast<color>(black * c); }
 // Types of material
 typedef enum ptype {pawn = 0, knight, bishop, rook, queen, king, NOTYPE = -1} ptype;
 
+// Piece names
+typedef enum pname{
+    white_rook_a = 0,
+    white_knight_b,
+    white_bishop_c,
+    white_queen_d,
+    white_king_e,
+    white_bishop_f,
+    white_knight_g,
+    white_rook_h,
+
+    white_pawn_a,
+    white_pawn_b,
+    white_pawn_c,
+    white_pawn_d,
+    white_pawn_e,
+    white_pawn_f,
+    white_pawn_g,
+    white_pawn_h,
+
+    black_pawn_a,
+    black_pawn_b,
+    black_pawn_c,
+    black_pawn_d,
+    black_pawn_e,
+    black_pawn_f,
+    black_pawn_g,
+    black_pawn_h,
+
+    black_rook_a,
+    black_knight_b,
+    black_bishop_c,
+    black_queen_d,
+    black_king_e,
+    black_bishop_f,
+    black_knight_g,
+    black_rook_h,
+
+    NONAME = -1
+} pname;
+
 /**************************
     PLY
 **************************/
@@ -140,6 +189,7 @@ struct ply{
 
     color c;
     ptype type, promo;
+    pname name;
     U64 src, dst;
 
     int castle;             // 0 => No castle; 1 => kingside; -1 => queenside
@@ -152,9 +202,19 @@ struct ply{
     */
 
     // Intialize nothing
-    ply () {}
+    ply ()
+        : src(0),
+          dst(0),
+          name(NONAME),
+          type(pawn),
+          promo(pawn),
+          c(NOCOLOR),
+          castle(0),
+          capture(false),
+          check(false),
+          mate(false) {}
 
-    // Initialize everything
+    // Initialize everything but name
     ply (U64 s, U64 d, ptype pt, ptype po, color col, int cas, bool cap, bool ch, bool m)
         : src(s),
           dst(d),
@@ -166,8 +226,7 @@ struct ply{
           check(ch),
           mate(m) {}
 
-    // Initialize everything
-    ply (int s, int d, ptype pt, ptype po, color col, int cas, bool cap, bool ch, bool m)
+    ply (square s, square d, ptype pt, ptype po, color col, int cas, bool cap, bool ch, bool m)
         : src(1ULL << s),
           dst(1ULL << d),
           type(pt),
@@ -177,6 +236,21 @@ struct ply{
           capture(cap),
           check(ch),
           mate(m) {}
+
+    bool operator==(const ply& other) const{
+        return (this->c == other.c) &&
+               (this->type == other.type) &&
+               (this->promo == other.promo) &&
+               (this->name == other.name) &&
+               (this->src == other.src) &&
+               (this->dst == other.dst) &&
+               (this->castle == other.castle) &&
+               (this->capture == other.capture) &&
+               (this->check == other.check) &&
+               (this->mate == other.mate);
+    }
+
+    bool operator!=(const ply& other) const{ return not (*this == other); }
 };
 
 /**************************

@@ -19,12 +19,14 @@
 template<typename CharT, typename Traits=std::char_traits<CharT> >
 class PGN : virtual public ParseBuf<CharT, Traits>{
 
+    static int cnt;
+
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
     typedef typename std::basic_string<char_type> string;
 
     string _delim = {"\n\n"};
-    Logger log;
+    Logger log{cnt};
     ChessBoard board = ChessBoard();
 
     // ParseBuf overrides
@@ -56,9 +58,12 @@ public:
     std::vector<ply> _plies;
     std::vector<string> _tokens;
 
-    PGN(string file) : ParseBuf<CharT,Traits>(file) {}
+    PGN(const string& file) : ParseBuf<CharT,Traits>(file) { this->cnt++; }
 
 };
+
+template<typename CharT, typename Traits>
+int PGN<CharT, Traits>::cnt = 0;
 
 /******************************
     PGN Member Funcs
@@ -119,7 +124,7 @@ template<typename CharT, typename Traits>
 typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::tags(){
     this->log.info("Parsing Tags");
     this->log.debug(this->_buf);
-    // std::cout << this->_buf << std::endl;
+
     int_type size = this->_buf.size();
 
     this->clear_tags();
@@ -151,7 +156,6 @@ PGN<CharT, Traits>::movetext(){
 
     this->log.info("Parsing Movetext");
     this->log.debug(this->_buf);
-    // std::cout << this->_buf << std::endl;
 
     // Return value
     int_type size = this->_buf.size();
@@ -217,10 +221,13 @@ void PGN<CharT, Traits>::pplies(color c){
 
         this->log.debug("Parsing:", util::color2c(c), *it);
 
-        if((*it).empty()){ continue; }
+        if((*it).empty()){ c = !c; continue; }
         else if(this->isend(*it)){ break; }
-
-        this->_plies.emplace_back(board.update(this->pply(*it, c)));
+        
+        ply p = this->pply(*it, c);
+        p.name = board.update(p);
+        this->_plies.emplace_back(p);
+        // this->_plies.emplace_back(board.update(this->pply(*it, c)));
         c = !c;
     }
 }
@@ -264,13 +271,14 @@ ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string& p, color c, bool
         else{ this->log.error("Unrecognized character in ply:", ch); }
     }
 
-    U64 dst = mask(dstsq);
-    U64 src(0);
+    U64 dst = mask(dstsq),
+        src = 0;
     if(r==2 && f==2) { src = mask(srcsq); }
     else{
         if(r==2)     { src = board.rmasks[srcsq]; }
         else if(f==2){ src = board.fmasks[srcsq]; }
         src = disamb::pgn(src, dst, pt, c, this->board, capture);
+        // this->log.debug("Disambiguated src:",src);
     }
 
     return {src, dst, pt, promo, c, 0, capture, check, mate};
@@ -305,7 +313,7 @@ class PGNStream : public std::basic_istream<CharT, Traits>{
 
 public:
 
-    PGNStream(std::basic_string<CharT>& file) : _pbuf(file), std::basic_istream<CharT, Traits>(&_pbuf) {}
+    PGNStream(const std::basic_string<CharT>& file) : _pbuf(file), std::basic_istream<CharT, Traits>(&_pbuf) {}
     pgndict tags();
     std::vector<ply> moves();
 };
