@@ -221,13 +221,12 @@ void PGN<CharT, Traits>::pplies(color c){
 
         this->log.debug("Parsing:", util::color2c(c), *it);
 
-        if((*it).empty()){ c = !c; continue; }
+        if(it->empty()){ c = !c; continue; }
         else if(this->isend(*it)){ break; }
         
         ply p = this->pply(*it, c);
         p.name = board.update(p);
         this->_plies.emplace_back(p);
-        // this->_plies.emplace_back(board.update(this->pply(*it, c)));
         c = !c;
     }
 }
