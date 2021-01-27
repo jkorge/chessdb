@@ -48,7 +48,6 @@ eply Encoder::encode_ply(const ply& p){ return eply(this->encode_piece(p), this-
 
 BYTE Encoder::encode_piece(const ply& p){
     BYTE _piece = static_cast<BYTE>(p.name);
-    // if(p.type == pawn && p.promo){ _piece |= this->encode_pawn_promotion(p.promo); }
     if(p.type != pawn && (p.name >= 8 & p.name <= 23)){ _piece |= this->encode_pawn_promotion(p.type); }
     if(p.type == queen)                               { _piece |= this->encode_queen_axis(rf(p.src), rf(p.dst)); }
     return _piece;
