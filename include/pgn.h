@@ -36,7 +36,6 @@ class PGN : virtual public ParseBuf<CharT, Traits>{
     // Util functions
     void rcharb(char_type);
     void rchar(char_type, string&);
-    void clear_tags();
     void fixendl(string&);
     bool badendl(const string&);
 
@@ -97,13 +96,6 @@ template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::rcharb(PGN<CharT, Traits>::char_type c){ this->rchar(c, this->_buf); }
 
 template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::clear_tags(){
-    for(pgndict::iterator it=this->_tags.begin(); it!=this->_tags.end(); ++it){
-        this->_tags[it->first].clear();
-    }
-}
-
-template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::fixendl(PGN<CharT, Traits>::string& buf){
     int_type idx;
     while((idx = buf.find('\n')) != string::npos){
@@ -126,8 +118,7 @@ typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::tags(){
     this->log.debug(this->_buf);
 
     int_type size = this->_buf.size();
-
-    this->clear_tags();
+    this->_tags.reset();
 
     // strip brackets
     for(const char *c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); c++){ this->rcharb(*c); }
