@@ -5,6 +5,11 @@
 #include "board.h"
 
 class Decoder{
+
+    ply missing;                // default construct for missing or elided plies
+
+    eply emissing{255, 255};    // encode missing plies as 11111111 for both piece and action
+
 public:    
     ply decode_ply(eply, ChessBoard&);
 
@@ -38,6 +43,9 @@ public:
 };
 
 ply Decoder::decode_ply(eply e, ChessBoard& board){
+
+    if(e == this->emissing){ return this->missing; }
+
     ply p;
 
     p.name = this->decode_name(e.piece);

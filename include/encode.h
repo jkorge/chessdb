@@ -4,6 +4,11 @@
 #include "types.h"
 
 class Encoder {
+
+    ply missing;                // default construct for missing or elided plies
+
+    eply emissing{255, 255};    // encode missing plies as 11111111 for both piece and action
+
 public:
 
     eply encode_ply(const ply&);
@@ -44,7 +49,7 @@ public:
     BYTE king_action(const coords<T>&, const coords<T>&);
 };
 
-eply Encoder::encode_ply(const ply& p){ return eply(this->encode_piece(p), this->encode_action(p)); }
+eply Encoder::encode_ply(const ply& p){ return p == this->missing ? this->emissing : eply(this->encode_piece(p), this->encode_action(p)); }
 
 BYTE Encoder::encode_piece(const ply& p){
     BYTE _piece = static_cast<BYTE>(p.name);

@@ -220,13 +220,14 @@ void PGN<CharT, Traits>::pplies(color c){
     for(typename std::vector<string>::iterator it=this->_tokens.begin(); it!=this->_tokens.end(); ++it){
 
         this->log.debug("Parsing:", util::color2c(c), *it);
-
-        if(it->empty()){ c = !c; continue; }
-        else if(this->isend(*it)){ break; }
         
-        ply p = this->pply(*it, c);
-        p.name = board.update(p);
-        this->_plies.emplace_back(p);
+        if(it->empty()){ this->_plies.emplace_back(ply()); }
+        else if(this->isend(*it)){ break; }
+        else{
+            ply p = this->pply(*it, c);
+            p.name = board.update(p);
+            this->_plies.emplace_back(p);
+        }
         c = !c;
     }
 }
@@ -263,11 +264,11 @@ ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string& p, color c, bool
 
     for(typename string::const_reverse_iterator it=p.rbegin(); it!=p.rend(); ++it){
         char_type ch = *it;
-        if(util::ispiece(ch)){ pt = util::c2ptype(ch); }
-        else if(util::isfile(ch)){ (!f++ ? dstsq : srcsq) += util::c2file(ch); }
-        else if(isdigit(ch)){ (!r++ ? dstsq : srcsq) += 8*util::c2rank(ch); }
-        else if(ch == 'x'){ capture = true; }
-        else{ this->log.error("Unrecognized character in ply:", ch); }
+        if     (util::ispiece(ch)){ pt = util::c2ptype(ch); }
+        else if(util::isfile(ch)) { (!f++ ? dstsq : srcsq) += util::c2file(ch); }
+        else if(isdigit(ch))      { (!r++ ? dstsq : srcsq) += 8*util::c2rank(ch); }
+        else if(ch == 'x')        { capture = true; }
+        else                      { this->log.error("Unrecognized character in ply:", ch); }
     }
 
     U64 dst = mask(dstsq),
@@ -276,8 +277,8 @@ ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string& p, color c, bool
     else{
         if(r==2)     { src = board.rmasks[srcsq]; }
         else if(f==2){ src = board.fmasks[srcsq]; }
+
         src = disamb::pgn(src, dst, pt, c, this->board, capture);
-        // this->log.debug("Disambiguated src:",src);
     }
 
     return {src, dst, pt, promo, c, 0, capture, check, mate};
