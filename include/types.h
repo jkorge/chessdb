@@ -2,7 +2,7 @@
 #define TYPES_H
 
 #include <cstdint>
-#include <map>
+#include <unordered_map>
 #include <regex>
 
 
@@ -308,8 +308,8 @@ typedef enum pgntag{
 
 } pgntag;
 
-struct pgndict : std::map<pgntag, std::string>{
-    pgndict () : std::map<pgntag, std::string>{
+struct pgndict : std::unordered_map<pgntag, std::string>{
+    pgndict () : std::unordered_map<pgntag, std::string>{
         {event, str()},
         {site, str()},
         {date, str()},
@@ -327,6 +327,8 @@ struct pgndict : std::map<pgntag, std::string>{
         {black_elo, str()},
         {black_uscf, str()}
     } {}
+
+    void reset(){ for(std::unordered_map<pgntag, std::string>::iterator it=this->begin(); it!=this->end(); ++it){ it->second.clear(); } }
 };
 
 #endif
