@@ -269,7 +269,7 @@ struct eply{
                (this->action == other.action);
     }
 
-    bool operator !=(const eply& other) const{ return not (*this == other); }
+    bool operator!=(const eply& other) const{ return not (*this == other); }
 };
 
 
@@ -327,6 +327,8 @@ struct pgndict : std::map<pgntag, std::string>{
         {black_elo, str()},
         {black_uscf, str()}
     } {}
+
+    void reset(){ for(std::map<pgntag, std::string>::iterator it=this->begin(); it!=this->end(); ++it){ it->second.clear(); } }
 };
 
 #endif
