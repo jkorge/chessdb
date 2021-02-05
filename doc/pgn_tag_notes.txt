@@ -41,7 +41,7 @@ Mode
 TimeControl
 Termination
 
-// Player Rating Keys (saved as ints; rest are strings)
+// Player Rating Keys
 WhiteElo
 WhiteUSCF
 BlackElo

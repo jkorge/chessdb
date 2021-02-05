@@ -1,41 +1,28 @@
 Database File Format
 -----------------------
 TIMESTAMP
-
+HEADER SIZE
 HEADER
-
 DATABASE START
-
-    PGN TAGS
-    MOVETEXT
-    GAME END
-
-    PGN TAGS
-    MOVETEXT
-    GAME END
-
-    ...
-
-    PGN TAGS
-    MOVETEXT
-    GAME END
-
+PGN TAGS
+NUM PLIES
+MOVETEXT
+PGN TAGS
+NUM PLIES
+MOVETEXT
+...
+PGN TAGS
+NUM PLIES
+MOVETEXT
 DATABASE END
 -----------------------
-
-
-
-
-
-
-
 
 Header contains a newline delimited list of strings
     Order of strings defines their enumeration
     ie. first string after TIMESTAMP has enum value 0, followed by 1, etc.
     First string to be enumerated should ALWAYS be "\0" (empty string)
 
-DATABASE START = 11111111
+DATABASE START = \n\n
 DATABASE END = EOF
 
 
@@ -43,3 +30,29 @@ key-value pairs
    5 bytes for each pair
 x 16 pairs for each game
 = 80 bytes per game
+
+
+
+
+
+
+
+
+TIMESTAMP
+    Number of nanoseconds since epoch
+    64-bits (unsigned long long int)
+HEADER SIZE
+    Number of strings in header (uint32_t)
+HEADER
+    Newline delmited strings
+    First entry is empty string
+    Any subsequent empty string indicates end of header
+PGN TAGS
+    32-bit integer enumerations (uint32_t)
+    Value refers to index of HEADER list
+NUM PLIES
+    16-bit integer count (uint16_t)
+    Indicates total number of plies for current game
+MOVETEXT
+    Sequence of plies
+    Each ply is 2 bytes
