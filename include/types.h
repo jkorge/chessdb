@@ -49,11 +49,11 @@ constexpr U64 H8            = C64(0x8000000000000000);
 
 #undef C64
 
-const BYTE CAPTURE_{1<<5};
-const BYTE CHECK_{1<<6};
-const BYTE MATE_{1<<7};
-const BYTE QABISHOP_{0};
-const BYTE QAROOK_{1<<5};
+const BYTE CAPTURE_   {1<<5};
+const BYTE CHECK_     {1<<6};
+const BYTE MATE_      {1<<7};
+const BYTE QABISHOP_  {0};
+const BYTE QAROOK_    {1<<5};
 
 constexpr int i64[64] = {
      0, 47,  1, 56, 48, 27,  2, 60,
@@ -237,6 +237,18 @@ struct ply{
           check(ch),
           mate(m) {}
 
+    ply (const ply& other)
+        : src(other.src),
+          dst(other.dst),
+          name(other.name),
+          type(other.type),
+          promo(other.promo),
+          c(other.c),
+          castle(other.castle),
+          capture(other.capture),
+          check(other.check),
+          mate(other.mate) {}
+
     bool operator==(const ply& other) const{
         return (this->c == other.c) &&
                (this->type == other.type) &&
@@ -263,6 +275,7 @@ struct eply{
     // Constructors
     eply () : piece{0}, action{0} {}
     eply (BYTE p, BYTE a) : piece{p}, action{a} {}
+    eply (const eply& other) : piece{other.piece}, action{other.action} {}
 
     bool operator==(const eply& other) const{
         return (this->piece == other.piece) &&
