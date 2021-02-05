@@ -7,7 +7,7 @@ class Encoder {
 
     ply missing;                // default construct for missing or elided plies
 
-    eply emissing{255, 255};    // encode missing plies as 11111111 for both piece and action
+    eply emissing{UINT16_MAX};  // use `11111111 11111111` for missing plies
 
 public:
 
@@ -49,7 +49,7 @@ public:
     BYTE king_action(const coords<T>&, const coords<T>&);
 };
 
-eply Encoder::encode_ply(const ply& p){ return p == this->missing ? this->emissing : eply(this->encode_piece(p), this->encode_action(p)); }
+eply Encoder::encode_ply(const ply& p){ return p == this->missing ? this->emissing : (static_cast<uint16_t>(this->encode_piece(p)) << 8) | this->encode_action(p); }
 
 BYTE Encoder::encode_piece(const ply& p){
     BYTE _piece = static_cast<BYTE>(p.name);

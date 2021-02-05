@@ -8,7 +8,7 @@ class Decoder{
 
     ply missing;                // default construct for missing or elided plies
 
-    eply emissing{255, 255};    // encode missing plies as 11111111 for both piece and action
+    eply emissing{UINT16_MAX};  // use `11111111 11111111` for missing plies
 
 public:    
     ply decode_ply(eply, ChessBoard&);
@@ -47,28 +47,30 @@ ply Decoder::decode_ply(eply e, ChessBoard& board){
     if(e == this->emissing){ return this->missing; }
 
     ply p;
+    BYTE piece  = e >> 8,
+         action = e & 255;
 
-    p.name = this->decode_name(e.piece);
-    p.type = this->decode_type(e.piece);
+    p.name = this->decode_name(piece);
+    p.type = this->decode_type(piece);
     p.c = this->decode_color(p.name);
 
-    p.capture = this->decode_capture(e.action);
-    p.check = this->decode_check(e.action);
-    p.mate = this->decode_mate(e.action);
+    p.capture = this->decode_capture(action);
+    p.check = this->decode_check(action);
+    p.mate = this->decode_mate(action);
 
-    if(p.type == pawn){ p.promo = this->decode_pawn_promotion(e.action); }
+    if(p.type == pawn){ p.promo = this->decode_pawn_promotion(action); }
     else              { p.promo = pawn; }
     
     coords<int> src = rf(board.mat[p.name]),
                 dst,
                 delta;
     switch(p.type){
-        case pawn:   delta = this->pawn_action(e.action, p.c); break;
-        case knight: delta = this->knight_action(e.action); break;
-        case bishop: delta = this->bishop_action(e.action); break;
-        case rook:   delta = this->rook_action(e.action); break;
-        case queen:  delta = this->queen_action(e.action, this->decode_queen_axis(e.piece)); break;
-        default:     delta = this->king_action(e.action);
+        case pawn:   delta = this->pawn_action(action, p.c); break;
+        case knight: delta = this->knight_action(action); break;
+        case bishop: delta = this->bishop_action(action); break;
+        case rook:   delta = this->rook_action(action); break;
+        case queen:  delta = this->queen_action(action, this->decode_queen_axis(piece)); break;
+        default:     delta = this->king_action(action);
     }
     dst = src + delta;
     p.src = mask(src);

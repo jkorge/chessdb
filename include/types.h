@@ -269,21 +269,7 @@ struct ply{
     ENCODED PLY
 **************************/
 
-struct eply{
-    BYTE piece, action;
-
-    // Constructors
-    eply () : piece{0}, action{0} {}
-    eply (BYTE p, BYTE a) : piece{p}, action{a} {}
-    eply (const eply& other) : piece{other.piece}, action{other.action} {}
-
-    bool operator==(const eply& other) const{
-        return (this->piece == other.piece) &&
-               (this->action == other.action);
-    }
-
-    bool operator!=(const eply& other) const{ return not (*this == other); }
-};
+typedef uint16_t eply;
 
 
 /**************************
