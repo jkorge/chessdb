@@ -50,7 +50,6 @@ ply Decoder::decode_ply(eply e, ChessBoard& board){
 
     p.name = this->decode_name(e.piece);
     p.type = this->decode_type(e.piece);
-    if(p.type == king && (p.name >= 8 & p.name <= 23)){ p.type = queen; }
     p.c = this->decode_color(p.name);
 
     p.capture = this->decode_capture(e.action);
@@ -119,7 +118,10 @@ ptype Decoder::decode_type(BYTE _piece){
         case 20:
         case 21:
         case 22:
-        case 23: return static_cast<ptype>((_piece & 224) >> 5);
+        case 23: {
+            ptype res = static_cast<ptype>((_piece & 224) >> 5);
+            return res == king ? queen : res;
+        }
         default: return NOTYPE;
     }
 }
