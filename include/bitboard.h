@@ -540,14 +540,17 @@ str BitBoard::display(){
     for(int k=0; k<8; k++){ viz += str("   ") + util::files[k]; }
 
     char square[]{"[  ]"};
+    coords<int> loc;
 
     for(int r=7; r>=0; --r){
+        loc[0] = r;
         for(int f=0; f<8; ++f){
+            loc[1] = f;
 
             // Rank headers
             if(!f){ viz += util::endl + util::rank2c(r) + " "; }
 
-            U64 src = mask(coords<int>(r,f));
+            U64 src = mask(loc);
 
             if(grid & src){
                 square[1] = util::color2c(this->lookupc(src));
