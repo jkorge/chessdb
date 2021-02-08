@@ -305,8 +305,7 @@ class PGNStream : public std::basic_istream<CharT, Traits>{
 public:
 
     PGNStream(const std::basic_string<CharT>& file) : _pbuf(file), std::basic_istream<CharT, Traits>(&_pbuf) {}
-    pgndict tags();
-    std::vector<ply> moves();
+    game nextgame();
 };
 
 /******************************
@@ -314,16 +313,9 @@ public:
 ******************************/
 
 template<typename CharT, typename Traits>
-pgndict PGNStream<CharT, Traits>::tags(){
-    this->get();
-    return this->_pbuf._tags;
+game PGNStream<CharT, Traits>::nextgame(){
+    for(int i=0; i<2; ++i){ this->get(); }
+    return {this->_pbuf._plies, this->_pbuf._tags};
 }
-
-template<typename CharT, typename Traits>
-std::vector<ply> PGNStream<CharT, Traits>::moves(){
-    this->get();
-    return this->_pbuf._plies;
-}
-
 
 #endif
