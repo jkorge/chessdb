@@ -6,53 +6,42 @@ HEADER
 DATABASE START
 PGN TAGS
 NUM PLIES
-MOVETEXT
+MOVES
 PGN TAGS
 NUM PLIES
-MOVETEXT
+MOVES
 ...
 PGN TAGS
 NUM PLIES
-MOVETEXT
+MOVES
 DATABASE END
 -----------------------
 
 Header contains a newline delimited list of strings
     Order of strings defines their enumeration
-    ie. first string after TIMESTAMP has enum value 0, followed by 1, etc.
+    ie. first string has enum value 0, followed by 1, etc.
     First string to be enumerated should ALWAYS be "\0" (empty string)
 
 DATABASE START = \n\n
 DATABASE END = EOF
 
-
-key-value pairs
-   5 bytes for each pair
-x 16 pairs for each game
-= 80 bytes per game
-
-
-
-
-
-
-
-
 TIMESTAMP
     Number of nanoseconds since epoch
     64-bits (unsigned long long int)
 HEADER SIZE
-    Number of strings in header (uint32_t)
+    32-bit integer (uint32_t)
+    Number of strings in header
 HEADER
     Newline delmited strings
     First entry is empty string
     Any subsequent empty string indicates end of header
 PGN TAGS
-    32-bit integer enumerations (uint32_t)
+    32-bit integer (uint32_t)
     Value refers to index of HEADER list
+    16 tags per game x 4 bytes per tag = 64 bytes per game
 NUM PLIES
-    16-bit integer count (uint16_t)
+    16-bit integer (uint16_t)
     Indicates total number of plies for current game
 MOVETEXT
     Sequence of plies
-    Each ply is 2 bytes
+    Each ply is 2 bytes (uint16_t)
