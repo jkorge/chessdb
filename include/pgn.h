@@ -2,13 +2,11 @@
 #define PGN_H
 
 #include <regex>
-#include <vector>
 
 #include "log.h"
 #include "types.h"
 #include "util.h"
 #include "parsebuf.h"
-
 #include "board.h"
 #include "disamb.h"
 #include "fen.h"
@@ -31,7 +29,7 @@ class PGN : virtual public ParseBuf<CharT, Traits>{
 
     // ParseBuf overrides
     void read();
-    int_type parse();
+    int_type read_parse();
 
     // Util functions
     void rcharb(char_type);
@@ -57,7 +55,7 @@ public:
     std::vector<ply> _plies;
     std::vector<string> _tokens;
 
-    PGN(const string& file) : ParseBuf<CharT,Traits>(file) { this->cnt++; }
+    PGN(const string& file) : ParseBuf<CharT,Traits>(file, "r") { ++this->cnt; }
 
 };
 
@@ -72,11 +70,11 @@ int PGN<CharT, Traits>::cnt = 0;
     ParseBuf Overrides
 */
 template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::read(){ this->_fdev.xsgetn(this->_buf, BUFSIZE, this->_delim); }
+void PGN<CharT, Traits>::read(){ this->_fdev.xsgetn(this->_read_buf, BUFSIZE, this->_delim); }
 
 template<typename CharT, typename Traits>
-typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::parse(){
-    int_type size = (this->_buf[0] == '[') ? this->tags() : this->movetext();
+typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::read_parse(){
+    int_type size = (this->_read_buf[0] == '[') ? this->tags() : this->movetext();
     return this->_fdev.eof() ? Traits::eof() : size;
 }
 
@@ -93,7 +91,7 @@ void PGN<CharT, Traits>::rchar(PGN<CharT, Traits>::char_type c, PGN<CharT, Trait
 
 // Remove all instances of a character from _buf
 template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::rcharb(PGN<CharT, Traits>::char_type c){ this->rchar(c, this->_buf); }
+void PGN<CharT, Traits>::rcharb(PGN<CharT, Traits>::char_type c){ this->rchar(c, this->_read_buf); }
 
 template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::fixendl(PGN<CharT, Traits>::string& buf){
@@ -115,24 +113,24 @@ inline bool PGN<CharT, Traits>::badendl(const PGN<CharT, Traits>::string& substr
 template<typename CharT, typename Traits>
 typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::tags(){
     this->log.info("Parsing Tags");
-    this->log.debug(this->_buf);
+    this->log.debug(this->_read_buf);
 
-    int_type size = this->_buf.size();
+    int_type size = this->_read_buf.size();
     this->_tags.reset();
 
     // strip brackets
     for(const char *c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); c++){ this->rcharb(*c); }
 
     // Copy _buf to sstream for tokenizing
-    std::basic_stringstream<CharT, Traits> bufstr(this->_buf);
-    while(std::getline(bufstr, this->_buf)){
+    std::basic_stringstream<CharT, Traits> bufstr(this->_read_buf);
+    while(std::getline(bufstr, this->_read_buf)){
 
-        int_type pos = this->_buf.find(' ');
-        string keytok = this->_buf.substr(0, pos);
+        int_type pos = this->_read_buf.find(' ');
+        string keytok = this->_read_buf.substr(0, pos);
         util::lowercase(keytok);
 
         if(util::pgn::s2tag.find(keytok) != util::pgn::s2tag.end()){
-            string valtok = this->_buf.substr(pos+1);
+            string valtok = this->_read_buf.substr(pos+1);
             this->rchar(util::pgn::value_delim, valtok);
             this->_tags[util::pgn::s2tag[keytok]] = valtok;
         }
@@ -146,16 +144,16 @@ typename PGN<CharT, Traits>::int_type
 PGN<CharT, Traits>::movetext(){
 
     this->log.info("Parsing Movetext");
-    this->log.debug(this->_buf);
+    this->log.debug(this->_read_buf);
 
     // Return value
-    int_type size = this->_buf.size();
+    int_type size = this->_read_buf.size();
 
     // Check start for elided white ply at start of movetext
-    bool black_starts = std::regex_search(this->_buf.substr(0,6), util::pgn::black_starts);
+    bool black_starts = std::regex_search(this->_read_buf.substr(0,6), util::pgn::black_starts);
 
     // Concatenate lines
-    this->fixendl(this->_buf);
+    this->fixendl(this->_read_buf);
 
     // Tokenize into individual plies
     this->tokenize();
@@ -181,7 +179,7 @@ template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::tokenize(){
 
     this->_tokens.clear();
-    std::stringstream str(this->_buf);
+    std::stringstream str(this->_read_buf);
     string tok;
     while(!str.eof()){
         str >> tok;
