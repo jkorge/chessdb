@@ -77,7 +77,8 @@ struct coords{
     coords () {}
     coords (T r, T f) : _rf{r,f} {}
     coords (T* _rf) : _rf{_rf} {}
-    T operator[](int i) const{ return _rf[i]; }
+    T& operator[](int i) { return _rf[i]; }
+    const T& operator[](int i) const{ return _rf[i]; }
     coords<T> operator+(const coords<T>& other){ return {this->_rf[0] + other[0], this->_rf[1] + other[1]}; }
 };
 
@@ -273,7 +274,7 @@ typedef uint16_t eply;
 
 
 /**************************
-    PGN
+    PGN TAGS
 **************************/
 
 /*
@@ -328,6 +329,31 @@ struct pgndict : std::map<pgntag, std::string>{
     } {}
 
     void reset(){ for(std::map<pgntag, std::string>::iterator it=this->begin(); it!=this->end(); ++it){ it->second.clear(); } }
+};
+
+
+/**************************
+    GAME DATA
+**************************/
+
+struct game{
+    pgndict tags;
+    std::vector<ply> plies;
+    game () {}
+    game (pgndict _tags, std::vector<ply> _plies) : tags{_tags}, plies{_plies} {}
+    game (std::vector<ply> _plies, pgndict _tags) : tags{_tags}, plies{_plies} {}
+    bool operator==(const game& other) const{ return (this->tags == other.tags) && (this->plies == other.plies); }
+    bool operator!=(const game& other) const{ return not (*this == other); }
+};
+
+struct egame{
+    pgndict tags;
+    std::vector<eply> plies;
+    egame () {}
+    egame (pgndict _tags, std::vector<eply> _plies) : tags{_tags}, plies{_plies} {}
+    egame (std::vector<eply> _plies, pgndict _tags) : tags{_tags}, plies{_plies} {}
+    bool operator==(const egame& other) const{ return (this->tags == other.tags) && (this->plies == other.plies); }
+    bool operator!=(const egame& other) const{ return not (*this == other); }
 };
 
 #endif
