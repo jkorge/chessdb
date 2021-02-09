@@ -304,6 +304,7 @@ public:
 
     PGNStream(const std::basic_string<CharT>& file) : _pbuf(file), std::basic_istream<CharT, Traits>(&_pbuf) {}
     game nextgame();
+    PGNStream<CharT, Traits>& operator>>(game&);
 };
 
 /******************************
@@ -314,6 +315,13 @@ template<typename CharT, typename Traits>
 game PGNStream<CharT, Traits>::nextgame(){
     for(int i=0; i<2; ++i){ this->get(); }
     return {this->_pbuf._plies, this->_pbuf._tags};
+}
+
+template<typename CharT, typename Traits>
+PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(game& g){
+    typename std::basic_istream<CharT, Traits>::sentry s(*this, true);
+    if(s){ g = this->nextgame(); }
+    return *this;
 }
 
 #endif
