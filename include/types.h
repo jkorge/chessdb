@@ -347,11 +347,11 @@ struct game{
 };
 
 struct egame{
-    pgndict tags;
+    std::vector<uint32_t> tags;
     std::vector<eply> plies;
     egame () {}
-    egame (pgndict _tags, std::vector<eply> _plies) : tags{_tags}, plies{_plies} {}
-    egame (std::vector<eply> _plies, pgndict _tags) : tags{_tags}, plies{_plies} {}
+    egame (std::vector<uint32_t> _tags, std::vector<eply> _plies) : tags{_tags}, plies{_plies} {}
+    egame (std::vector<eply> _plies, std::vector<uint32_t> _tags) : tags{_tags}, plies{_plies} {}
     bool operator==(const egame& other) const{ return (this->tags == other.tags) && (this->plies == other.plies); }
     bool operator!=(const egame& other) const{ return not (*this == other); }
 };
