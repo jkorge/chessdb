@@ -1,9 +1,8 @@
 Database File Format
 -----------------------
 TIMESTAMP
-HEADER SIZE
-HEADER
-DATABASE START
+NUM GAMES
+TAG ENUM SIZE
 PGN TAGS
 NUM PLIES
 MOVES
@@ -14,27 +13,21 @@ MOVES
 PGN TAGS
 NUM PLIES
 MOVES
-DATABASE END
+TAG ENUM
+EOF
 -----------------------
-
-Header contains a newline delimited list of strings
-    Order of strings defines their enumeration
-    ie. first string has enum value 0, followed by 1, etc.
-    First string to be enumerated should ALWAYS be "\0" (empty string)
-
-DATABASE START = \n\n
-DATABASE END = EOF
 
 TIMESTAMP
     Number of nanoseconds since epoch
     64-bits (unsigned long long int)
-HEADER SIZE
+NUM GAMES
     32-bit integer (uint32_t)
-    Number of strings in header
-HEADER
-    Newline delmited strings
-    First entry is empty string
-    Any subsequent empty string indicates end of header
+    Number of games in the database
+    Write 0 at first; go back and update after data is written
+TAG ENUM SIZE
+    32-bit integer (uint32_t)
+    Number of strings in tag enum
+    Write 0 at first; go back and update after data is written
 PGN TAGS
     32-bit integer (uint32_t)
     Value refers to index of HEADER list
@@ -44,4 +37,9 @@ NUM PLIES
     Indicates total number of plies for current game
 MOVETEXT
     Sequence of plies
-    Each ply is 2 bytes (uint16_t)
+    Each ply is 2 bytes (uint16_t aka eply)
+TAG ENUM
+    Newline delmited strings
+    First entry is empty string
+    Order of strings defines their enumeration
+    ie. first string has enum value 0, followed by 1, etc.
