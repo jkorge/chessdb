@@ -23,9 +23,11 @@ public:
 
     FileBase(const string& fname, const string& mode) : _fname(fname), _mode(mode){ this->open(); }
     ~FileBase(){ this->close(); }
+
     void open();
     void close();
     bool eof();
+    int seek(long, int=SEEK_SET);
 
     void xsgetn(string&, std::streamsize);
     void xsgetn(string&, std::streamsize, char_type);
@@ -42,13 +44,21 @@ public:
 ******************************/
 
 template<typename CharT, typename Traits>
-void FileBase<CharT, Traits>::open(){ if(this->_M_file == 0){ this->_M_file = std::fopen(this->_fname.data(), this->_mode.data()); } }
+void FileBase<CharT, Traits>::open(){
+    if(this->_M_file == 0){
+        this->_M_file = std::fopen(this->_fname.data(), this->_mode.data());
+        std::setbuf(this->_M_file, NULL);
+    }
+}
 
 template<typename CharT, typename Traits>
-void FileBase<CharT, Traits>::close(){ std::fclose(this->_M_file); }
+void FileBase<CharT, Traits>::close(){ if(this->_M_file){ std::fclose(this->_M_file); } }
 
 template<typename CharT, typename Traits>
 bool FileBase<CharT, Traits>::eof(){ return std::feof(this->_M_file); }
+
+template<typename CharT, typename Traits>
+int FileBase<CharT, Traits>::seek(long offset, int origin){ return std::fseek(this->_M_file, offset, origin); }
 
 /*
     READ FUNCS
@@ -120,7 +130,7 @@ void FileBase<CharT, Traits>::xsgetn(
 
 // Write entire contents of buffer
 template<typename CharT, typename Traits>
-void FileBase<CharT, Traits>::xsputn(typename FileBase<CharT, Traits>::string& buf){ std::fputs(buf.data(), this->_M_file); }
+void FileBase<CharT, Traits>::xsputn(typename FileBase<CharT, Traits>::string& buf){ std::fwrite(buf.data(), 1, buf.size(), this->_M_file); }
 
 // Write up to n bytes
 template<typename CharT, typename Traits>
@@ -138,7 +148,7 @@ void FileBase<CharT, Traits>::xsputn(
 ){
     for(int i=0; i<n; ++i){
         if(buf[i] == delim){ break; }
-        else                { int_type c = std::fputc(buf[i], this->_M_file); }
+        else               { int_type c = std::fputc(buf[i], this->_M_file); }
     }
 }
 

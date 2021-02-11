@@ -23,13 +23,14 @@ class ParseBuf : virtual public std::basic_streambuf<CharT, Traits> {
 public:
 
     ParseBuf(const string& file, const string& mode) : std::basic_streambuf<CharT, Traits>(), _fdev(file, mode) { this->_mode = mode.find('r') != string::npos ? 0 : 1; }
-    ~ParseBuf(){ this->_fdev.close(); }
 
 protected:
 
     string _read_buf, _write_buf;
     int_type _mode;
     FileBase<CharT, Traits> _fdev;
+
+    virtual void close();
 
     virtual void read();
     virtual int_type read_parse();
@@ -51,6 +52,9 @@ protected:
 /******************************
     ParseBuf Member Funcs
 ******************************/
+
+template<typename CharT, typename Traits>
+void ParseBuf<CharT, Traits>::close(){ this->_fdev.close(); }
 
 /*
     READ FUNCS
@@ -115,9 +119,9 @@ ParseBuf<CharT, Traits>::sputc(const ParseBuf<CharT, Traits>::char_type ch){ ret
 
 template<typename CharT, typename Traits>
 std::streamsize ParseBuf<CharT,Traits>::xsputn(const ParseBuf<CharT, Traits>::char_type* s, std::streamsize count){
-    int_type res;
-    for(int i=0; i<count; ++i){ res = this->overflow(s[i]); }
-    if(res != Traits::eof()){ this->write_sync(); }
+    this->_write_buf.append(s, count);
+    std::streamsize res = this->_write_buf.size();
+    this->write_sync();
     return res;
 }
 
