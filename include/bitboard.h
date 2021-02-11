@@ -533,7 +533,7 @@ U64 BitBoard::shift(const T& src, U rs, U fs){
 
 str BitBoard::display(){
     
-    str viz = util::endl;
+    str viz(1, util::endl);
     U64 grid = this->board();
 
     // File headers
@@ -548,7 +548,7 @@ str BitBoard::display(){
             loc[1] = f;
 
             // Rank headers
-            if(!f){ viz += util::endl + util::rank2c(r) + " "; }
+            if(!f){ viz += str(1, util::endl) + util::rank2c(r) + " "; }
 
             U64 src = mask(loc);
 

@@ -18,7 +18,7 @@ namespace util{
     const std::regex ws("\\s");
 
     // Newline string
-    const str endl = str("\n");
+    const char endl = '\n';
 
     // Starting positions for a standard game of chess
     const U64 white_pawns = 0x000000000000ff00,
