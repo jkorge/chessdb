@@ -84,8 +84,6 @@
 
 void mkdirs(const std::filesystem::path& d){ if(!std::filesystem::is_directory(d)){ std::filesystem::create_directories(d); } }
 
-typedef std::string str;
-
 // Log level enum
 typedef enum LEVEL {
     ALL = 0,
@@ -137,11 +135,11 @@ class LoggerBase{
     };
 
     // separates level/time block from process info block in log text
-    const str sep = "<->";
+    const std::string sep = "<->";
 
 public:
     LEVEL minl;                                                             // Will only write logs of minl or greater
-    str filename;                                                           // Log file name
+    std::string filename;                                                   // Log file name
 
     LoggerBase(LEVEL, short, std::filesystem::path, bool=false, int=0);     // Constructor - parses log filenames and creates log directories (if not already created)
     ~LoggerBase();                                                          // Destructor - closes file stream
@@ -153,7 +151,7 @@ public:
 
 private:
 
-    str _srcfile;                                                   // File name of src code which constructs this object
+    std::string _srcfile;                                           // File name of src code which constructs this object
     short _pid;                                                     // PID of calling process
     bool _log_to_console;                                           // Whether this instance should output to console
     std::stringstream _f_log;                                       // String stream for buffering/formatting log text
@@ -217,7 +215,7 @@ void LoggerBase::format(loc& fmt, LEVEL lvl){
 }
 
 void LoggerBase::clear(){
-    this->_f_log.str(str());
+    this->_f_log.str(std::string());
     this->_f_log.clear();
 }
 

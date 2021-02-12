@@ -7,10 +7,6 @@
 #include <string>
 #include <chrono>
 
-typedef unsigned long ulong;
-typedef unsigned long long ullong;
-typedef std::string str;
-
 using Clock = std::chrono::system_clock;
 
 template<typename LONGTYPE, typename TICKSIZE>
@@ -20,7 +16,7 @@ template<typename TICK>
 using Time = std::chrono::time_point<Clock, TICK>;
 
 
-using Nanosecond = std::chrono::duration<ullong, std::nano>;
+using Nanosecond = std::chrono::duration<unsigned long long, std::nano>;
 using Microsecond = std::chrono::duration<long, std::micro>;
 using Millisecond = std::chrono::duration<long, std::milli>;
 using Second = std::chrono::duration<long, std::ratio<1> >;
@@ -53,48 +49,48 @@ namespace Tempus{
     */
 
     // Fractional seconds to seconds
-    constexpr ulong nsecs_per_sec = std::nano::den;
-    constexpr ulong usecs_per_sec = std::micro::den;
-    constexpr ulong msecs_per_sec = std::milli::den;
+    constexpr unsigned long nsecs_per_sec = std::nano::den;
+    constexpr unsigned long usecs_per_sec = std::micro::den;
+    constexpr unsigned long msecs_per_sec = std::milli::den;
 
     // Seconds => Minutes => Hours => Days => Year
-    constexpr ulong secs_per_min = 60;
-    constexpr ulong mins_per_hour = 60;
-    constexpr ulong hours_per_day = 24;
-    constexpr ulong days_per_year = 365;
+    constexpr unsigned long secs_per_min = 60;
+    constexpr unsigned long mins_per_hour = 60;
+    constexpr unsigned long hours_per_day = 24;
+    constexpr unsigned long days_per_year = 365;
 
     // Nanoseconds to larger units
-    constexpr ulong nsecs_per_usec = usecs_per_sec / nsecs_per_sec;
-    constexpr ulong nsecs_per_msec = msecs_per_sec / nsecs_per_sec;
-    constexpr ulong nsecs_per_min = nsecs_per_sec * secs_per_min;
-    constexpr ulong nsecs_per_hour = nsecs_per_min * mins_per_hour;
-    constexpr ulong nsecs_per_day = nsecs_per_hour * hours_per_day;
-    constexpr ulong nsecs_per_year = nsecs_per_day * days_per_year;
+    constexpr unsigned long nsecs_per_usec = usecs_per_sec / nsecs_per_sec;
+    constexpr unsigned long nsecs_per_msec = msecs_per_sec / nsecs_per_sec;
+    constexpr unsigned long nsecs_per_min = nsecs_per_sec * secs_per_min;
+    constexpr unsigned long nsecs_per_hour = nsecs_per_min * mins_per_hour;
+    constexpr unsigned long nsecs_per_day = nsecs_per_hour * hours_per_day;
+    constexpr unsigned long nsecs_per_year = nsecs_per_day * days_per_year;
 
     // Microseconds to larger units
-    constexpr ulong usecs_per_msec = msecs_per_sec / nsecs_per_sec;
-    constexpr ulong usecs_per_min = usecs_per_sec * secs_per_min;
-    constexpr ulong usecs_per_hour = usecs_per_min * mins_per_hour;
-    constexpr ulong usecs_per_day = usecs_per_hour * hours_per_day;
-    constexpr ulong usecs_per_year = usecs_per_day * days_per_year;
+    constexpr unsigned long usecs_per_msec = msecs_per_sec / nsecs_per_sec;
+    constexpr unsigned long usecs_per_min = usecs_per_sec * secs_per_min;
+    constexpr unsigned long usecs_per_hour = usecs_per_min * mins_per_hour;
+    constexpr unsigned long usecs_per_day = usecs_per_hour * hours_per_day;
+    constexpr unsigned long usecs_per_year = usecs_per_day * days_per_year;
 
     // Milliseconds to larger units
-    constexpr ulong msecs_per_min = msecs_per_sec * secs_per_min;
-    constexpr ulong msecs_per_hour = msecs_per_min * mins_per_hour;
-    constexpr ulong msecs_per_day = msecs_per_hour * hours_per_day;
-    constexpr ulong msecs_per_year = msecs_per_day * days_per_year;
+    constexpr unsigned long msecs_per_min = msecs_per_sec * secs_per_min;
+    constexpr unsigned long msecs_per_hour = msecs_per_min * mins_per_hour;
+    constexpr unsigned long msecs_per_day = msecs_per_hour * hours_per_day;
+    constexpr unsigned long msecs_per_year = msecs_per_day * days_per_year;
 
     // Seconds to larger units
-    constexpr ulong secs_per_hour = secs_per_min * mins_per_hour;
-    constexpr ulong secs_per_day = secs_per_hour * hours_per_day;
-    constexpr ulong secs_per_year = secs_per_day * days_per_year;
+    constexpr unsigned long secs_per_hour = secs_per_min * mins_per_hour;
+    constexpr unsigned long secs_per_day = secs_per_hour * hours_per_day;
+    constexpr unsigned long secs_per_year = secs_per_day * days_per_year;
 
     // Minutes to larger units
-    constexpr ulong mins_per_day = mins_per_hour * hours_per_day;
-    constexpr ulong mins_per_year = mins_per_day * days_per_year;
+    constexpr unsigned long mins_per_day = mins_per_hour * hours_per_day;
+    constexpr unsigned long mins_per_year = mins_per_day * days_per_year;
 
-    // Days to larger units
-    constexpr ulong hours_per_year = hours_per_day * days_per_year;
+    // Hours to larger units
+    constexpr unsigned long hours_per_year = hours_per_day * days_per_year;
 
     /*
         FORMAT SPECS
@@ -150,16 +146,16 @@ namespace Tempus{
     template<typename LONGTYPE, typename TICKSIZE>
     LONGTYPE time(Tick<LONGTYPE, TICKSIZE> prec){ return get_time(prec).count(); }
 
-    ullong time(){ return time(nsec); }
+    unsigned long long time(){ return time(nsec); }
 
     template<typename LONGTYPE, typename TICKSIZE>
-    str strtime(Tick<LONGTYPE, TICKSIZE> prec, const char *spec=tm_spec){
+    std::string strtime(Tick<LONGTYPE, TICKSIZE> prec, const char *spec=tm_spec){
 
         char tm[n_time_chars];
-        str nstr;
+        std::string nstr;
         long n, t;
 
-        if(prec >= day){ return str(midnight); }
+        if(prec >= day){ return std::string(midnight); }
 
         // Duration since epoch
         Tick<LONGTYPE, TICKSIZE> T = get_time(prec);
@@ -178,32 +174,32 @@ namespace Tempus{
 
         // Append fractional seconds
         nstr = std::to_string(n);
-        return str(tm) + "." + str(n_dec_chars - nstr.length(), '0') + nstr;
+        return std::string(tm) + "." + std::string(n_dec_chars - nstr.length(), '0') + nstr;
         
     }
 
-    str strtime(ullong t0, const char *spec=tm_spec){
+    std::string strtime(unsigned long long t0, const char *spec=tm_spec){
 
         char tm[n_time_chars];
-        str nstr;
+        std::string nstr;
 
-        ulong n = t0 % std::nano::den;
+        unsigned long n = t0 % std::nano::den;
         Nanosecond T(t0 - n);
         long t = duration_cast(T, sec).count();
 
         nstr = std::to_string(n);
-        nstr = str(n_dec_chars - nstr.length(), '0') + nstr;
+        nstr = std::string(n_dec_chars - nstr.length(), '0') + nstr;
 
-        std::strftime(tm, n_time_chars, spec, std::gmtime(&t));
+        std::strftime(tm, n_time_chars, spec, std::localtime(&t));
 
-        return str(tm) + "." + nstr;
+        return std::string(tm) + "." + nstr;
 
     }
 
-    str strtime(const char *spec=tm_spec){ return strtime(nsec, spec); }
+    std::string strtime(const char *spec=tm_spec){ return strtime(nsec, spec); }
 
     template<typename LONGTYPE, typename TICKSIZE>
-    str strdate(Tick<LONGTYPE, TICKSIZE> prec, const char *spec=dt_spec){
+    std::string strdate(Tick<LONGTYPE, TICKSIZE> prec, const char *spec=dt_spec){
         char dt[n_date_chars];
         long d;
 
@@ -212,15 +208,15 @@ namespace Tempus{
         d = duration_cast(get_time(prec), sec).count();
         // Write to dt according to dt_spec
         std::strftime(dt, n_date_chars, spec, std::gmtime(&d));
-        return str(dt);
+        return std::string(dt);
     }
 
-    str strdate(const char *spec=dt_spec){ return strdate(day); }
+    std::string strdate(const char *spec=dt_spec){ return strdate(day); }
 
     template<typename LONGTYPE, typename TICKSIZE>
-    str strdatetime(Tick<LONGTYPE, TICKSIZE> prec, const char **spec, char sep='T'){ return strdate(prec, spec[0]) + sep + strtime(prec, spec[1]); }
+    std::string strdatetime(Tick<LONGTYPE, TICKSIZE> prec, const char **spec, char sep='T'){ return strdate(prec, spec[0]) + sep + strtime(prec, spec[1]); }
 
-    str strdatetime(const char **spec=dttm_spec, char sep='T'){ return strdatetime(nsec, spec, sep); }
+    std::string strdatetime(const char **spec=dttm_spec, char sep='T'){ return strdatetime(nsec, spec, sep); }
 
 }
 
