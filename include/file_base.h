@@ -21,6 +21,7 @@ public:
     string _fname, _mode;
     std::FILE* _M_file {NULL};
 
+    FileBase() {}
     FileBase(const string& fname, const string& mode) : _fname(fname), _mode(mode){ this->open(); }
     ~FileBase(){ this->close(); }
 
@@ -28,6 +29,7 @@ public:
     void close();
     bool eof();
     int seek(long, int=SEEK_SET);
+    long tell();
 
     void xsgetn(string&, std::streamsize);
     void xsgetn(string&, std::streamsize, char_type);
@@ -47,7 +49,7 @@ template<typename CharT, typename Traits>
 void FileBase<CharT, Traits>::open(){
     if(this->_M_file == 0){
         this->_M_file = std::fopen(this->_fname.data(), this->_mode.data());
-        std::setbuf(this->_M_file, NULL);
+        std::setvbuf(this->_M_file, NULL, _IONBF, 0);
     }
 }
 
@@ -59,6 +61,9 @@ bool FileBase<CharT, Traits>::eof(){ return std::feof(this->_M_file); }
 
 template<typename CharT, typename Traits>
 int FileBase<CharT, Traits>::seek(long offset, int origin){ return std::fseek(this->_M_file, offset, origin); }
+
+template<typename CharT, typename Traits>
+long FileBase<CharT, Traits>::tell(){ return std::ftell(this->_M_file); }
 
 /*
     READ FUNCS
@@ -72,7 +77,7 @@ void FileBase<CharT, Traits>::xsgetn(
 ){
     char_type tmp[n];
     std::fread(tmp, sizeof(char_type), n, this->_M_file);
-    buf = tmp;
+    buf.append(tmp, n);
 }
 
 // Reads up to n bytes, EOF, or delim (whichever comes first)
@@ -120,7 +125,7 @@ void FileBase<CharT, Traits>::xsgetn(
                 }
             }
         }
-        buf += s;
+        buf.append(s, s.size());
     }
 }
 
@@ -130,7 +135,7 @@ void FileBase<CharT, Traits>::xsgetn(
 
 // Write entire contents of buffer
 template<typename CharT, typename Traits>
-void FileBase<CharT, Traits>::xsputn(typename FileBase<CharT, Traits>::string& buf){ std::fwrite(buf.data(), 1, buf.size(), this->_M_file); }
+void FileBase<CharT, Traits>::xsputn(typename FileBase<CharT, Traits>::string& buf){ std::fwrite(buf.data(), sizeof(char_type), buf.size(), this->_M_file); }
 
 // Write up to n bytes
 template<typename CharT, typename Traits>
