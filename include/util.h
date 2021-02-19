@@ -305,6 +305,9 @@ namespace util{
             {"blackuscf", black_uscf}
         };
 
+        // Iterator to end of s2tag
+        std::map<str, pgntag>::iterator stend{s2tag.end()};
+
         // Get string from pgntag
         std::map<pgntag, str> tag2s{
             {event, "event"},
