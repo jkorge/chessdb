@@ -1,3 +1,4 @@
+-----------------------------------------------------------------------------------------------------------------------
 Piece       8-bit unsigned int
 -----------------------------------------------------------------------------------------------------------------------
     Pieces are enum from 0-31:
@@ -47,9 +48,10 @@ Piece       8-bit unsigned int
         001 => knight
         010 => bishop
         011 => rook
-        100 => queen
+        100 => queen (bishop move)
+        101 => queen (rook move)
 
-
+-----------------------------------------------------------------------------------------------------------------------
 Action      8-bit unsigned int
 -----------------------------------------------------------------------------------------------------------------------
 key:
@@ -87,10 +89,10 @@ King
     2 bits for change in file
         same as rank
     1 bits for castling
-        0 => kingside
-            corequisite: file bits = 01
-        1 => queenside
-            corequisite: file bits = 10
+        0 => No castle
+        1 => Castle
+            File bits = 01 => Kingside
+            File bits = 10 => Queenside
 
 Queen
     1 bit for axis (use piece encoding to determine axis)
@@ -134,6 +136,9 @@ Pawn
         011 => rook
         100 => queen
 
+-----------------------------------------------------------------------------------------------------------------------
+Ply      16-bit unsigned int
+-----------------------------------------------------------------------------------------------------------------------
 each ply is 2 bytes
 examples:
     piece       action      Description
