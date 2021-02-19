@@ -24,24 +24,25 @@ class PGN : virtual public ParseBuf<CharT, Traits>{
     typedef typename std::basic_string<char_type> string;
 
     string _delim = {"\n\n"};
+    int tend;
     Logger log{cnt};
     ChessBoard board = ChessBoard();
 
     // ParseBuf overrides
     void read();
-    int_type read_parse();
+    int_type rparse();
 
     // Util functions
-    void rcharb(char_type);
     void rchar(char_type, string&);
     void fixendl(string&);
     bool badendl(const string&);
 
     // Parsing functions
-    int_type tags();
-    int_type movetext();
+    void tags();
+    void movetext();
+
     string ptok(string&);
-    void tokenize();
+    void tokenize(string&);
     bool isend(const string&);
     void pplies(color=white);
     ply pply(string&, color);
@@ -70,11 +71,19 @@ int PGN<CharT, Traits>::cnt = 0;
     ParseBuf Overrides
 */
 template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::read(){ this->_fdev.xsgetn(this->_read_buf, BUFSIZE, this->_delim); }
+void PGN<CharT, Traits>::read(){
+    // Tags
+    this->_fdev.xsgetn(this->_buf, BUFSIZE, this->_delim);
+    this->tend = this->_buf.size()-1;
+    // Moves
+    this->_fdev.xsgetn(this->_buf, BUFSIZE, this->_delim);
+}
 
 template<typename CharT, typename Traits>
-typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::read_parse(){
-    int_type size = (this->_read_buf[0] == '[') ? this->tags() : this->movetext();
+typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::rparse(){
+    int_type size = this->_buf.size();
+    this->tags();
+    this->movetext();
     return this->_fdev.eof() ? Traits::eof() : size;
 }
 
@@ -88,10 +97,6 @@ void PGN<CharT, Traits>::rchar(PGN<CharT, Traits>::char_type c, PGN<CharT, Trait
     short idx;
     while((idx = s.find(c, 0)) != string::npos){ s.erase(idx, 1); }
 }
-
-// Remove all instances of a character from _buf
-template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::rcharb(PGN<CharT, Traits>::char_type c){ this->rchar(c, this->_read_buf); }
 
 template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::fixendl(PGN<CharT, Traits>::string& buf){
@@ -111,60 +116,54 @@ inline bool PGN<CharT, Traits>::badendl(const PGN<CharT, Traits>::string& substr
 */
 
 template<typename CharT, typename Traits>
-typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::tags(){
+void PGN<CharT, Traits>::tags(){
     this->log.info("Parsing Tags");
-    this->log.debug(this->_read_buf);
 
-    int_type size = this->_read_buf.size();
+    string tbuf = this->_buf.substr(0,this->tend);
+    this->log.debug(tbuf);
     this->_tags.reset();
 
     // strip brackets
-    for(const char *c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); c++){ this->rcharb(*c); }
+    for(const char *c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); ++c){ this->rchar(*c, tbuf); }
 
     // Copy _buf to sstream for tokenizing
-    std::basic_stringstream<CharT, Traits> bufstr(this->_read_buf);
-    while(std::getline(bufstr, this->_read_buf)){
+    std::basic_stringstream<CharT, Traits> bufstr(tbuf);
+    while(std::getline(bufstr, tbuf)){
 
-        int_type pos = this->_read_buf.find(' ');
-        string keytok = this->_read_buf.substr(0, pos);
+        int_type pos = tbuf.find(' ');
+        string keytok = tbuf.substr(0, pos);
         util::lowercase(keytok);
 
-        if(util::pgn::s2tag.find(keytok) != util::pgn::s2tag.end()){
-            string valtok = this->_read_buf.substr(pos+1);
+        if(util::pgn::s2tag.find(keytok) != util::pgn::stend){
+            string valtok = tbuf.substr(pos+1);
             this->rchar(util::pgn::value_delim, valtok);
             this->_tags[util::pgn::s2tag[keytok]] = valtok;
         }
     }
     this->log.info("End of Tags");
-    return size;
 }
 
 template<typename CharT, typename Traits>
-typename PGN<CharT, Traits>::int_type
-PGN<CharT, Traits>::movetext(){
-
+void PGN<CharT, Traits>::movetext(){
     this->log.info("Parsing Movetext");
-    this->log.debug(this->_read_buf);
 
-    // Return value
-    int_type size = this->_read_buf.size();
+    string mbuf = this->_buf.substr(this->tend+1);
+    this->log.debug(mbuf);
 
     // Check start for elided white ply at start of movetext
-    bool black_starts = std::regex_search(this->_read_buf.substr(0,6), util::pgn::black_starts);
+    bool black_starts = std::regex_search(mbuf.substr(0,6), util::pgn::black_starts);
 
     // Concatenate lines
-    this->fixendl(this->_read_buf);
+    this->fixendl(mbuf);
 
     // Tokenize into individual plies
-    this->tokenize();
+    this->tokenize(mbuf);
 
     // Parse ply tokens
     this->pplies(black_starts ? black : white);
 
     this->log.info("End of Movetext.");
     this->log.debug("Ply count:", this->_plies.size());
-
-    return size;
 }
 
 template<typename CharT, typename Traits>
@@ -176,10 +175,10 @@ PGN<CharT, Traits>::ptok(PGN<CharT, Traits>::string& tok){
 }
 
 template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::tokenize(){
+void PGN<CharT, Traits>::tokenize(PGN<CharT, Traits>::string& mbuf){
 
     this->_tokens.clear();
-    std::stringstream str(this->_read_buf);
+    std::stringstream str(mbuf);
     string tok;
     while(!str.eof()){
         str >> tok;
@@ -285,25 +284,22 @@ PGN<CharT, Traits>::cmp(PGN<CharT, Traits>::string& p, const char ch, short l){
 }
 
 
-
-
-
-
-
 /******************************
     PGNStream
 ******************************/
 
 template<typename CharT, typename Traits=std::char_traits<CharT> >
-class PGNStream : public std::basic_istream<CharT, Traits>{
+class PGNStream : public ParseStream<CharT, Traits>{
+
+    typedef typename Traits::int_type int_type;
+    typedef typename Traits::char_type char_type;
+    typedef typename std::basic_string<char_type> string;
 
     // Underlying buffer
     PGN<CharT, Traits> _pbuf;
 
 public:
-
-    PGNStream(const std::basic_string<CharT>& file) : _pbuf(file), std::basic_istream<CharT, Traits>(&_pbuf) {}
-    game nextgame();
+    PGNStream(const std::basic_string<CharT>& file) : ParseStream<CharT, Traits>(), _pbuf(file) { this->rdbuf(&this->_pbuf); }
     PGNStream<CharT, Traits>& operator>>(game&);
 };
 
@@ -312,15 +308,10 @@ public:
 ******************************/
 
 template<typename CharT, typename Traits>
-game PGNStream<CharT, Traits>::nextgame(){
-    for(int i=0; i<2; ++i){ this->get(); }
-    return {this->_pbuf._plies, this->_pbuf._tags};
-}
-
-template<typename CharT, typename Traits>
 PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(game& g){
-    typename std::basic_istream<CharT, Traits>::sentry s(*this, true);
-    if(s){ g = this->nextgame(); }
+    this->read(nullptr, 0);
+    g.tags = this->_pbuf._tags;
+    g.plies = this->_pbuf._plies;
     return *this;
 }
 

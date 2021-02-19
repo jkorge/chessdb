@@ -4,9 +4,7 @@
 #include <unordered_map>
 #include "file_base.h"
 
-#ifndef BUFSIZE
-#define BUFSIZE 4096
-#endif
+constexpr int BUFSIZE = 4096;
 
 /******************************
     ParseBuf
@@ -22,30 +20,31 @@ class ParseBuf : virtual public std::basic_streambuf<CharT, Traits> {
     
 public:
 
-    ParseBuf(const string& file, const string& mode) : std::basic_streambuf<CharT, Traits>(), _fdev(file, mode) { this->_mode = mode.find('r') != string::npos ? 0 : 1; }
+    ParseBuf() : std::basic_streambuf<CharT, Traits>() {}
+    ParseBuf(const string& file, const string& mode) : std::basic_streambuf<CharT, Traits>(), _fdev(file, mode) {}
+    virtual ~ParseBuf() { this->close(); }
 
 protected:
 
-    string _read_buf, _write_buf;
-    int_type _mode;
+    string _buf;
     FileBase<CharT, Traits> _fdev;
 
-    virtual void close();
+    void close();
+    int sync();
 
     virtual void read();
-    virtual int_type read_parse();
-    int read_sync();
-    void set_get(int_type);
+    virtual int_type rparse();
+    std::streamsize xsgetn(char_type*, std::streamsize);
     int_type uflow();
     int_type underflow();
 
     virtual void write();
-    virtual int_type write_parse();
-    int write_sync();
-    void set_put(int_type);
-    int_type sputc(const char_type);
+    virtual int_type wparse();
     std::streamsize xsputn(const char_type* s, std::streamsize count);
-    int_type overflow(int_type);
+    int_type overflow(int_type=Traits::eof());
+
+    template<typename _CharT, typename _Traits>
+    friend class ParseStream;
 
 };
 
@@ -56,44 +55,44 @@ protected:
 template<typename CharT, typename Traits>
 void ParseBuf<CharT, Traits>::close(){ this->_fdev.close(); }
 
+template<typename CharT, typename Traits>
+int ParseBuf<CharT, Traits>::sync(){
+    this->_buf.clear();
+    return 0;
+}
+
 /*
     READ FUNCS
 */
 
 template<typename CharT, typename Traits>
-void ParseBuf<CharT, Traits>::read(){ this->_fdev.xsgetn(this->_read_buf, BUFSIZE); }
+void ParseBuf<CharT, Traits>::read(){ this->_fdev.xsgetn(this->_buf, BUFSIZE); }
 
 template<typename CharT, typename Traits>
 typename ParseBuf<CharT, Traits>::int_type
-ParseBuf<CharT, Traits>::read_parse(){ return this->_read_buf.size(); }
+ParseBuf<CharT, Traits>::rparse(){ return this->_buf.size(); }
 
 template<typename CharT, typename Traits>
-void ParseBuf<CharT, Traits>::set_get(ParseBuf<CharT, Traits>::int_type sz){ this->setg(&this->_read_buf[0], &this->_read_buf[0], &this->_read_buf[0] + sz); }
-
-template<typename CharT, typename Traits>
-typename ParseBuf<CharT, Traits>::int_type
-ParseBuf<CharT, Traits>::uflow(){
-    int_type res = this->underflow();
-    if(res != Traits::eof()){ this->read_sync(); }
-    return res;
+std::streamsize ParseBuf<CharT, Traits>::xsgetn(ParseBuf<CharT, Traits>::char_type* s, std::streamsize n){
+    if(this->uflow() == Traits::eof()){ return 0; }
+    else                              { return this->_buf.size(); }
 }
+
+template<typename CharT, typename Traits>
+typename ParseBuf<CharT, Traits>::int_type
+ParseBuf<CharT, Traits>::uflow(){ return this->underflow(); }
 
 template<typename CharT, typename Traits>
 typename ParseBuf<CharT, Traits>::int_type
 ParseBuf<CharT, Traits>::underflow(){
-    // Check for eof, read from file, update get ptrs
-    if(!this->_fdev.eof()){ this->read(); }
-    this->set_get(this->_read_buf.size());
-    return (this->gptr() == this->egptr()) ? Traits::eof() : Traits::to_int_type(*this->gptr());
-}
-
-template<typename CharT, typename Traits>
-int ParseBuf<CharT, Traits>::read_sync(){
-    // Parse and clear buffer
-    if(!this->_read_buf.empty()){ this->read_parse(); }
-    this->_read_buf.clear();
-    this->set_get(0);
-    return 0;
+    if(!this->_fdev.eof()){
+        this->sync();
+        this->read();
+        this->rparse();
+        this->setg(&this->_buf[0], &this->_buf[0], &this->_buf[0]);
+        return 0;
+    }
+    else{ return Traits::eof(); }
 }
 
 
@@ -101,49 +100,77 @@ int ParseBuf<CharT, Traits>::read_sync(){
     WRITE FUNCS
 */
 
-// ostream.write() -> streambuf.xsputn() -> streambuf.overflow()
-
 template<typename CharT, typename Traits>
-void ParseBuf<CharT, Traits>::write(){ this->_fdev.xsputn(this->_write_buf); }
-
-template<typename CharT, typename Traits>
-typename ParseBuf<CharT, Traits>::int_type
-ParseBuf<CharT, Traits>::write_parse(){ return this->_write_buf.size(); }
-
-template<typename CharT, typename Traits>
-void ParseBuf<CharT, Traits>::set_put(ParseBuf<CharT, Traits>::int_type sz){ this->setp(&this->_write_buf[0], &this->_write_buf[0] + sz); }
+void ParseBuf<CharT, Traits>::write(){ this->_fdev.xsputn(this->_buf); }
 
 template<typename CharT, typename Traits>
 typename ParseBuf<CharT, Traits>::int_type
-ParseBuf<CharT, Traits>::sputc(const ParseBuf<CharT, Traits>::char_type ch){ return this->overflow(ch); }
+ParseBuf<CharT, Traits>::wparse(){ return this->_buf.size(); }
 
 template<typename CharT, typename Traits>
 std::streamsize ParseBuf<CharT,Traits>::xsputn(const ParseBuf<CharT, Traits>::char_type* s, std::streamsize count){
-    this->_write_buf.append(s, count);
-    std::streamsize res = this->_write_buf.size();
-    this->write_sync();
-    return res;
+    this->_buf.append(s, count);
+    return this->overflow();
 }
 
 template<typename CharT, typename Traits>
 typename ParseBuf<CharT, Traits>::int_type
 ParseBuf<CharT, Traits>::overflow(ParseBuf<CharT, Traits>::int_type ch){
-    // Add to buffer, update put ptrs
-    if(ch != Traits::eof()){ this->_write_buf.push_back(ch); }
-    this->set_put(this->_write_buf.size());
-    return (this->pptr() == this->epptr()) ? Traits::eof() : Traits::to_int_type(*this->pptr());
+    if(ch != Traits::eof()){ this->_buf.push_back(ch); }
+    else{
+        this->wparse();
+        this->write();
+        this->sync();
+        this->setp(&this->_buf[0], &this->_buf[0]);
+    }
+    return this->_buf.size();
+}
+
+
+/******************************
+    ParseStream
+******************************/
+
+template<typename CharT, typename Traits=std::char_traits<CharT> >
+class ParseStream : public std::basic_iostream<CharT, Traits>{
+
+    typedef typename Traits::int_type int_type;
+    typedef typename Traits::char_type char_type;
+    typedef typename std::basic_string<char_type> string;
+
+    // Underlying buffer
+    ParseBuf<CharT, Traits> _pbuf;
+
+public:
+
+    ParseStream() : std::basic_iostream<CharT, Traits>() {}
+    ParseStream(const std::basic_string<CharT>& file) : std::basic_iostream<CharT, Traits>(&_pbuf), _pbuf(file) {}
+
+    ParseStream<CharT, Traits>& read(char_type*, std::streamsize);
+    ParseStream<CharT, Traits>& write(const char_type*, std::streamsize);
+
+};
+
+/******************************
+    ParseStream Member Funcs
+******************************/
+
+template<typename CharT, typename Traits>
+ParseStream<CharT, Traits>& ParseStream<CharT, Traits>::read(ParseStream<CharT, Traits>::char_type* s, std::streamsize n){
+    typename std::basic_istream<CharT, Traits>::sentry sty(*this, true);
+    if(sty){
+        std::streamsize count = this->rdbuf()->sgetn(s, n);
+        if(!count){ this->setstate(std::ios_base::eofbit); }
+    }
+    return *this;
 }
 
 template<typename CharT, typename Traits>
-int ParseBuf<CharT, Traits>::write_sync(){
-    // Parse, write to file, and clear buffer
-    if(!this->_write_buf.empty()){
-        this->write_parse();
-        this->write();
-    }
-    this->_write_buf.clear();
-    this->set_put(0);
-    return 0;
+ParseStream<CharT, Traits>& ParseStream<CharT, Traits>::write(const ParseStream<CharT, Traits>::char_type* s, std::streamsize n){
+    typename std::basic_ostream<CharT, Traits>::sentry sty(*this);
+    if(sty){ this->rdbuf()->sputn(s, n); }
+    return *this;
 }
+
 
 #endif
