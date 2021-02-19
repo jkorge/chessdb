@@ -11,6 +11,9 @@
 
 class ChessBoard : public BitBoard{
     static int cnt;
+
+    ply missing;
+
 public:
 
     U64 pins = 0;
@@ -109,6 +112,8 @@ void ChessBoard::clear(){
 *********************************/
 
 pname ChessBoard::update(const ply& p){
+
+    if(p == this->missing){ return NONAME; }
     
     if(p.capture){
         if(p.type != pawn || (this->board() & p.dst)){ this->remove(p.dst); }
