@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "board.h"
+#include "fen.h"
 
 class Decoder{
 
@@ -10,7 +11,11 @@ class Decoder{
 
     eply emissing{UINT16_MAX};  // use `11111111 11111111` for missing plies
 
-public:    
+    ChessBoard board;
+
+public:
+    std::vector<ply> decode_game(const std::vector<eply>&, const std::string& ="");
+
     ply decode_ply(eply, ChessBoard&);
 
     ptype decode_type(BYTE);
@@ -41,6 +46,20 @@ public:
 
     coords<int> king_action(BYTE);
 };
+
+std::vector<ply> Decoder::decode_game(const std::vector<eply>& g, const std::string& fstr){
+
+    std::vector<ply> res;
+    if(!fstr.empty()){ fen::parse(fstr, this->board); }
+    else             { this->board.newgame(); }
+
+    int i = 0;
+    for(std::vector<eply>::const_iterator it=g.begin(); it!=g.end(); ++it){
+        res.emplace_back(this->decode_ply(*it, this->board));
+        this->board.update(res.back());
+    }
+    return res;
+}
 
 ply Decoder::decode_ply(eply e, ChessBoard& board){
 

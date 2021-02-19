@@ -11,6 +11,8 @@ class Encoder {
 
 public:
 
+    std::vector<eply> encode_game(const std::vector<ply>&);
+
     eply encode_ply(const ply&);
 
     BYTE encode_piece(const ply&);
@@ -50,6 +52,12 @@ public:
 };
 
 eply Encoder::encode_ply(const ply& p){ return p == this->missing ? this->emissing : (static_cast<uint16_t>(this->encode_piece(p)) << 8) | this->encode_action(p); }
+
+std::vector<eply> Encoder::encode_game(const std::vector<ply>& g){
+    std::vector<eply> res;
+    for(std::vector<ply>::const_iterator it=g.begin(); it!=g.end(); ++it){ res.emplace_back(this->encode_ply(*it)); }
+    return res;
+}
 
 BYTE Encoder::encode_piece(const ply& p){
     BYTE _piece = static_cast<BYTE>(p.name);
