@@ -2,6 +2,8 @@
 #define TYPES_H
 
 #include <cstdint>
+#include <string>
+#include <vector>
 #include <map>
 #include <regex>
 
@@ -12,16 +14,8 @@
 // BYTE type
 typedef unsigned char BYTE;
 
-// Integer types
-typedef unsigned short int ushort;
-typedef unsigned long int ulong;
-typedef unsigned long long int ullong;
-
 // Fixed width
 typedef uint64_t U64;
-
-// String
-typedef std::string str;
 
 // Alias for square numbers
 typedef int square;
@@ -310,22 +304,22 @@ typedef enum pgntag{
 
 struct pgndict : std::map<pgntag, std::string>{
     pgndict () : std::map<pgntag, std::string>{
-        {event, str()},
-        {site, str()},
-        {date, str()},
-        {round, str()},
-        {playerw, str()},
-        {playerb, str()},
-        {result, str()},
-        {eco, str()},
-        {fenstr, str()},
-        {mode, str()},
-        {time_control, str()},
-        {termination, str()},
-        {white_elo, str()},
-        {white_uscf, str()},
-        {black_elo, str()},
-        {black_uscf, str()}
+        {event, std::string()},
+        {site, std::string()},
+        {date, std::string()},
+        {round, std::string()},
+        {playerw, std::string()},
+        {playerb, std::string()},
+        {result, std::string()},
+        {eco, std::string()},
+        {fenstr, std::string()},
+        {mode, std::string()},
+        {time_control, std::string()},
+        {termination, std::string()},
+        {white_elo, std::string()},
+        {white_uscf, std::string()},
+        {black_elo, std::string()},
+        {black_uscf, std::string()}
     } {}
 
     void reset(){ for(std::map<pgntag, std::string>::iterator it=this->begin(); it!=this->end(); ++it){ it->second.clear(); } }

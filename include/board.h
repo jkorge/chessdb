@@ -2,11 +2,7 @@
 #define BOARD_H
 
 #include <unordered_map>
-
 #include "log.h"
-#include "types.h"
-
-#include "util.h"
 #include "bitboard.h"
 
 class ChessBoard : public BitBoard{

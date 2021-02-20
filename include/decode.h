@@ -1,8 +1,6 @@
 #ifndef DECODE_H
 #define DECODE_H
 
-#include "types.h"
-#include "board.h"
 #include "fen.h"
 
 class Decoder{

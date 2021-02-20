@@ -7,13 +7,13 @@
 #include <fstream>
 #include <iomanip>
 
-// Types
+// Type structs
 #include <string>
 #include <map>
 
 // OS Utils
 #include <unistd.h>     // getpid
-#include <filesystem>   // log filename/directory creation
+#include <filesystem>
 
 // Custom headers
 #include "tempus.h"
@@ -72,7 +72,6 @@
     #warning "Unrecognized log level specified. Defaulting to NONE"
     #define __DLVL__ NONE
 #else
-    // #pragma message "Setting default log level to " XSTFY(dlvl)
     #define __DLVL__ dlvl
 #endif
 

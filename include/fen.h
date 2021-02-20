@@ -68,7 +68,7 @@ namespace fen{
         return res;
     }
 
-    void arrange(str fs, ChessBoard& board){
+    void arrange(std::string fs, ChessBoard& board){
         pname avail[32];
         for(int i=0; i<32; ++i){ avail[i] = static_cast<pname>(i); }
 
@@ -76,8 +76,8 @@ namespace fen{
         rtok boardtok(fs.begin(), fs.end(), util::fen::delim, -1);
 
         while(boardtok != util::rtokend){
-            str rs = *boardtok++;
-            for(str::iterator it=rs.begin(); it!=rs.end(); ++it){
+            std::string rs = *boardtok++;
+            for(std::string::iterator it=rs.begin(); it!=rs.end(); ++it){
                 if(isdigit(*it)){ file += (*it - '0'); }
                 else{
                     color c = islower(*it) ? black : white;
@@ -98,7 +98,7 @@ namespace fen{
     }
 
     // Arrange pieces on board according to FEN string. Return color indicating which player moves next
-    color parse(str fs, ChessBoard& board){
+    color parse(std::string fs, ChessBoard& board){
 
         log.info("Parsing FEN string:", fs);
         color c;

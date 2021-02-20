@@ -3,19 +3,19 @@
 
 #include <filesystem>
 #include "tempus.h"
+#include "parsebuf.h"
 #include "types.h"
 #include "util.h"
-#include "parsebuf.h"
-#include "board.h"
 #include "encode.h"
+#include "decode.h"
 
-std::size_t PLYSZ{sizeof(ply)},         // ply struct
-            EPYSZ{sizeof(eply)},        // eply typedef
-            TAGSZ{sizeof(uint32_t)},    // Tag enumeration value
-            NPYSZ{sizeof(uint16_t)},    // nplies record
-            ATGSZ{16 * TAGSZ},          // Tags in each game
-            TMESZ{sizeof(ullong)},      // Time (nsec since epoch)
-            HDRSZ{TMESZ + 2*TAGSZ};     // File header (Timestamp + number of games + number of enumerated tags)
+std::size_t PLYSZ{sizeof(ply)},                     // ply struct
+            EPYSZ{sizeof(eply)},                    // eply typedef
+            TAGSZ{sizeof(uint32_t)},                // Tag enumeration value
+            NPYSZ{sizeof(uint16_t)},                // nplies record
+            ATGSZ{16 * TAGSZ},                      // Tags in each game
+            TMESZ{sizeof(unsigned long long)},      // Time (nsec since epoch)
+            HDRSZ{TMESZ + 2*TAGSZ};                 // File header (Timestamp + number of games + number of enumerated tags)
 
 
 
@@ -214,7 +214,7 @@ template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::write_timestamp(){
     this->encode = false;
     this->_fdev.seek(0);
-    ullong tme = Tempus::time();
+    unsigned long long tme = Tempus::time();
     this->sputn((char_type*)&tme, TMESZ);
 }
 
@@ -270,7 +270,7 @@ void ChessDB<CharT, Traits>::load_header(){
     this->_fdev.xsgetn(this->_buf, HDRSZ);
 
     // Ignore timestamp
-    // std::cout << Tempus::strtime(*(ullong*)this->_buf.data()) << std::endl;
+    // std::cout << Tempus::strtime(*(unsigned long long*)this->_buf.data()) << std::endl;
 
     // Extract num games
     this->NGAMES = *(uint32_t*)(this->_buf.data() + TMESZ);

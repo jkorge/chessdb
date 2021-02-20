@@ -178,10 +178,10 @@ template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::tokenize(PGN<CharT, Traits>::string& mbuf){
 
     this->_tokens.clear();
-    std::stringstream str(mbuf);
+    std::stringstream sstr(mbuf);
     string tok;
-    while(!str.eof()){
-        str >> tok;
+    while(!sstr.eof()){
+        sstr >> tok;
         this->_tokens.emplace_back(this->ptok(tok));
     }
 }

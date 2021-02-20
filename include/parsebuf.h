@@ -1,6 +1,7 @@
 #ifndef PARSEBUF_H
 #define PARSEBUF_H
 
+#include <iostream>
 #include <unordered_map>
 #include "file_base.h"
 

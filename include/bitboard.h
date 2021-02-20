@@ -143,17 +143,17 @@ public:
         Visualizations
     */
 
-    str display();
+    std::string display();
 
-    str odisplay(const U64&);
+    std::string odisplay(const U64&);
 
-    str odisplay();
+    std::string odisplay();
 
-    str odisplay(color);
+    std::string odisplay(color);
 
-    str odisplay(ptype);
+    std::string odisplay(ptype);
 
-    str odisplay(ptype, color);
+    std::string odisplay(ptype, color);
 };
 
 BitBoard::BitBoard(){
@@ -531,13 +531,13 @@ U64 BitBoard::shift(const T& src, U rs, U fs){
     Visualizations
 */
 
-str BitBoard::display(){
+std::string BitBoard::display(){
     
-    str viz(1, util::endl);
+    std::string viz(1, util::endl);
     U64 grid = this->board();
 
     // File headers
-    for(int k=0; k<8; k++){ viz += str("   ") + util::files[k]; }
+    for(int k=0; k<8; k++){ viz += std::string("   ") + util::files[k]; }
 
     char square[]{"[  ]"};
     coords<int> loc;
@@ -548,7 +548,7 @@ str BitBoard::display(){
             loc[1] = f;
 
             // Rank headers
-            if(!f){ viz += str(1, util::endl) + util::rank2c(r) + " "; }
+            if(!f){ viz += std::string(1, util::endl) + util::rank2c(r) + " "; }
 
             U64 src = mask(loc);
 
@@ -568,9 +568,9 @@ str BitBoard::display(){
     return viz;
 }
 
-str BitBoard::odisplay(const U64& grid){
+std::string BitBoard::odisplay(const U64& grid){
     std::bitset<64> bsg = static_cast<std::bitset<64> >(grid);
-    str viz;
+    std::string viz;
     for(int r=7; r>=0; --r){
         viz += util::endl;
         for(int f=0; f<8; ++f){ viz += bsg.test((8*r) + f) ? " 1 " : " . "; }
@@ -578,12 +578,12 @@ str BitBoard::odisplay(const U64& grid){
     return viz;
 }
 
-str BitBoard::odisplay(){ return this->odisplay(this->board()); }
+std::string BitBoard::odisplay(){ return this->odisplay(this->board()); }
 
-str BitBoard::odisplay(color c){ return this->odisplay(this->board(c)); }
+std::string BitBoard::odisplay(color c){ return this->odisplay(this->board(c)); }
 
-str BitBoard::odisplay(ptype pt){ return this->odisplay(this->board(pt)); }
+std::string BitBoard::odisplay(ptype pt){ return this->odisplay(this->board(pt)); }
 
-str BitBoard::odisplay(ptype pt, color c){ return this->odisplay(this->board(pt, c)); }
+std::string BitBoard::odisplay(ptype pt, color c){ return this->odisplay(this->board(pt, c)); }
 
 #endif

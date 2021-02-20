@@ -3,8 +3,8 @@
 
 #include <cstdio>
 #include <ctime>
-#include <ratio>
 #include <string>
+#include <ratio>
 #include <chrono>
 
 using Clock = std::chrono::system_clock;
@@ -153,7 +153,8 @@ namespace Tempus{
 
         char tm[n_time_chars];
         std::string nstr;
-        long n, t;
+        long n;
+        std::time_t t;
 
         if(prec >= day){ return std::string(midnight); }
 
@@ -185,7 +186,7 @@ namespace Tempus{
 
         unsigned long n = t0 % std::nano::den;
         Nanosecond T(t0 - n);
-        long t = duration_cast(T, sec).count();
+        std::time_t t = duration_cast(T, sec).count();
 
         nstr = std::to_string(n);
         nstr = std::string(n_dec_chars - nstr.length(), '0') + nstr;
@@ -201,11 +202,10 @@ namespace Tempus{
     template<typename LONGTYPE, typename TICKSIZE>
     std::string strdate(Tick<LONGTYPE, TICKSIZE> prec, const char *spec=dt_spec){
         char dt[n_date_chars];
-        long d;
 
         // Duration since epoch
         // Expand precision to seconds and count
-        d = duration_cast(get_time(prec), sec).count();
+        std::time_t d = duration_cast(get_time(prec), sec).count();
         // Write to dt according to dt_spec
         std::strftime(dt, n_date_chars, spec, std::gmtime(&d));
         return std::string(dt);

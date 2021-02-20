@@ -1,11 +1,11 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#include <map>
+#include <cctype>
 #include <string>
+#include <map>
 #include <regex>
 #include <algorithm>
-#include <cctype>
 
 #include "types.h"
 
@@ -62,9 +62,9 @@ namespace util{
     };
 
     // Piece and file identifiers
-    const str pieces = "KQRBN";
-    const str files = "abcdefgh";
-    const str ranks = "12345678";
+    const std::string pieces = "KQRBN";
+    const std::string files = "abcdefgh";
+    const std::string ranks = "12345678";
 
     // Get file from char
     int c2file(char f){
@@ -149,7 +149,7 @@ namespace util{
     }
 
     // Get string from ptype
-    str ptype2s(ptype p){
+    std::string ptype2s(ptype p){
         switch(p){
             case pawn:   return "pawn";
             case knight: return "knight";
@@ -161,7 +161,7 @@ namespace util{
         }
     }
 
-    str pname2s(pname n){
+    std::string pname2s(pname n){
         switch(n){
             case white_rook_a:   return "white_rook_a";
             case white_knight_b: return "white_knight_b";
@@ -204,7 +204,7 @@ namespace util{
     }
 
     // Get string from color
-    str color2s(color c){
+    std::string color2s(color c){
         switch(c){
             case white: return "white";
             case black: return "black";
@@ -226,16 +226,16 @@ namespace util{
     crtok crtokend;
 
     template<typename T=int>
-    str coord2s_(const coords<T>& src){ return str("(") + std::to_string(src[0]) + ", " + std::to_string(src[1]) + ')'; }
+    std::string coord2s_(const coords<T>& src){ return std::string("(") + std::to_string(src[0]) + ", " + std::to_string(src[1]) + ')'; }
 
     template<typename T>
-    str coord2s(T&& src){ return coord2s_(rf(src)); }
+    std::string coord2s(T&& src){ return coord2s_(rf(src)); }
 
     template<typename CharT>
-    bool ispiece(CharT c){ return pieces.find(c) != str::npos; }
+    bool ispiece(CharT c){ return pieces.find(c) != std::string::npos; }
 
     template<typename CharT>
-    bool isfile(CharT c){ return files.find(c) != str::npos; }
+    bool isfile(CharT c){ return files.find(c) != std::string::npos; }
 
     template<typename CharT>
     void uppercase(CharT *start, CharT *end){ std::transform(start, end, start, toupper); }
@@ -261,7 +261,7 @@ namespace util{
         const std::regex game_result("\\s*((1/)*[0-9]-[0-9](/2)*|\\*)\\s*");
 
         // Int values for each outcome
-        const std::map<str, int> game_result_values{
+        const std::map<std::string, int> game_result_values{
             {"1-0", 1},
             {"0-1", -1},
             {"1/2-1/2", 2},
@@ -286,7 +286,7 @@ namespace util{
         const char value_delim = '\"';
 
         // Get pgntag from string
-        std::map<str, pgntag> s2tag{
+        std::map<std::string, pgntag> s2tag{
             {"event", event},
             {"site", site},
             {"date", date},
@@ -306,10 +306,10 @@ namespace util{
         };
 
         // Iterator to end of s2tag
-        std::map<str, pgntag>::iterator stend{s2tag.end()};
+        std::map<std::string, pgntag>::iterator stend{s2tag.end()};
 
         // Get string from pgntag
-        std::map<pgntag, str> tag2s{
+        std::map<pgntag, std::string> tag2s{
             {event, "event"},
             {site, "site"},
             {date, "date"},
@@ -336,7 +336,7 @@ namespace util{
         const std::regex delim("/");
 
         // FEN string for new (standard) game of chess
-        const str new_game("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        const std::string new_game("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
         ptype c2type(char p){
             switch(p){
