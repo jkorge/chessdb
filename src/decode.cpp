@@ -1,54 +1,9 @@
-#ifndef DECODE_H
-#define DECODE_H
-
-#include "fen.h"
-
-class Decoder{
-
-    ply missing;                // default construct for missing or elided plies
-
-    eply emissing{UINT16_MAX};  // use `11111111 11111111` for missing plies
-
-    ChessBoard board;
-
-public:
-    std::vector<ply> decode_game(const std::vector<eply>&, const std::string& ="");
-
-    ply decode_ply(eply, ChessBoard&);
-
-    ptype decode_type(BYTE);
-
-    color decode_color(pname);
-
-    pname decode_name(BYTE);
-
-    bool decode_capture(BYTE);
-
-    bool decode_check(BYTE);
-
-    bool decode_mate(BYTE);
-
-    ptype decode_pawn_promotion(BYTE);
-
-    ptype decode_queen_axis(BYTE);
-
-    coords<int> pawn_action(BYTE, color);
-
-    coords<int> knight_action(BYTE);
-
-    coords<int> bishop_action(BYTE);
-
-    coords<int> rook_action(BYTE);
-
-    coords<int> queen_action(BYTE, ptype);
-
-    coords<int> king_action(BYTE);
-};
+#include "include/decode.hpp"
 
 std::vector<ply> Decoder::decode_game(const std::vector<eply>& g, const std::string& fstr){
 
     std::vector<ply> res;
-    if(!fstr.empty()){ fen::parse(fstr, this->board); }
+    if(!fstr.empty()){ fen.parse(fstr, this->board); }
     else             { this->board.newgame(); }
 
     int i = 0;
@@ -78,7 +33,7 @@ ply Decoder::decode_ply(eply e, ChessBoard& board){
     if(p.type == pawn){ p.promo = this->decode_pawn_promotion(action); }
     else              { p.promo = pawn; }
     
-    coords<int> src = rf(board.mat[p.name]),
+    coords src = util::transform::rf(board.mat[p.name]),
                 dst,
                 delta;
     switch(p.type){
@@ -90,8 +45,8 @@ ply Decoder::decode_ply(eply e, ChessBoard& board){
         default:     delta = this->king_action(action);
     }
     dst = src + delta;
-    p.src = mask(src);
-    p.dst = mask(dst);
+    p.src = util::transform::mask(src);
+    p.dst = util::transform::mask(dst);
 
     if(p.type == king){
         switch(delta[1]){
@@ -150,17 +105,17 @@ color Decoder::decode_color(pname name){ return name == NONAME ? NOCOLOR : (name
 
 pname Decoder::decode_name(BYTE _piece){ return static_cast<pname>(_piece & 31); }
 
-bool Decoder::decode_capture(BYTE _action){ return CAPTURE_ & _action; }
+bool Decoder::decode_capture(BYTE _action){ return util::constants::CAPTURE_ & _action; }
 
-bool Decoder::decode_check(BYTE _action){ return CHECK_ & _action; }
+bool Decoder::decode_check(BYTE _action){ return util::constants::CHECK_ & _action; }
 
-bool Decoder::decode_mate(BYTE _action){ return MATE_ & _action; }
+bool Decoder::decode_mate(BYTE _action){ return util::constants::MATE_ & _action; }
 
 ptype Decoder::decode_pawn_promotion(BYTE _action){ return static_cast<ptype>((_action & 28) >> 2); }
 
-ptype Decoder::decode_queen_axis(BYTE _piece){ return (QAROOK_ & _piece) ? rook : bishop; }
+ptype Decoder::decode_queen_axis(BYTE _piece){ return (util::constants::QAROOK_ & _piece) ? rook : bishop; }
 
-coords<int> Decoder::pawn_action(BYTE _action, color c){
+coords Decoder::pawn_action(BYTE _action, color c){
     // 000ppp<rr/ff>
     bool cap = _action & 32,
          m = _action & 2;
@@ -171,7 +126,7 @@ coords<int> Decoder::pawn_action(BYTE _action, color c){
     return {dr, df};
 }
 
-coords<int> Decoder::knight_action(BYTE _action){
+coords Decoder::knight_action(BYTE _action){
     // 00000aot
     int o = 1 - (2 * (bool)(_action & 2)),
         t = 2 - (4 * (bool)(_action & 1));
@@ -179,7 +134,7 @@ coords<int> Decoder::knight_action(BYTE _action){
     else           { return {t, o}; }
 }
 
-coords<int> Decoder::bishop_action(BYTE _action){
+coords Decoder::bishop_action(BYTE _action){
     // 000admmm
     bool d = _action & 8,
          a = _action & 16;
@@ -194,14 +149,14 @@ coords<int> Decoder::bishop_action(BYTE _action){
     }
 }
 
-coords<int> Decoder::rook_action(BYTE _action){
+coords Decoder::rook_action(BYTE _action){
     // 000admmm
     int val = (1 - (2 * ((_action & 8) >> 3))) * (_action & 7);
     if(_action & 16){ return {val, 0}; }
     else            { return {0, val}; }
 }
 
-coords<int> Decoder::queen_action(BYTE _action, ptype pt){
+coords Decoder::queen_action(BYTE _action, ptype pt){
     // 000admmm
     switch(pt){
         case rook: return this->rook_action(_action);
@@ -209,7 +164,7 @@ coords<int> Decoder::queen_action(BYTE _action, ptype pt){
     }
 }
 
-coords<int> Decoder::king_action(BYTE _action){
+coords Decoder::king_action(BYTE _action){
     // 000cffrr
     int dr = _action & 3,
         df = (_action & 12) >> 2;
@@ -220,5 +175,3 @@ coords<int> Decoder::king_action(BYTE _action){
     return {dr, df};
 
 }
-
-#endif

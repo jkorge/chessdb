@@ -1,95 +1,4 @@
-#ifndef CHESSDB_H
-#define CHESSDB_H
-
-#include <filesystem>
-#include "tempus.h"
-#include "parsebuf.h"
-#include "types.h"
-#include "util.h"
-#include "encode.h"
-#include "decode.h"
-
-std::size_t PLYSZ{sizeof(ply)},                     // ply struct
-            EPYSZ{sizeof(eply)},                    // eply typedef
-            TAGSZ{sizeof(uint32_t)},                // Tag enumeration value
-            NPYSZ{sizeof(uint16_t)},                // nplies record
-            ATGSZ{16 * TAGSZ},                      // Tags in each game
-            TMESZ{sizeof(unsigned long long)},      // Time (nsec since epoch)
-            HDRSZ{TMESZ + 2*TAGSZ};                 // File header (Timestamp + number of games + number of enumerated tags)
-
-
-
-/******************************
-    ChessDB
-******************************/
-
-template<typename CharT, typename Traits=std::char_traits<CharT> >
-class ChessDB : virtual public ParseBuf<CharT, Traits>{
-    
-    typedef typename Traits::int_type int_type;
-    typedef typename Traits::char_type char_type;
-    typedef typename std::basic_string<char_type> string;
-
-    Encoder enc;
-    Decoder dec;
-
-public:
-    bool encode{false};
-
-    uint32_t NTAGS{1},
-             NGAMES{0};
-
-    std::unordered_map<string, uint32_t> tag_enumerations{{"", 0}};
-    std::vector<string> tags{""},
-                        BAKTAG;
-
-    // Map game index to starting byte and num plies
-    std::unordered_map<long, std::pair<long, uint16_t> > index;
-
-    game rg;
-
-    ChessDB(const string& file, bool exists) : ParseBuf<CharT,Traits>(file, exists ? "rb+" : "wb+") {
-        if(exists){ this->load(); }
-        else      { this->create(); }
-    }
-    ~ChessDB() {
-        this->encode = false;
-
-        // Tag enumeration
-        this->write_tag_enum();
-
-        // Update placeholders for num games and num tags in header
-        this->_fdev.seek(TMESZ);
-        uint32_t ttags = this->tags.size();
-        this->sputn((char_type*)&this->NGAMES, sizeof(this->NGAMES));
-        this->sputn((char_type*)&ttags, sizeof(ttags));
-
-        // Close file
-        this->close();
-    }
-
-    void load();
-    void create();
-    void seek(int);
-    void seek_end();
-
-    // Write funcs
-    int_type wparse();
-    int_type encode_game();
-    void encode_tag(const string&);
-    void encode_ply(const ply&);
-    uint32_t enum_extend(const string&);
-    void write_tag_enum();
-    void write_timestamp();
-
-    // Read funcs
-    void read();
-    int_type rparse();
-    uint16_t read_nplies();
-    void load_header();
-    void load_index();
-    void load_tag_enum();
-};
+#include "include/chessdb.hpp"
 
 /******************************
     ChessDB Member Funcs
@@ -115,8 +24,8 @@ void ChessDB<CharT, Traits>::create(){
 
     // Placeholder 0 for num games and num tags
     uint32_t nil = 0;
-    this->sputn((char_type*)&nil, TAGSZ);
-    this->sputn((char_type*)&nil, TAGSZ);
+    this->sputn((char_type*)&nil, util::constants::TAGSZ);
+    this->sputn((char_type*)&nil, util::constants::TAGSZ);
 }
 
 template<typename CharT, typename Traits>
@@ -126,12 +35,12 @@ template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::seek_end(){
     if(this->index.size()){
         this->_fdev.seek(
-            this->index[this->NGAMES-1].first +                 // Start byte of last game
-            ATGSZ + NPYSZ +                                     // Tag-width + nplies-width
-            (this->index[this->NGAMES-1].second * EPYSZ)        // nplies * eply-width
+            this->index[this->NGAMES-1].first +                                     // Start byte of last game
+            util::constants::ATGSZ + util::constants::NPYSZ +                       // Tag-width + nplies-width
+            (this->index[this->NGAMES-1].second * util::constants::EPYSZ)           // nplies * eply-width
         );
     }
-    else{ this->_fdev.seek(HDRSZ); }
+    else{ this->_fdev.seek(util::constants::HDRSZ); }
 }
 
 /*
@@ -176,7 +85,7 @@ template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::encode_tag(const ChessDB<CharT, Traits>::string& tag){
     // Add tag to enumeration, append to buffer
     uint32_t val = this->enum_extend(tag);
-    this->_buf.append((char_type*)&val, TAGSZ);
+    this->_buf.append((char_type*)&val, util::constants::TAGSZ);
 }
 
 template<typename CharT, typename Traits>
@@ -192,7 +101,7 @@ template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::encode_ply(const ply& p){
     // Encode ply, append to buffer
     eply ep = this->enc.encode_ply(p);
-    this->_buf.append((char_type*)&ep, EPYSZ);
+    this->_buf.append((char_type*)&ep, util::constants::EPYSZ);
 }
 
 template<typename CharT, typename Traits>
@@ -200,9 +109,9 @@ void ChessDB<CharT, Traits>::write_tag_enum(){
     this->seek_end();
     this->sync();
 
-    this->_buf = this->tags[0] + util::endl;
+    this->_buf = this->tags[0] + util::constants::endl;
     for(unsigned int i=1; i<this->NTAGS; ++i){
-        string t = this->tags[i] + util::endl;
+        string t = this->tags[i] + util::constants::endl;
         this->_buf.append(t.data(), t.size());
     }
 
@@ -215,7 +124,7 @@ void ChessDB<CharT, Traits>::write_timestamp(){
     this->encode = false;
     this->_fdev.seek(0);
     unsigned long long tme = Tempus::time();
-    this->sputn((char_type*)&tme, TMESZ);
+    this->sputn((char_type*)&tme, util::constants::TMESZ);
 }
 
 /*
@@ -225,9 +134,9 @@ void ChessDB<CharT, Traits>::write_timestamp(){
 template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::read(){
     // Tags
-    this->_fdev.xsgetn(this->_buf, ATGSZ);
+    this->_fdev.xsgetn(this->_buf, util::constants::ATGSZ);
     // Plies
-    this->_fdev.xsgetn(this->_buf, this->read_nplies() * EPYSZ);
+    this->_fdev.xsgetn(this->_buf, this->read_nplies() * util::constants::EPYSZ);
 }
 
 template<typename CharT, typename Traits>
@@ -241,14 +150,14 @@ ChessDB<CharT, Traits>::rparse(){
     // std::cout << "Tags" << std::endl;
     for(pgndict::iterator it=this->rg.tags.begin(); it!=this->rg.tags.end(); ++it){
         it->second = this->tags[*(uint32_t*)(this->_buf.data() + loc)];
-        loc += TAGSZ;
+        loc += util::constants::TAGSZ;
     }
 
     // std::cout << "Plies" << std::endl;
     std::vector<eply> eplies;
     while(loc < N){
         eplies.emplace_back(*(eply*)(this->_buf.data() + loc));
-        loc += EPYSZ;
+        loc += util::constants::EPYSZ;
     }
 
     // std::cout << "Decode" << std::endl;
@@ -261,22 +170,22 @@ ChessDB<CharT, Traits>::rparse(){
 template<typename CharT, typename Traits>
 uint16_t ChessDB<CharT, Traits>::read_nplies(){
     std::string tmp;
-    this->_fdev.xsgetn(tmp, NPYSZ);
+    this->_fdev.xsgetn(tmp, util::constants::NPYSZ);
     return *(uint16_t*)tmp.data();
 }
 
 template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::load_header(){
-    this->_fdev.xsgetn(this->_buf, HDRSZ);
+    this->_fdev.xsgetn(this->_buf, util::constants::HDRSZ);
 
     // Ignore timestamp
     // std::cout << Tempus::strtime(*(unsigned long long*)this->_buf.data()) << std::endl;
 
     // Extract num games
-    this->NGAMES = *(uint32_t*)(this->_buf.data() + TMESZ);
+    this->NGAMES = *(uint32_t*)(this->_buf.data() + util::constants::TMESZ);
 
     // Extract num tags
-    this->NTAGS = *(uint32_t*)(this->_buf.data() + TMESZ + TAGSZ);
+    this->NTAGS = *(uint32_t*)(this->_buf.data() + util::constants::TMESZ + util::constants::TAGSZ);
 
     // Overwrite timestamp
     this->sync();
@@ -289,10 +198,10 @@ void ChessDB<CharT, Traits>::load_tag_enum(){
     this->seek_end();
 
     // Skip null string at start of enum
-    this->_fdev.xsgetn(this->_buf, 1024, util::endl);
+    this->_fdev.xsgetn(this->_buf, 1024, util::constants::endl);
     for(unsigned int i=1; i<this->NTAGS; ++i){
         this->sync();
-        this->_fdev.xsgetn(this->_buf, 1024, util::endl);
+        this->_fdev.xsgetn(this->_buf, 1024, util::constants::endl);
         this->tag_enumerations[this->_buf] = i;
         this->tags.emplace_back(this->_buf);
     }
@@ -302,41 +211,18 @@ void ChessDB<CharT, Traits>::load_tag_enum(){
 
 template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::load_index(){
-    this->_fdev.seek(HDRSZ);
+    this->_fdev.seek(util::constants::HDRSZ);
 
     for(unsigned int i=0; i<this->NGAMES; ++i){
 
         long pos = this->_fdev.tell();
-        this->_fdev.seek(ATGSZ, SEEK_CUR);
+        this->_fdev.seek(util::constants::ATGSZ, SEEK_CUR);
         uint16_t nplies = this->read_nplies();
 
         this->index.insert({i, {pos, nplies}});
-        this->_fdev.seek(nplies * EPYSZ, SEEK_CUR);
+        this->_fdev.seek(nplies * util::constants::EPYSZ, SEEK_CUR);
     }
 }
-
-/******************************
-    ChessDBStream
-******************************/
-
-template<typename CharT, typename Traits=std::char_traits<CharT> >
-class ChessDBStream : public ParseStream<CharT, Traits>{
-
-    typedef typename Traits::int_type int_type;
-    typedef typename Traits::char_type char_type;
-    typedef typename std::basic_string<char_type> string;
-
-    // Underlying buffer
-    ChessDB<CharT, Traits> _pbuf;
-
-public:
-    ChessDBStream(const std::basic_string<CharT>& file) : ParseStream<CharT, Traits>(), _pbuf(file, std::filesystem::exists(file)) { this->rdbuf(&this->_pbuf); }
-    ChessDBStream<CharT, Traits>& operator<<(const game&);
-    ChessDBStream<CharT, Traits>& operator>>(game&);
-    void insert(const game&);
-    game select(int);
-    int size();
-};
 
 /******************************
     ChessDB Member Funcs
@@ -374,4 +260,5 @@ template<typename CharT, typename Traits>
 int ChessDBStream<CharT, Traits>::size(){ return this->_pbuf.NGAMES; }
 
 
-#endif
+template class ChessDB<char>;
+template class ChessDBStream<char>;

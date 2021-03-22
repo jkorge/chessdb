@@ -1,92 +1,30 @@
-#ifndef BOARD_H
-#define BOARD_H
-
-#include <unordered_map>
-#include "log.h"
-#include "bitboard.h"
-
-class ChessBoard : public BitBoard{
-    static int cnt;
-
-    ply missing;
-
-public:
-
-    U64 pins = 0;
-    Logger log{cnt};
-
-    // Map square numbers to pnames & vice versa
-    std::unordered_map<square, pname> map;
-    std::unordered_map<pname, square> mat;
-
-    // Map castle values to rook locations
-    std::unordered_map<int, std::unordered_map<color, U64> >rc{
-        {
-            1,
-            {
-                {white, mask(7)},
-                {black, mask(63)}
-            }
-        },
-
-        {
-            -1,
-            {
-                {white, mask(0)},
-                {black, mask(56)}
-            }
-        }
-    };
-
-    ChessBoard();
-
-    void newgame();
-
-    void clear();
-
-    pname update(const ply&);
-
-    void castle(int, color);
-
-    void promote(color, const U64&, ptype);
-
-    pname swap(const U64&, const U64&);
-
-    void pinsearch();
-
-    void pinch(color);
-
-    void scan(ptype, color, const U64&, const U64&, const U64&);
-
-    void log_board();
-
-};
+#include "include/board.hpp"
 
 int ChessBoard::cnt = 0;
 
-ChessBoard::ChessBoard() : BitBoard() {
-    this->cnt++;
+ChessBoard::ChessBoard(log::LEVEL lvl, bool conlog) : BitBoard(), logger(ChessBoard::cnt, lvl, conlog) {
+    ++this->cnt;
     this->newgame();
 }
 
 void ChessBoard::newgame(){
-    this->log.debug("New game");
+    this->logger.debug("New game");
 
     this->pins = 0;
 
-    this->white_pawns   = util::start_coords[white][pawn];
-    this->white_knights = util::start_coords[white][knight];
-    this->white_bishops = util::start_coords[white][bishop];
-    this->white_rooks   = util::start_coords[white][rook];
-    this->white_queens  = util::start_coords[white][queen];
-    this->white_king    = util::start_coords[white][king];
+    this->white_pawns   = util::constants::start_coords.at(white).at(pawn);
+    this->white_knights = util::constants::start_coords.at(white).at(knight);
+    this->white_bishops = util::constants::start_coords.at(white).at(bishop);
+    this->white_rooks   = util::constants::start_coords.at(white).at(rook);
+    this->white_queens  = util::constants::start_coords.at(white).at(queen);
+    this->white_king    = util::constants::start_coords.at(white).at(king);
 
-    this->black_pawns   = util::start_coords[black][pawn];
-    this->black_knights = util::start_coords[black][knight];
-    this->black_bishops = util::start_coords[black][bishop];
-    this->black_rooks   = util::start_coords[black][rook];
-    this->black_queens  = util::start_coords[black][queen];
-    this->black_king    = util::start_coords[black][king];
+    this->black_pawns   = util::constants::start_coords.at(black).at(pawn);
+    this->black_knights = util::constants::start_coords.at(black).at(knight);
+    this->black_bishops = util::constants::start_coords.at(black).at(bishop);
+    this->black_rooks   = util::constants::start_coords.at(black).at(rook);
+    this->black_queens  = util::constants::start_coords.at(black).at(queen);
+    this->black_king    = util::constants::start_coords.at(black).at(king);
 
     for(int i= 0; i<16; ++i){ this->map[i]    = static_cast<pname>(i); }
     for(int i=16; i<32; ++i){ this->map[i+32] = static_cast<pname>(i); }
@@ -145,8 +83,8 @@ void ChessBoard::promote(color c, const U64& src, ptype promo){
 }
 
 pname ChessBoard::swap(const U64& src, const U64& dst){
-    int ssq = sq(src),
-        dsq = sq(dst);
+    int ssq = util::transform::sq(src),
+        dsq = util::transform::sq(dst);
 
     // Remove from dsq
     if(this->map[dsq] != NONAME){ this->mat[this->map[dsq]] = -1; }
@@ -188,7 +126,7 @@ void ChessBoard::scan(ptype pt, color c, const U64& okloc, const U64& oppt, cons
 
     U64 plocs = this->board(pt, c);
     while(plocs){
-        U64 ploc = mask(bitscan(plocs));
+        U64 ploc = util::transform::mask(util::transform::bitscan(plocs));
         if(okloc & this->attackfrom(ploc, pt)){
             U64 lbt = this->linebt(ploc, okloc),
                 pnc = lbt & oppt,
@@ -199,7 +137,4 @@ void ChessBoard::scan(ptype pt, color c, const U64& okloc, const U64& oppt, cons
     }
 }
 
-void ChessBoard::log_board(){ if(this->log.minl <= DEBUG){ this->log.debug(this->display()); } }
-
-
-#endif
+void ChessBoard::log_board(){ if(this->logger.minl <= log::DEBUG){ this->logger.debug(this->display()); } }

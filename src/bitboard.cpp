@@ -1,160 +1,5 @@
-#ifndef BITBOARD_H
-#define BITBOARD_H
+#include "include/bitboard.hpp"
 
-#include "types.h"
-#include "util.h"
-
-class BitBoard{
-public:
-
-    U64 white_pawns{0},    black_pawns{0},
-        white_knights{0},  black_knights{0},
-        white_bishops{0},  black_bishops{0},
-        white_rooks{0},    black_rooks{0},
-        white_queens{0},   black_queens{0},
-        white_king{0},     black_king{0};
-
-    U64 lines[64][64];                                      // Bitmaps of lines between all pairs of squares
-
-    std::vector<U64> rmasks, fmasks, dmasks, amasks,
-                     wpattack, bpattack, nattack,           // Bitmaps of pawn/knight attacks
-                     rattack, battack, qattack,             //            rook/bishop/queen attacks
-                     kattack;                               //            king attacks
-
-    U64 state{0};                                           // Current occupancy bitmap of game board
-    bool changed{true};                                     // Flag indicating if board has changed since last read
-
-    /*
-        Constructor
-    */
-    BitBoard();
-
-    /*
-        Retrieve occupancy bitmap
-    */
-    U64 board();
-
-    U64 board(color);
-
-    U64 board(ptype);
-
-    U64& board(ptype, color);
-
-    /*
-        Get piece info from square
-    */
-
-    template<typename T>
-    color lookupc(const T&);
-
-    template<typename T>
-    ptype lookupt(const T&);
-
-    /*
-        Remove piece(s) from board
-    */
-
-    template<typename T>
-    void remove(const T&, ptype, color);
-
-    template<typename T>
-    void remove(const T&);
-
-    void remove();
-
-    /*
-        Place piece(s) on board
-    */
-
-    template<typename T>
-    void place(const T&, ptype, color);
-
-    /*
-        Move piece from src to dst
-    */
-
-    template<typename Ts, typename Td>
-    void move(const Ts&, const Td&, ptype, color);
-
-    /*
-        Determine if two points are colinear
-    */
-
-    template<typename Ts, typename Td>
-    bool colinear(const Ts&, const Td&);
-
-    /*
-        Determine direction of line connecting two points
-    */
-
-    template<typename Ts, typename Td>
-    ptype linetype(const Ts&, const Td&);
-
-    /*
-        Bitmap of rank/file/diagonal/anti-diagonal for given square number
-    */
-
-    template<typename T=int>
-    U64 rmask(const T&);
-
-    template<typename T=int>
-    U64 fmask(const T&);
-
-    template<typename T=int>
-    U64 dmask(const T&);
-
-    template<typename T=int>
-    U64 amask(const T&);
-
-    /*
-        Bitmap of squares attacked by pt when positioned on sq
-    */
-
-    template<typename T>
-    U64 attackfrom(const T&, ptype, color=white);
-
-    /*
-        Bitmap of line between src and dst
-    */
-
-    template<typename Ts, typename Td>
-    U64 linebt(const Ts&, const Td&, bool=false);
-
-    /*
-        Determine if line connecting src and dst is unoccupied
-    */
-    template<typename Ts, typename Td>
-    inline bool clearbt(const Ts&, const Td&, bool=false);
-
-    /*
-        Shift coordinates
-    */
-
-    template<typename T, typename U>
-    U64 rshift(const T&, U);
-
-    template<typename T, typename U>
-    U64 fshift(const T&, U);
-
-    template<typename T, typename U>
-    U64 shift(const T&, U, U);
-
-    /*
-        Visualizations
-    */
-
-    std::string display();
-
-    std::string odisplay(const U64&);
-
-    std::string odisplay();
-
-    std::string odisplay(color);
-
-    std::string odisplay(ptype);
-
-    std::string odisplay(ptype, color);
-};
 
 BitBoard::BitBoard(){
     for(int i=0; i<64; i++){
@@ -162,7 +7,7 @@ BitBoard::BitBoard(){
         /*
             SQUARE NUMBER
         */
-        U64 msk = mask(i);
+        U64 msk = util::transform::mask(i);
 
         /*
             RANK/FILE/DIAGONAL/ANTIDIAGONAL
@@ -175,8 +20,8 @@ BitBoard::BitBoard(){
         /*
             PAWN ATTACKS
         */
-        U64 wpatk = ZERO_,
-            bpatk = ZERO_;
+        U64 wpatk = util::constants::ZERO_,
+            bpatk = util::constants::ZERO_;
         if(i<56){
             wpatk |= this->shift(msk, 1, -1);
             wpatk |= this->shift(msk, 1,  1);
@@ -192,7 +37,7 @@ BitBoard::BitBoard(){
         /*
             KNIGHT ATTACKS
         */
-        U64 natk = ZERO_;
+        U64 natk = util::constants::ZERO_;
         for(int r=1; r<3; r++){
 
             int f = r==1 ? 2 : 1;
@@ -213,7 +58,7 @@ BitBoard::BitBoard(){
         /*
             KING ATTACKS
         */
-        U64 katk = ZERO_;
+        U64 katk = util::constants::ZERO_;
         for(int rs=-1; rs<2; rs++){
             for(int fs=-1; fs<2; fs++){
                 if(!rs && !fs){ continue; }
@@ -228,21 +73,21 @@ BitBoard::BitBoard(){
     */
     for(int s1=0; s1<64; ++s1){
         for(int s2=0; s2<64; ++s2){
-            if(this->battack[s1] & mask(s2)){
+            if(this->battack[s1] & util::transform::mask(s2)){
                 this->lines[s1][s2] = (
                     this->battack[s1] &
                     this->battack[s2] &
-                    ((ALL_ << s1) ^ (ALL_ << s2))
+                    ((util::constants::ALL_ << s1) ^ (util::constants::ALL_ << s2))
                 );
             }
-            else if(this->rattack[s1] & mask(s2)){
+            else if(this->rattack[s1] & util::transform::mask(s2)){
                 this->lines[s1][s2] = (
                     this->rattack[s1] &
                     this->rattack[s2] &
-                    ((ALL_ << s1) ^ (ALL_ << s2))
+                    ((util::constants::ALL_ << s1) ^ (util::constants::ALL_ << s2))
                 );
             }
-            else{ this->lines[s1][s2] = ZERO_; }
+            else{ this->lines[s1][s2] = util::constants::ZERO_; }
         }
     }
 }
@@ -308,7 +153,7 @@ U64& BitBoard::board(ptype pt, color c){
 
 template<typename T>
 color BitBoard::lookupc(const T& src){
-    U64 smsk = mask(src);
+    U64 smsk = util::transform::mask(src);
     if     (this->board(white) & smsk){ return white; }
     else if(this->board(black) & smsk){ return black; }
     else                              { return NOCOLOR; }
@@ -316,7 +161,7 @@ color BitBoard::lookupc(const T& src){
 
 template<typename T>
 ptype BitBoard::lookupt(const T& src){
-    U64 smsk = mask(src);
+    U64 smsk = util::transform::mask(src);
     if     (this->board(pawn)   & smsk){ return pawn; }
     else if(this->board(knight) & smsk){ return knight; }
     else if(this->board(bishop) & smsk){ return bishop; }
@@ -333,14 +178,14 @@ ptype BitBoard::lookupt(const T& src){
 // Given color, piece type, and location
 template<typename T>
 void BitBoard::remove(const T& src, ptype pt, color c){
-    this->board(pt, c) &= ~mask(src);
+    this->board(pt, c) &= ~util::transform::mask(src);
     this->changed = true;
 }
 
 // Given location only (remove piece from all occupancy maps)
 template<typename T>
 void BitBoard::remove(const T& src){
-    U64 smsk = mask(src);
+    U64 smsk = util::transform::mask(src);
 
     this->white_pawns   &= ~smsk;
     this->white_knights &= ~smsk;
@@ -361,19 +206,19 @@ void BitBoard::remove(const T& src){
 
 // Remove all pieces from all occupancy maps
 void BitBoard::remove(){
-    this->white_pawns   = ZERO_;
-    this->white_knights = ZERO_;
-    this->white_bishops = ZERO_;
-    this->white_rooks   = ZERO_;
-    this->white_queens  = ZERO_;
-    this->white_king    = ZERO_;
+    this->white_pawns   = util::constants::ZERO_;
+    this->white_knights = util::constants::ZERO_;
+    this->white_bishops = util::constants::ZERO_;
+    this->white_rooks   = util::constants::ZERO_;
+    this->white_queens  = util::constants::ZERO_;
+    this->white_king    = util::constants::ZERO_;
 
-    this->black_pawns   = ZERO_;
-    this->black_knights = ZERO_;
-    this->black_bishops = ZERO_;
-    this->black_rooks   = ZERO_;
-    this->black_queens  = ZERO_;
-    this->black_king    = ZERO_;
+    this->black_pawns   = util::constants::ZERO_;
+    this->black_knights = util::constants::ZERO_;
+    this->black_bishops = util::constants::ZERO_;
+    this->black_rooks   = util::constants::ZERO_;
+    this->black_queens  = util::constants::ZERO_;
+    this->black_king    = util::constants::ZERO_;
 
     this->changed = true;
 }
@@ -384,7 +229,7 @@ void BitBoard::remove(){
 
 template<typename T>
 void BitBoard::place(const T& dst, ptype pt, color c){
-    this->board(pt, c) |= mask(dst);
+    this->board(pt, c) |= util::transform::mask(dst);
     this->changed = true;
 }
 
@@ -405,8 +250,8 @@ void BitBoard::move(const Ts& src, const Td& dst, ptype pt, color c){
 
 template<typename Ts, typename Td>
 bool BitBoard::colinear(const Ts& src, const Td& dst){
-    int ssq = sq(src),
-        dsq = sq(dst);
+    int ssq = util::transform::sq(src),
+        dsq = util::transform::sq(dst);
 
     if(this->lines[ssq][dsq]){ return true; }
     else{ return false; }
@@ -418,8 +263,8 @@ bool BitBoard::colinear(const Ts& src, const Td& dst){
 
 template<typename Ts, typename Td>
 ptype BitBoard::linetype(const Ts& src, const Td& dst){
-    int ssq = sq(src),
-        dsq = sq(dst);
+    int ssq = util::transform::sq(src),
+        dsq = util::transform::sq(dst);
 
     ptype res;
 
@@ -440,26 +285,22 @@ ptype BitBoard::linetype(const Ts& src, const Td& dst){
     Bitmap of rank/file/diagonal/anti-diagonal for given square number
 */
 
-template<typename T=int>
-U64 BitBoard::rmask(const T& sq){ return RANK_ << (sq & 56); }
+U64 BitBoard::rmask(const square& sq){ return util::constants::RANK_ << (sq & 56); }
 
-template<typename T=int>
-U64 BitBoard::fmask(const T& sq){ return FILE_ << (sq & 7); }
+U64 BitBoard::fmask(const square& sq){ return util::constants::FILE_ << (sq & 7); }
 
-template<typename T=int>
-U64 BitBoard::dmask(const T& sq){
+U64 BitBoard::dmask(const square& sq){
    int diag = 8*(sq & 7) - (sq & 56);
    int nort = -diag & ( diag >> 31);
    int sout =  diag & (-diag >> 31);
-   return (MAINDIAG_ >> sout) << nort;
+   return (util::constants::MAINDIAG_ >> sout) << nort;
 }
 
-template<typename T=int>
-U64 BitBoard::amask(const T& sq){
+U64 BitBoard::amask(const square& sq){
    int diag = 56 - 8*(sq & 7) - (sq & 56);
    int nort = -diag & ( diag >> 31);
    int sout =  diag & (-diag >> 31);
-   return (ANTIDIAG_ >> sout) << nort;
+   return (util::constants::ANTIDIAG_ >> sout) << nort;
 }
 
 /*
@@ -468,7 +309,7 @@ U64 BitBoard::amask(const T& sq){
 
 template<typename T>
 U64 BitBoard::attackfrom(const T& src, ptype pt, color c){
-    square ssq = sq(src);
+    square ssq = util::transform::sq(src);
     switch(pt){
         case pawn:
             switch(c){
@@ -489,8 +330,8 @@ U64 BitBoard::attackfrom(const T& src, ptype pt, color c){
 
 template<typename Ts, typename Td>
 U64 BitBoard::linebt(const Ts& src, const Td& dst, bool endp){
-    U64 res = this->lines[sq(src)][sq(dst)];
-    if(endp){ res |= mask(src) | mask(dst); }
+    U64 res = this->lines[util::transform::sq(src)][util::transform::sq(dst)];
+    if(endp){ res |= util::transform::mask(src) | util::transform::mask(dst); }
     return res;
 }
 
@@ -498,33 +339,33 @@ U64 BitBoard::linebt(const Ts& src, const Td& dst, bool endp){
     Determine if line connecting src and dst is unoccupied
 */
 template<typename Ts, typename Td>
-inline bool BitBoard::clearbt(const Ts& src, const Td& dst, bool endp){ return not (this->linebt(src, dst, endp) & this->board()); }
+bool BitBoard::clearbt(const Ts& src, const Td& dst, bool endp){ return not (this->linebt(src, dst, endp) & this->board()); }
 
 /*
     Shift coordinates
 */
 
-template<typename T, typename U>
-U64 BitBoard::rshift(const T& src, U s){
-    int r = (sq(src)/8) + s;
-    if(r<0 || r>7){ return ZERO_; }
+template<typename T>
+U64 BitBoard::rshift(const T& src, int s){
+    int r = (util::transform::sq(src)/8) + s;
+    if(r<0 || r>7){ return util::constants::ZERO_; }
     else{ return s<0 ? (src >> 8*abs(s)) : (src << 8*s); }
 }
 
-template<typename T, typename U>
-U64 BitBoard::fshift(const T& src, U s){
-    int f = (sq(src)%8) + s;
-    if(f<0 || f>7){ return ZERO_; }
+template<typename T>
+U64 BitBoard::fshift(const T& src, int s){
+    int f = (util::transform::sq(src)%8) + s;
+    if(f<0 || f>7){ return util::constants::ZERO_; }
     else{ return s<0 ? (src >> abs(s)) : (src << s); }
 }
 
-template<typename T, typename U>
-U64 BitBoard::shift(const T& src, U rs, U fs){
-    int ssq = sq(src),
+template<typename T>
+U64 BitBoard::shift(const T& src, int rs, int fs){
+    int ssq = util::transform::sq(src),
           r = (ssq/8) + rs,
           f = (ssq%8) + fs;
-    if(r<0 || r>7 || f<0 || f>7){ return ZERO_; }
-    else{ return mask(coords<int>(r,f)); }
+    if(r<0 || r>7 || f<0 || f>7){ return util::constants::ZERO_; }
+    else{ return util::transform::mask(coords(r,f)); }
 }
 
 /*
@@ -533,14 +374,14 @@ U64 BitBoard::shift(const T& src, U rs, U fs){
 
 std::string BitBoard::display(){
     
-    std::string viz(1, util::endl);
+    std::string viz(1, util::constants::endl);
     U64 grid = this->board();
 
     // File headers
-    for(int k=0; k<8; k++){ viz += std::string("   ") + util::files[k]; }
+    for(int k=0; k<8; k++){ viz += std::string("   ") + util::constants::files[k]; }
 
     char square[]{"[  ]"};
-    coords<int> loc;
+    coords loc;
 
     for(int r=7; r>=0; --r){
         loc[0] = r;
@@ -548,13 +389,13 @@ std::string BitBoard::display(){
             loc[1] = f;
 
             // Rank headers
-            if(!f){ viz += std::string(1, util::endl) + util::rank2c(r) + " "; }
+            if(!f){ viz += std::string(1, util::constants::endl) + util::repr::rank2c(r) + " "; }
 
-            U64 src = mask(loc);
+            U64 src = util::transform::mask(loc);
 
             if(grid & src){
-                square[1] = util::color2c(this->lookupc(src));
-                square[2] = util::ptype2c(this->lookupt(src));
+                square[1] = util::repr::color2c(this->lookupc(src));
+                square[2] = util::repr::ptype2c(this->lookupt(src));
             }
             else{
                 square[1] = ' ';
@@ -572,7 +413,7 @@ std::string BitBoard::odisplay(const U64& grid){
     std::bitset<64> bsg = static_cast<std::bitset<64> >(grid);
     std::string viz;
     for(int r=7; r>=0; --r){
-        viz += util::endl;
+        viz += util::constants::endl;
         for(int f=0; f<8; ++f){ viz += bsg.test((8*r) + f) ? " 1 " : " . "; }
     }
     return viz;
@@ -586,4 +427,89 @@ std::string BitBoard::odisplay(ptype pt){ return this->odisplay(this->board(pt))
 
 std::string BitBoard::odisplay(ptype pt, color c){ return this->odisplay(this->board(pt, c)); }
 
-#endif
+
+/*
+    TEMPLATE INSTANCES
+*/
+template color BitBoard::lookupc(const square&);
+template color BitBoard::lookupc(const U64&);
+template color BitBoard::lookupc(const coords&);
+
+template ptype BitBoard::lookupt(const square&);
+template ptype BitBoard::lookupt(const U64&);
+template ptype BitBoard::lookupt(const coords&);
+
+template void BitBoard::remove(const square&, ptype, color);
+template void BitBoard::remove(const U64&, ptype, color);
+template void BitBoard::remove(const coords&, ptype, color);
+
+template void BitBoard::remove(const square&);
+template void BitBoard::remove(const U64&);
+template void BitBoard::remove(const coords&);
+
+template void BitBoard::place(const square&, ptype, color);
+template void BitBoard::place(const U64&, ptype, color);
+template void BitBoard::place(const coords&, ptype, color);
+
+template void BitBoard::move(const square&, const square&, ptype, color);
+template void BitBoard::move(const U64&, const U64&, ptype, color);
+template void BitBoard::move(const coords&, const coords&, ptype, color);
+template void BitBoard::move(const square&, const U64&, ptype, color);
+template void BitBoard::move(const square&, const coords&, ptype, color);
+template void BitBoard::move(const U64&, const coords&, ptype, color);
+template void BitBoard::move(const U64&, const square&, ptype, color);
+template void BitBoard::move(const coords&, const square&, ptype, color);
+template void BitBoard::move(const coords&, const U64&, ptype, color);
+
+template bool BitBoard::colinear(const square&, const square&);
+template bool BitBoard::colinear(const U64&, const U64&);
+template bool BitBoard::colinear(const coords&, const coords&);
+template bool BitBoard::colinear(const square&, const U64&);
+template bool BitBoard::colinear(const square&, const coords&);
+template bool BitBoard::colinear(const U64&, const coords&);
+template bool BitBoard::colinear(const U64&, const square&);
+template bool BitBoard::colinear(const coords&, const square&);
+template bool BitBoard::colinear(const coords&, const U64&);
+
+template ptype BitBoard::linetype(const square&, const square&);
+template ptype BitBoard::linetype(const U64&, const U64&);
+template ptype BitBoard::linetype(const coords&, const coords&);
+template ptype BitBoard::linetype(const square&, const U64&);
+template ptype BitBoard::linetype(const square&, const coords&);
+template ptype BitBoard::linetype(const U64&, const coords&);
+template ptype BitBoard::linetype(const U64&, const square&);
+template ptype BitBoard::linetype(const coords&, const square&);
+template ptype BitBoard::linetype(const coords&, const U64&);
+
+template U64 BitBoard::attackfrom(const square&, ptype, color=white);
+template U64 BitBoard::attackfrom(const U64&, ptype, color=white);
+template U64 BitBoard::attackfrom(const coords&, ptype, color=white);
+
+template U64 BitBoard::linebt(const square&, const square&, bool=false);
+template U64 BitBoard::linebt(const U64&, const U64&, bool=false);
+template U64 BitBoard::linebt(const coords&, const coords&, bool=false);
+template U64 BitBoard::linebt(const square&, const U64&, bool=false);
+template U64 BitBoard::linebt(const square&, const coords&, bool=false);
+template U64 BitBoard::linebt(const U64&, const coords&, bool=false);
+template U64 BitBoard::linebt(const U64&, const square&, bool=false);
+template U64 BitBoard::linebt(const coords&, const square&, bool=false);
+template U64 BitBoard::linebt(const coords&, const U64&, bool=false);
+
+template bool BitBoard::clearbt(const square&, const square&, bool=false);
+template bool BitBoard::clearbt(const U64&, const U64&, bool=false);
+template bool BitBoard::clearbt(const coords&, const coords&, bool=false);
+template bool BitBoard::clearbt(const square&, const U64&, bool=false);
+template bool BitBoard::clearbt(const square&, const coords&, bool=false);
+template bool BitBoard::clearbt(const U64&, const coords&, bool=false);
+template bool BitBoard::clearbt(const U64&, const square&, bool=false);
+template bool BitBoard::clearbt(const coords&, const square&, bool=false);
+template bool BitBoard::clearbt(const coords&, const U64&, bool=false);
+
+template U64 BitBoard::rshift(const square&, int);
+template U64 BitBoard::rshift(const U64&, int);
+
+template U64 BitBoard::fshift(const square&, int);
+template U64 BitBoard::fshift(const U64&, int);
+
+template U64 BitBoard::shift(const square&, int, int);
+template U64 BitBoard::shift(const U64&, int, int);
