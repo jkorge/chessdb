@@ -42,7 +42,7 @@ Piece       8-bit unsigned int
         0 => piece's movement is encoded according to bishop encoding
         1 => piece's movement is encoded according to rook encoding
 
-    Pawns have extra info on all 3 most sig. bit - promotion encoding
+    Pawns have extra info on 3 most sig. bits - promotion encoding
     Indicates how the piece is expected to move (ie. AFTER being promoted)
         000 => no promotion
         001 => knight

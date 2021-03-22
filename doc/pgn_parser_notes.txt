@@ -35,29 +35,3 @@ x       > capture indicator
 +       > check
 #       > mate
 =       > promotion
-
-
-int del_r = abs(ranks[0] - board[idx].second.first);
-int del_f = abs(files[0] - board[idx].second.second);
-
-switch(pt){
-    case king:
-        from_file = board[idx].second.first;
-        from_file = board[idx].second.second;
-        break;
-
-    case queen:
-        ((!del_r) ^ (!del_f)) ^ (del_r == del_f)
-
-    case rook:
-        (!del_r) ^ (!del_f)
-
-    case bishop:
-        del_r == del_f
-
-    case knight:
-        ((del_r == 2) ^ (del_f == 2)) & ((del_r == 1) ^ (del_f == 1))
-
-    case pawn:
-        (del_r == 2) ^ ((del_r == 1) & !del_f) ^ ((del_r == 1) & (del_f == 1))
-}
