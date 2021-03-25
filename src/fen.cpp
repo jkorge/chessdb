@@ -103,7 +103,7 @@ color Fen::parse(std::string fs, ChessBoard& board){
     }
     else{
         board.clear();
-        rtok fentok(fs.begin(), fs.end(), util::constants::ws, -1);
+        rtok fentok(fs.begin(), fs.end(), util::constants::wsr, -1);
         // First field in FEN string contains board arrangment
         this->arrange(*fentok++, board);
         // Second field indicates next player to move

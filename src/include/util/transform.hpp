@@ -10,41 +10,46 @@ namespace util{
 
         // Char to bool
         template<typename CharT>
-        bool ispiece(CharT c);
+        bool ispiece(CharT);
 
         template<typename CharT>
-        bool isfile(CharT c);
+        bool isfile(CharT);
 
         // Change case
         template<typename CharT>
-        void uppercase(CharT *start, CharT *end);
+        void uppercase(CharT*, CharT*);
 
         template<typename CharT>
-        void uppercase(std::basic_string<CharT>& s);
+        void uppercase(std::basic_string<CharT>&);
 
         template<typename CharT>
-        void lowercase(CharT *start, CharT *end);
+        void lowercase(CharT*, CharT*);
 
         template<typename CharT>
-        void lowercase(std::basic_string<CharT>& s);
+        void lowercase(std::basic_string<CharT>&);
 
         // Flip least-significant bit
-        void lsbflip(U64& x);
+        void lsbflip(U64&);
 
         // Coordinate conversions
         template<typename T>
-        square sq(const T& src);
+        square sq(const T&);
 
         template<typename T>
-        U64 mask(const T& src);
+        U64 mask(const T&);
 
         template<typename T>
-        coords rf(const T& src);
+        coords rf(const T&);
 
         template<typename T>
-        square bitscan(const T& src);
+        square bitscan(const T&);
 
-        square bitscan(const U64& src);
+        template<typename T>
+        square bitscanr(const T&);
+
+        square bitscan(const U64&);
+
+        square bitscanr(const U64&);
 
     }
 }

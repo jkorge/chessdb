@@ -1,8 +1,8 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include <cstdint>
 #include <immintrin.h>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <map>
@@ -23,7 +23,7 @@ typedef std::regex_token_iterator<std::string::iterator> rtok;
     COORDINATE REPRESENTATIONS
 ********************************/
 
-// Fixed width
+// Bitboard
 typedef uint64_t U64;
 
 // Alias for square numbers
@@ -41,6 +41,11 @@ struct coords{
     coords operator+(const coords& other){ return {this->_rf[0] + other[0], this->_rf[1] + other[1]}; }
 };
 
+// Compass directions (for sliding piece attack rays)
+typedef enum direction{N = 0, NW, W, SW, S, SE, E, NE, NODIR = -1} direction;
+direction operator++(direction&);
+direction operator++(direction&, int);
+
 /**************************
     MATERIAL
 **************************/
@@ -51,6 +56,8 @@ color operator!(const color& c);
 
 // Types of material
 typedef enum ptype {pawn = 0, knight, bishop, rook, queen, king, NOTYPE = -1} ptype;
+ptype operator++(ptype&);
+ptype operator++(ptype&, int);
 
 // Piece names
 typedef enum pname{

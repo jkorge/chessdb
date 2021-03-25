@@ -11,7 +11,9 @@ namespace util{
         // FEN string for new (standard) game of chess
         const std::string new_game("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
-        ptype c2type(char p);
+        ptype c2type(char);
+
+        char ptype2c(ptype, color=white);
     }
 }
 

@@ -52,8 +52,13 @@ pname ChessBoard::update(const ply& p){
     if(p.capture){
         if(p.type != pawn || (this->board() & p.dst)){ this->remove(p.dst); }
         // Pawn capture && empty dst => En passant capture
-        else{ this->remove(this->rshift(p.dst, !p.c), pawn, !p.c); }
+        else{
+            this->remove(p.c > 0 ? (p.dst >> 8) : (p.dst << 8), pawn, !p.c);
+            this->enpas = 0;
+        }
     }
+    else if(p.type == pawn && p.dst == (p.c > 0 ? p.src << 16 : p.src >> 16)){ this->enpas = p.c > 0 ? (p.dst >> 8) : (p.dst << 8); }
+    else{ this->enpas = 0; }
 
     // Material movement
     pname name = this->swap(p.src, p.dst);
@@ -61,11 +66,13 @@ pname ChessBoard::update(const ply& p){
 
     // Special cases
     if(p.castle){ this->castle(p.castle, p.c); }
-    if(p.promo){ this->promote(p.c, p.dst, p.promo); }
+    if(p.promo) { this->promote(p.c, p.dst, p.promo); }
 
     // State update
     this->pinsearch();
     this->log_board();
+
+    this->next = !this->next;
 
     return name;
 }
@@ -127,8 +134,8 @@ void ChessBoard::scan(ptype pt, color c, const U64& okloc, const U64& oppt, cons
     U64 plocs = this->board(pt, c);
     while(plocs){
         U64 ploc = util::transform::mask(util::transform::bitscan(plocs));
-        if(okloc & this->attackfrom(ploc, pt)){
-            U64 lbt = this->linebt(ploc, okloc),
+        if(okloc & util::bitboard::attackfrom(ploc, pt)){
+            U64 lbt = util::bitboard::linebt(ploc, okloc),
                 pnc = lbt & oppt,
                 pnb = lbt & same;
             if(lbt && !pnb && !(pnc & pnc-1)){ this->pins |= pnc; }
@@ -138,3 +145,63 @@ void ChessBoard::scan(ptype pt, color c, const U64& okloc, const U64& oppt, cons
 }
 
 void ChessBoard::log_board(){ if(this->logger.minl <= log::DEBUG){ this->logger.debug(this->display()); } }
+
+/*********************************
+    LEGAL MOVES
+*********************************/
+
+U64 ChessBoard::legal() const{
+    U64 res = 0;
+    for(int i=white; i>=black; i-=2){ res |= legal(static_cast<color>(i)); }
+    return res;
+}
+
+U64 ChessBoard::legal(color c) const{
+    U64 res = 0;
+    for(int j=pawn; j<king; ++j){ res |= legal(static_cast<ptype>(j), c); }
+    return res;
+}
+
+U64 ChessBoard::legal(ptype pt, color c) const{
+    U64 res = 0, bb = this->board(pt, c);
+    while(bb){
+        res |= legal(util::transform::bitscan(bb), pt, c);
+        util::transform::lsbflip(bb);
+    }
+    return res;
+}
+
+U64 ChessBoard::legal(square sq, ptype pt, color c) const{
+    U64 res = 0,
+        src = util::transform::mask(sq);
+    switch(pt){
+        case pawn: {
+            U64 opp = this->board(!c),
+                pst = c>0 ? util::constants::white_pawns : util::constants::black_pawns;
+            // Single push
+            res |= c>0 ? src << 8 : src >> 8;
+            // Double push
+            if(src & pst){ res |= c>0 ? src << 16 : src >> 16; }
+            // Captures (including en passant)
+            res |= util::bitboard::attackfrom(src, pt, c) & (this->next == c ? (opp | this->enpas) : opp);
+            break;
+        }
+        case knight: {
+            res |= util::bitboard::attackfrom(src, pt);
+            break;
+        }
+        case bishop:
+        case rook:
+        case queen: {
+            for(int i=0; i<8; ++i){ res |= this->ray(src, pt, static_cast<direction>(i)); }
+            break;
+        }
+        default: {
+            res |= util::bitboard::attackfrom(src, pt) & ~legal(!c) & ~util::bitboard::attackfrom(this->board(king, !c), king);
+        }
+    }
+    res &= ~this->board(c);
+    // Discount any moves that break a pin
+    if(src & this->pins){ res &= util::bitboard::axisalign(util::bitboard::linebt(src, this->board(king, c), true)); }
+    return res;
+}

@@ -203,8 +203,8 @@ ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string& p, color c, bool
         src = 0;
     if(r==2 && f==2) { src = util::transform::mask(srcsq); }
     else{
-        if(r==2)     { src = board.rmasks[srcsq]; }
-        else if(f==2){ src = board.fmasks[srcsq]; }
+        if(r==2)     { src = util::bitboard::rmasks[srcsq]; }
+        else if(f==2){ src = util::bitboard::fmasks[srcsq]; }
         src = disamb.pgn(src, dst, pt, c, this->board, capture);
     }
 

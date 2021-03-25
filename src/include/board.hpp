@@ -11,8 +11,15 @@ class ChessBoard : public BitBoard{
 
 public:
 
-    U64 pins = 0;
     log::Logger logger;
+
+    // Bitboard of pinned pieces
+    U64 pins = 0,
+    // Bitboard of where an en passant capture can be made
+        enpas = 0;
+
+    // Which player moves next
+    color next = white;
 
     // Map square numbers to pnames & vice versa
     std::unordered_map<square, pname> map;
@@ -58,6 +65,14 @@ public:
     void scan(ptype, color, const U64&, const U64&, const U64&);
 
     void log_board();
+
+    U64 legal() const;
+
+    U64 legal(color c) const;
+
+    U64 legal(ptype pt, color c) const;
+
+    U64 legal(square sq, ptype pt, color c) const;
 
 };
 

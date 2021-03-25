@@ -15,6 +15,7 @@
 #include "util/const.hpp"
 #include "util/transform.hpp"
 #include "util/repr.hpp"
+#include "util/bitboard.hpp"
 /*
     --------------------------------------------------
 */
