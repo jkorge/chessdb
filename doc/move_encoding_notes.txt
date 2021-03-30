@@ -58,7 +58,10 @@ key:
     c = castle
     f = change in file
     r = change in rank
-    a = axis (/ or \ for bishop; - or | for rook; /,\,-,| for queen; rank/file for knight)
+    a = axis
+        / or \ for bishop (or queen bishop-move)
+        - or | for rook (or queen rook-move)
+        rank or file for knight (identifies the two-step axis)
     d = direction (+/-)
     m = magnitude
     o = one-step sign (0 for pos)
