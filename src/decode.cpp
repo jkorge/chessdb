@@ -60,7 +60,8 @@ ply Decoder::decode_ply(eply e, ChessBoard& board){
 }
 
 ptype Decoder::decode_type(BYTE _piece){
-    switch(static_cast<int>(_piece & 31)){
+    // switch(static_cast<int>(_piece & 31)){
+    switch(_piece & 31){
         case  0:
         case  7:
         case 24:

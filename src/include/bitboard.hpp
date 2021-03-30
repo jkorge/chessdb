@@ -77,7 +77,7 @@ public:
         Determine if line connecting src and dst is unoccupied
     */
     template<typename Ts, typename Td>
-    bool clearbt(const Ts&, const Td&, bool=false) const;
+    bool clearbt(const Ts&, const Td&) const;
 
     /*
         Visualizations

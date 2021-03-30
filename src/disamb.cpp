@@ -61,8 +61,8 @@ U64 Disamb::dpiece(const U64& src, const U64& dst, ptype pt, color c, const Ches
 }
 
 U64 Disamb::pgn(const U64& src, const U64& dst, ptype pt, color c, const ChessBoard& board, bool capture){
-    this->logger.debug("Disambiguating", util::repr::color2s(c), util::repr::ptype2s(pt), "to", util::repr::coord2s(util::transform::rf(dst)));
-    if(src){ this->logger.debug("Given src: ", util::repr::coord2s(src)); }
+    this->logger.debug("Disambiguating", util::repr::color2s(c), util::repr::ptype2s(pt), "to", util::repr::coord2s(dst));
+    if(src){ this->logger.debug("Given src: ", util::repr::coord2s(util::transform::bitscan(src))); }
     switch(pt){
         case king: return board.board(pt,c);
         case pawn: return this->dpawn(src, dst, pt, c, board, capture);

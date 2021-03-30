@@ -36,12 +36,6 @@ namespace util{
             13, 18,  8, 12,  7,  6,  5, 63
         };
 
-        // Whitespace regex
-        const std::regex wsr("\\s");
-
-        // Whitespace string
-        const std::string ws(1, ' ');
-
         // Newline string
         constexpr char endl = '\n';
 
@@ -51,50 +45,15 @@ namespace util{
                       white_bishops = 0x0000000000000024,
                       white_rooks = 0x0000000000000081,
                       white_queen = 0x0000000000000008,
-                      white_king = 0x0000000000000010;
-
-        constexpr U64 black_pawns = white_pawns << 40,
+                      white_king = 0x0000000000000010,
+                      black_pawns = white_pawns << 40,
                       black_knights = white_knights << 56,
                       black_bishops =  white_bishops << 56,
                       black_rooks =  white_rooks << 56,
                       black_queen =  white_queen << 56,
                       black_king =  white_king << 56;
 
-        const std::map<color,std::map<ptype, U64> > start_coords{
-            {
-                white,
-                {
-                    {pawn,   white_pawns},
-                    {knight, white_knights},
-                    {bishop, white_bishops},
-                    {rook,   white_rooks},
-                    {queen,  white_queen},
-                    {king,   white_king}
-                }
-            },
-
-            {
-                black,
-                {
-                    {pawn,   black_pawns},
-                    {knight, black_knights},
-                    {bishop, black_bishops},
-                    {rook,   black_rooks},
-                    {queen,  black_queen},
-                    {king,   black_king}
-                }
-            }
-        };
-
-        // Piece and file identifiers
-        const std::string pieces = "KQRBN";
-        const std::string files = "abcdefgh";
-        const std::string ranks = "12345678";
-
-        // Iterators to end of regex_token_iterator results
-        static rtok rtokend;
-        static crtok crtokend;
-
+        // DB file component sizes
         constexpr std::size_t PLYSZ{sizeof(ply)},                     // ply struct
                               EPYSZ{sizeof(eply)},                    // eply typedef
                               TAGSZ{sizeof(uint32_t)},                // Tag enumeration value
@@ -102,6 +61,27 @@ namespace util{
                               ATGSZ{16 * TAGSZ},                      // Tags in each game
                               TMESZ{sizeof(unsigned long long)},      // Time (nsec since epoch)
                               HDRSZ{TMESZ + 2*TAGSZ};                 // File header (Timestamp + number of games + number of enumerated tags)
+
+        // Whitespace regex
+        extern const std::regex wsr;
+
+        // Whitespace string
+        extern const std::string ws;
+
+        // Starting coordinates by color and piece type
+        extern const std::map<color,std::map<ptype, U64> > start_coords;
+
+        // Map castle values to rook starting locations
+        extern const std::unordered_map<int, std::unordered_map<color, U64> > rook_castle;
+
+        // Piece, rank, and file identifiers
+        extern const std::string pieces;
+        extern const std::string files;
+        extern const std::string ranks;
+
+        // Iterators to end of regex_token_iterator results
+        static rtok rtokend;
+        static crtok crtokend;
     }
 }
 

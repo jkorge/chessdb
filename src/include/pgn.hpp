@@ -52,6 +52,9 @@ class PGN : virtual public ParseBuf<CharT, Traits>{
     ply prest(const string&, color, bool, bool, ptype);
     int_type cmp(string&, const char, short=1);
 
+    template<typename CharT_, typename Traits_>
+    friend class PGNStream;
+
 public:
 
     pgndict _tags;
@@ -82,8 +85,11 @@ class PGNStream : public ParseStream<CharT, Traits>{
     PGN<CharT, Traits> _pbuf;
 
 public:
-    PGNStream(const std::basic_string<CharT>& file) : ParseStream<CharT, Traits>(), _pbuf(file) { this->rdbuf(&this->_pbuf); }
+    PGNStream(const std::basic_string<CharT>& file, log::LEVEL lvl=log::NONE, bool conlog=false)
+                : ParseStream<CharT, Traits>(),
+                  _pbuf(file, lvl, conlog) { this->rdbuf(&this->_pbuf); }
     PGNStream<CharT, Traits>& operator>>(game&);
+    void close();
 };
 
 #endif

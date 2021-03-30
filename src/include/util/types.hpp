@@ -30,16 +30,18 @@ typedef uint64_t U64;
 typedef int square;
 
 // Array wrapper
-struct coords{
-    int _rf[2];
+// struct coords{
+//     int _rf[2];
 
-    coords () {}
-    coords (int r, int f) : _rf{r,f} {}
-    coords (int* rf) { for(int i=0; i<2; ++i){ this->_rf[i] = rf[i]; } }
-    int& operator[](int i) { return _rf[i]; }
-    const int& operator[](int i) const{ return _rf[i]; }
-    coords operator+(const coords& other){ return {this->_rf[0] + other[0], this->_rf[1] + other[1]}; }
-};
+//     coords () {}
+//     coords (int r, int f) : _rf{r,f} {}
+//     coords (int* rf) { for(int i=0; i<2; ++i){ this->_rf[i] = rf[i]; } }
+//     int& operator[](int i) { return _rf[i]; }
+//     const int& operator[](int i) const{ return _rf[i]; }
+//     coords operator+(const coords& other){ return {this->_rf[0] + other[0], this->_rf[1] + other[1]}; }
+// };
+typedef std::array<int, 2> coords;
+coords operator+(const coords& x, const coords& y);
 
 // Compass directions (for sliding piece attack rays)
 typedef enum direction{N = 0, NW, W, SW, S, SE, E, NE, NODIR = -1} direction;

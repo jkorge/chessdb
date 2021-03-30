@@ -18,4 +18,4 @@ ParseStream<CharT, Traits>& ParseStream<CharT, Traits>::write(const ParseStream<
 }
 
 template class ParseStream<char>;
-template class ParseStream<wchar_t>;
+// template class ParseStream<wchar_t>;

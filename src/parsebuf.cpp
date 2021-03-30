@@ -77,4 +77,4 @@ ParseBuf<CharT, Traits>::overflow(ParseBuf<CharT, Traits>::int_type ch){
 }
 
 template class ParseBuf<char>;
-template class ParseBuf<wchar_t>;
+// template class ParseBuf<wchar_t>;

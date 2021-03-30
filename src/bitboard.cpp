@@ -202,7 +202,13 @@ U64 BitBoard::ray(const T& src, ptype pt, direction dir) const{
     Determine if line connecting src and dst is unoccupied
 */
 template<typename Ts, typename Td>
-bool BitBoard::clearbt(const Ts& src, const Td& dst, bool endp) const{ return not (util::bitboard::linebt(src, dst, endp) & this->board()); }
+bool BitBoard::clearbt(const Ts& src, const Td& dst) const{
+    U64 lbt = util::bitboard::linebt(src, dst);
+    switch(lbt){
+        case 0:  return false;
+        default: return not (lbt & this->board());
+    }
+}
 
 /*
     Visualizations
@@ -270,12 +276,12 @@ template U64 BitBoard::ray(const square&, ptype, direction) const;
 template U64 BitBoard::ray(const U64&, ptype, direction) const;
 template U64 BitBoard::ray(const coords&, ptype, direction) const;
 
-template bool BitBoard::clearbt(const square&, const square&, bool=false) const;
-template bool BitBoard::clearbt(const U64&, const U64&, bool=false) const;
-template bool BitBoard::clearbt(const coords&, const coords&, bool=false) const;
-template bool BitBoard::clearbt(const square&, const U64&, bool=false) const;
-template bool BitBoard::clearbt(const square&, const coords&, bool=false) const;
-template bool BitBoard::clearbt(const U64&, const coords&, bool=false) const;
-template bool BitBoard::clearbt(const U64&, const square&, bool=false) const;
-template bool BitBoard::clearbt(const coords&, const square&, bool=false) const;
-template bool BitBoard::clearbt(const coords&, const U64&, bool=false) const;
+template bool BitBoard::clearbt(const square&, const square&) const;
+template bool BitBoard::clearbt(const U64&, const U64&) const;
+template bool BitBoard::clearbt(const coords&, const coords&) const;
+template bool BitBoard::clearbt(const square&, const U64&) const;
+template bool BitBoard::clearbt(const square&, const coords&) const;
+template bool BitBoard::clearbt(const U64&, const coords&) const;
+template bool BitBoard::clearbt(const U64&, const square&) const;
+template bool BitBoard::clearbt(const coords&, const square&) const;
+template bool BitBoard::clearbt(const coords&, const U64&) const;

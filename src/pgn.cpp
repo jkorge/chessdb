@@ -206,6 +206,7 @@ ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string& p, color c, bool
         if(r==2)     { src = util::bitboard::rmasks[srcsq]; }
         else if(f==2){ src = util::bitboard::fmasks[srcsq]; }
         src = disamb.pgn(src, dst, pt, c, this->board, capture);
+        this->logger.debug("src is", util::repr::coord2s(src));
     }
 
     return {src, dst, pt, promo, c, 0, capture, check, mate};
@@ -233,6 +234,9 @@ PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(game& g){
     g.plies = this->_pbuf._plies;
     return *this;
 }
+
+template<typename CharT, typename Traits>
+void PGNStream<CharT, Traits>::close(){ this->_pbuf.close(); }
 
 
 template class PGN<char>;

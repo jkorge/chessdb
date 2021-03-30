@@ -87,7 +87,7 @@ void FileBase<CharT, Traits>::xsgetn(
     char_type ch;
     string s(delim.size(), ' ');
 
-    if(std::fread(s.data(), sizeof(char_type), delim.size()+1, this->_M_file)){
+    if(std::fread(s.data(), sizeof(char_type), delim.size(), this->_M_file)){
         for(int i=delim.size(); i<n; ++i){
             if(s == delim){
                 s.clear();
@@ -151,4 +151,4 @@ void FileBase<CharT, Traits>::xsputn(
 }
 
 template class FileBase<char>;
-template class FileBase<wchar_t>;
+// template class FileBase<wchar_t>;
