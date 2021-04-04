@@ -30,21 +30,11 @@ typedef uint64_t U64;
 typedef int square;
 
 // Array wrapper
-// struct coords{
-//     int _rf[2];
-
-//     coords () {}
-//     coords (int r, int f) : _rf{r,f} {}
-//     coords (int* rf) { for(int i=0; i<2; ++i){ this->_rf[i] = rf[i]; } }
-//     int& operator[](int i) { return _rf[i]; }
-//     const int& operator[](int i) const{ return _rf[i]; }
-//     coords operator+(const coords& other){ return {this->_rf[0] + other[0], this->_rf[1] + other[1]}; }
-// };
 typedef std::array<int, 2> coords;
 coords operator+(const coords& x, const coords& y);
 
 // Compass directions (for sliding piece attack rays)
-typedef enum direction{N = 0, NW, W, SW, S, SE, E, NE, NODIR = -1} direction;
+typedef enum direction{E = 0, NE, N, NW, W, SW, S, SE, NODIR = -1} direction;
 direction operator++(direction&);
 direction operator++(direction&, int);
 
@@ -209,7 +199,7 @@ typedef enum pgntag{
     event,
     site,
     date,
-    round,
+    roundn,
     playerw,
     playerb,
     result,
@@ -234,7 +224,7 @@ struct pgndict : std::map<pgntag, std::string>{
         {event, std::string()},
         {site, std::string()},
         {date, std::string()},
-        {round, std::string()},
+        {roundn, std::string()},
         {playerw, std::string()},
         {playerb, std::string()},
         {result, std::string()},

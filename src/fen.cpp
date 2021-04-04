@@ -2,7 +2,7 @@
 
 int Fen::cnt = 0;
 
-Fen::Fen(log::LEVEL lvl, bool conlog) : logger(Fen::cnt, lvl, conlog) { ++this->cnt; };
+Fen::Fen(logging::LEVEL lvl, bool conlog) : logger(Fen::cnt, lvl, conlog) { ++this->cnt; };
 
 bool Fen::is_avail(int x, pname* avail){ return avail[x] != NONAME; }
 

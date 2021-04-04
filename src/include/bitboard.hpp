@@ -74,6 +74,12 @@ public:
     U64 ray(const T&, ptype, direction) const;
 
     /*
+        Bitmap of squares attacked by sliding piece
+    */
+    template<typename T>
+    U64 sliding_atk(const T&, ptype) const;
+
+    /*
         Determine if line connecting src and dst is unoccupied
     */
     template<typename Ts, typename Td>

@@ -1,7 +1,7 @@
 #ifndef DISAMB_H
 #define DISAMB_H
 
-#include "log.hpp"
+#include "logging.hpp"
 #include "util.hpp"
 #include "board.hpp"
 
@@ -9,11 +9,11 @@
 class Disamb{
 
     static int cnt;
-    log::Logger logger;
+    logging::Logger logger;
 
 public:
 
-    Disamb(log::LEVEL=log::NONE, bool=false);
+    Disamb(logging::LEVEL=logging::NONE, bool=false);
 
     bool moveable_pin(const U64&, const U64&, const U64&);
 

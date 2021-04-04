@@ -36,8 +36,8 @@ namespace util{
             13, 18,  8, 12,  7,  6,  5, 63
         };
 
-        // Newline string
-        constexpr char endl = '\n';
+        // Newline char
+        constexpr char nln = '\n';
 
         // Starting positions for a standard game of chess
         constexpr U64 white_pawns = 0x000000000000ff00,
@@ -65,14 +65,14 @@ namespace util{
         // Whitespace regex
         extern const std::regex wsr;
 
-        // Whitespace string
+        // Space string
         extern const std::string ws;
+
+        // Newline string
+        extern const std::string endl;
 
         // Starting coordinates by color and piece type
         extern const std::map<color,std::map<ptype, U64> > start_coords;
-
-        // Map castle values to rook starting locations
-        extern const std::unordered_map<int, std::unordered_map<color, U64> > rook_castle;
 
         // Piece, rank, and file identifiers
         extern const std::string pieces;

@@ -1,6 +1,5 @@
 #include "include/bitboard.hpp"
 
-
 /*
     Retrieve occupancy bitmap
 */
@@ -192,10 +191,22 @@ template<typename T>
 U64 BitBoard::ray(const T& src, ptype pt, direction dir) const{
     U64 r = util::bitboard::rays[pt-2][util::transform::sq(src)][dir];
     if(not r){ return r; }
-    square x = (dir > 1 & dir < 6) ? util::transform::bitscanr(r & this->board()) : util::transform::bitscan(r & this->board());
+    square x = dir>3 ? util::transform::bitscanr(r & this->board()) : util::transform::bitscan(r & this->board());
     if(x == -1 || x == 64){ return r; }
     U64 rx = util::bitboard::rays[pt-2][x][dir];
     return r ^ rx;
+}
+
+/*
+    Bitmap of squares attacked by sliding piece
+        DOES NOT ASSUME EMPTY BOARD
+        Calls `this->ray` for each direction
+*/
+template<typename T>
+U64 BitBoard::sliding_atk(const T& src, ptype pt) const{
+    U64 res = 0;
+    for(int i=0; i<8; ++i){ res |= this->ray(src, pt, static_cast<direction>(i)); }
+    return res;
 }
 
 /*
@@ -203,10 +214,15 @@ U64 BitBoard::ray(const T& src, ptype pt, direction dir) const{
 */
 template<typename Ts, typename Td>
 bool BitBoard::clearbt(const Ts& src, const Td& dst) const{
-    U64 lbt = util::bitboard::linebt(src, dst);
-    switch(lbt){
-        case 0:  return false;
-        default: return not (lbt & this->board());
+    U64 lbt = util::bitboard::linebt(src, dst),
+        smsk = util::transform::mask(src),
+        dmsk = util::transform::mask(dst);
+    if(util::bitboard::attackfrom(smsk, king) & dmsk){ return true; }
+    else{
+        switch(lbt){
+            case 0:  return false;
+            default: return !(lbt & this->board());
+        }
     }
 }
 
@@ -285,3 +301,7 @@ template bool BitBoard::clearbt(const U64&, const coords&) const;
 template bool BitBoard::clearbt(const U64&, const square&) const;
 template bool BitBoard::clearbt(const coords&, const square&) const;
 template bool BitBoard::clearbt(const coords&, const U64&) const;
+
+template U64 BitBoard::sliding_atk(const U64& src, ptype pt) const;
+template U64 BitBoard::sliding_atk(const coords& src, ptype pt) const;
+template U64 BitBoard::sliding_atk(const square& src, ptype pt) const;

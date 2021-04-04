@@ -2,7 +2,7 @@
 #define BOARD_H
 
 #include <unordered_map>
-#include "log.hpp"
+#include "util.hpp"
 #include "bitboard.hpp"
 
 class ChessBoard : public BitBoard{
@@ -30,6 +30,12 @@ public:
     std::unordered_map<square, pname> map;
     std::unordered_map<pname, square> mat;
 
+    // Castling availability - 0000KQkq
+    BYTE cancas = 0b00001111;
+
+    // Half and full move counters
+    int half = 0, full = 1;
+
     ChessBoard();
 
     void newgame();
@@ -37,6 +43,8 @@ public:
     void clear();
 
     pname update(const ply&);
+
+    void update_state(const U64&, ptype, color, bool);
 
     void castle(int, color);
 
@@ -52,7 +60,7 @@ public:
 
     U64 legal() const;
 
-    U64 legal(color) const;
+    U64 legal(color, bool=false) const;
 
     U64 legal(ptype, color) const;
 
@@ -63,7 +71,7 @@ public:
 
     std::vector<ply> legal_plies() const;
 
-    std::vector<ply> legal_plies(color) const;
+    std::vector<ply> legal_plies(color, bool=false) const;
 
     std::vector<ply> legal_plies(ptype, color) const;
 
@@ -71,6 +79,8 @@ public:
     std::vector<ply> legal_plies(const T&, ptype, color) const;
 
     void get_checkers(color);
+
+    std::string ply2san(const ply&) const;
 };
 
 

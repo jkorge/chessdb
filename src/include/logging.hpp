@@ -18,7 +18,7 @@
 // Custom headers
 #include "tempus.hpp"
 
-namespace log{
+namespace logging{
 
     // Log level enum
     typedef enum LEVEL {

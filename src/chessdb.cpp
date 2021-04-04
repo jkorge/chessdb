@@ -198,10 +198,10 @@ void ChessDB<CharT, Traits>::load_tag_enum(){
     this->seek_end();
 
     // Skip null string at start of enum
-    this->_fdev.xsgetn(this->_buf, 1024, util::constants::endl);
+    this->_fdev.xsgetn(this->_buf, 1024, util::constants::nln);
     for(unsigned int i=1; i<this->NTAGS; ++i){
         this->sync();
-        this->_fdev.xsgetn(this->_buf, 1024, util::constants::endl);
+        this->_fdev.xsgetn(this->_buf, 1024, util::constants::nln);
         this->tag_enumerations[this->_buf] = i;
         this->tags.emplace_back(this->_buf);
     }

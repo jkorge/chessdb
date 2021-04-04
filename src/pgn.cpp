@@ -49,7 +49,7 @@ void PGN<CharT, Traits>::fixendl(PGN<CharT, Traits>::string& buf){
 }
 
 template<typename CharT, typename Traits>
-inline bool PGN<CharT, Traits>::badendl(const PGN<CharT, Traits>::string& substr){ return std::regex_match(substr, util::pgn::nds); }
+bool PGN<CharT, Traits>::badendl(const PGN<CharT, Traits>::string& substr){ return std::regex_match(substr, util::pgn::nds); }
 
 /*
     Parsing Functions
@@ -59,8 +59,8 @@ template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::tags(){
     this->logger.info("Parsing Tags");
 
-    string tbuf = this->_buf.substr(0,this->tend);
-    this->logger.debug(tbuf);
+    string tbuf = this->_buf.substr(0,this->tend+1);
+    this->logger.debug(util::constants::endl + tbuf);
     this->_tags.reset();
 
     // strip brackets
@@ -90,7 +90,7 @@ void PGN<CharT, Traits>::movetext(){
     string mbuf = this->_buf.substr(this->tend+1);
     this->logger.debug(mbuf);
 
-    // Check start for elided white ply at start of movetext
+    // Check for elided white ply at start of movetext
     bool black_starts = std::regex_search(mbuf.substr(0,6), util::pgn::black_starts);
 
     // Concatenate lines
@@ -144,6 +144,7 @@ void PGN<CharT, Traits>::pplies(color c){
     this->_plies.clear();
 
     if(!this->_tags[fenstr].empty()){ c = fen.parse(this->_tags[fenstr], this->board); }
+    this->board.next = c;
 
     for(typename std::vector<string>::iterator it=this->_tokens.begin(); it!=this->_tokens.end(); ++it){
 
@@ -205,7 +206,7 @@ ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string& p, color c, bool
     else{
         if(r==2)     { src = util::bitboard::rmasks[srcsq]; }
         else if(f==2){ src = util::bitboard::fmasks[srcsq]; }
-        src = disamb.pgn(src, dst, pt, c, this->board, capture);
+        src = this->disamb.pgn(src, dst, pt, c, this->board, capture);
         this->logger.debug("src is", util::repr::coord2s(src));
     }
 

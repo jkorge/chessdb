@@ -103,7 +103,7 @@ void FileBase<CharT, Traits>::xsgetn(
                 }
             }
         }
-        buf.append(s, s.size());
+        buf.append(s, 0, s.size());
     }
 }
 
