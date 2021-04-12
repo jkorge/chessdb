@@ -72,7 +72,7 @@ namespace logging{
         LEVEL minl;
         std::string filename;
 
-        LoggerBase(LEVEL lvl, short pid, std::filesystem::path _srcf, bool log_to_console=false, int cnt=0) : minl(lvl), _pid(pid), _log_to_console(log_to_console) {
+        LoggerBase(LEVEL lvl, short pid, std::filesystem::path _srcf, bool log_to_file=false, int cnt=0) : minl(lvl), _pid(pid), _log_to_file(log_to_file) {
             
             this->_srcfile = _srcf.string();
             _srcf = _srcf.replace_extension("").filename();
@@ -80,7 +80,7 @@ namespace logging{
             _srcf = _srcf.replace_extension(".log");
             
             // logs/YYYYmmddTHHMMSS/<srcfile_stem>.log
-            if(this->minl != NONE){ this->mkdirs(_log_dir); }
+            if(this->minl != NONE && this->_log_to_file){ this->mkdirs(_log_dir); }
             this->filename = (_log_dir / _srcf).string();
 
             // log "true/false" instead of "1/0"
@@ -113,7 +113,7 @@ namespace logging{
 
         std::string _srcfile;
         short _pid;
-        bool _log_to_console;
+        bool _log_to_file;
         std::stringstream _f_log;
         std::ofstream _os;
 
@@ -135,7 +135,10 @@ namespace logging{
             // PID
                             << std::setw(5) << std::right << this->_pid << " "
             // [File:Function:LineNo]
-                            << "[" << this->_srcfile << ":" << fmt.func << ":" << fmt.lineno << "] "
+                            << "["
+                                << std::setw(35) << std::left
+                                << this->_srcfile + ":" + fmt.func + ":" + std::to_string(fmt.lineno)
+                            << "] "
             // <log_text>
                             << fmt.txt << std::endl;
         }
@@ -147,8 +150,8 @@ namespace logging{
 
         bool is_open(){ return this->_os.is_open(); }
         void out(){
-            if(this->_os.is_open()){ this->write(this->_os); }      // File
-            if(this->_log_to_console){ this->write(std::cout); }    // Console
+            this->write(std::cout);                                                     // Console
+            if(this->_log_to_file && this->_os.is_open()){ this->write(this->_os); }    // File
         }
 
         void concat(std::stringstream &tmp){}
@@ -167,8 +170,8 @@ namespace logging{
 
     /*
         LOGGER
-            Writes to <_srcfile> log file (eg. Logger instance in `foo.cpp` writes to `foo.log`)
-            Optional runtime arg `conlog` enables logging to stderr
+            Writes to <_srcfile> console
+            Optional runtime arg `flog` enables logging to log file (eg. Logger instance in `foo.cpp` writes to `foo.log`)
     */
     class Logger : public LoggerBase{
 
@@ -181,7 +184,7 @@ namespace logging{
 
     public:
 
-        Logger(int cnt=0, LEVEL lvl=INFO, bool conlog=false, const char* _srcfile= __builtin_FILE()) : LoggerBase(lvl, getpid(), _srcfile, conlog, cnt){
+        Logger(int cnt=0, LEVEL lvl=INFO, bool flog=false, const char* _srcfile= __builtin_FILE()) : LoggerBase(lvl, getpid(), _srcfile, flog, cnt){
             this->minl = lvl;
             if(this->minl != NONE){ this->open(); }
         }

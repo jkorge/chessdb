@@ -7,6 +7,13 @@ int PGN<CharT, Traits>::cnt = 0;
     PGN Member Funcs
 ******************************/
 
+template<typename CharT, typename Traits>
+PGN<CharT, Traits>::PGN(const string& file, logging::LEVEL lvl, bool flog)
+    : ParseBuf<CharT,Traits>(file, "rb"),
+      logger(PGN::cnt, lvl, flog),
+      disamb(lvl, flog),
+      fen(lvl, flog) { ++this->cnt; }
+
 /*
     ParseBuf Overrides
 */
@@ -88,7 +95,7 @@ void PGN<CharT, Traits>::movetext(){
     this->logger.info("Parsing Movetext");
 
     string mbuf = this->_buf.substr(this->tend+1);
-    this->logger.debug(mbuf);
+    this->logger.debug(util::constants::endl + mbuf);
 
     // Check for elided white ply at start of movetext
     bool black_starts = std::regex_search(mbuf.substr(0,6), util::pgn::black_starts);
@@ -227,6 +234,15 @@ PGN<CharT, Traits>::cmp(PGN<CharT, Traits>::string& p, const char ch, short l){
 /******************************
     PGNStream Member Funcs
 ******************************/
+
+template<typename CharT, typename Traits>
+PGNStream<CharT, Traits>::PGNStream(const std::basic_string<CharT>& file, logging::LEVEL lvl, bool flog)
+    : ParseStream<CharT, Traits>(),
+    _pbuf(file, lvl, flog) { this->rdbuf(&this->_pbuf); }
+
+template<typename CharT, typename Traits>
+PGNStream<CharT, Traits>::PGNStream(const CharT* file, logging::LEVEL lvl, bool flog)
+    : PGNStream(std::string(file), lvl, flog) {}
 
 template<typename CharT, typename Traits>
 PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(game& g){

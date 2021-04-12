@@ -2,7 +2,7 @@
 
 int Disamb::cnt = 0;
 
-Disamb::Disamb(logging::LEVEL lvl, bool conlog) : logger(Disamb::cnt, lvl, conlog) { ++this->cnt; }
+Disamb::Disamb(logging::LEVEL lvl, bool flog) : logger(Disamb::cnt, lvl, flog) { ++this->cnt; }
 
 bool Disamb::moveable_pin(const U64& pros, const U64& dst, const U64& kloc){
     // Pins can only move along the line connecting the king and the pinning piece

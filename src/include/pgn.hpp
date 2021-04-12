@@ -61,12 +61,7 @@ public:
     std::vector<ply> _plies;
     std::vector<string> _tokens;
 
-    PGN(const string& file, logging::LEVEL lvl=logging::NONE, bool conlog=false)
-        : ParseBuf<CharT,Traits>(file, "r"),
-          logger(PGN::cnt, lvl, conlog),
-          disamb(lvl, conlog),
-          fen(lvl, conlog) { ++this->cnt; }
-
+    PGN(const string&, logging::LEVEL=logging::NONE, bool=false);
 };
 
 
@@ -85,10 +80,10 @@ class PGNStream : public ParseStream<CharT, Traits>{
     PGN<CharT, Traits> _pbuf;
 
 public:
-    PGNStream(const std::basic_string<CharT>& file, logging::LEVEL lvl=logging::NONE, bool conlog=false)
-                : ParseStream<CharT, Traits>(),
-                  _pbuf(file, lvl, conlog) { this->rdbuf(&this->_pbuf); }
-    PGNStream(const CharT* file, logging::LEVEL lvl=logging::NONE, bool conlog=false) : PGNStream(std::string(file), lvl, conlog) {}
+
+    PGNStream(const std::basic_string<CharT>&, logging::LEVEL=logging::NONE, bool=false);
+    PGNStream(const CharT*, logging::LEVEL=logging::NONE, bool=false);
+
     PGNStream<CharT, Traits>& operator>>(game&);
     void close();
 };
