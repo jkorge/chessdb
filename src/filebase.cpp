@@ -53,9 +53,10 @@ void FileBase<CharT, Traits>::xsgetn(
     typename FileBase<CharT, Traits>::string& buf,
     std::streamsize n
 ){
-    char_type tmp[n];
-    std::fread(tmp, sizeof(char_type), n, this->_M_file);
+    char_type* tmp = new char_type[n];
+    n = std::fread(tmp, sizeof(char_type), n, this->_M_file);
     buf.append(tmp, n);
+    delete[] tmp;
 }
 
 // Reads up to n bytes, EOF, or delim (whichever comes first)
@@ -83,27 +84,33 @@ void FileBase<CharT, Traits>::xsgetn(
     typename FileBase<CharT, Traits>::string& delim
 ){
 
-    int_type c;
+    int_type c, N = delim.size();
     char_type ch;
-    string s(delim.size(), ' ');
+    string s(N, ' ');
 
-    if(std::fread(s.data(), sizeof(char_type), delim.size(), this->_M_file)){
-        for(int i=delim.size(); i<n; ++i){
-            if(s == delim){
-                s.clear();
-                break;
-            }
-            else{
-                if((c = std::fgetc(this->_M_file)) == Traits::eof()){ break; }
-                else if((ch = Traits::to_char_type(c)) == '\r'){ continue; }
-                else{
-                    buf.push_back(s[0]);
-                    s.erase(0, 1);
-                    s.push_back(ch);
-                }
+    if(std::fread(s.data(), sizeof(char_type), N, this->_M_file)){
+
+        for(int i=N; i<n; ++i){
+
+            if(s == delim)
+                { return; }
+
+            else
+            if((c = std::fgetc(this->_M_file)) == Traits::eof())
+                { break; }
+
+            else
+            if((ch = Traits::to_char_type(c)) == '\r')
+                { continue; }
+
+            else
+            {
+                buf.push_back(s[0]);
+                s = s.substr(1, N-1) + ch;
             }
         }
-        buf.append(s, 0, s.size());
+
+        buf.append(s);
     }
 }
 
