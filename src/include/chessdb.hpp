@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include "tempus.hpp"
+#include "logging.hpp"
 #include "util.hpp"
 #include "parsestream.hpp"
 #include "encode.hpp"
@@ -17,6 +18,8 @@
 
 template<typename CharT, typename Traits=std::char_traits<CharT> >
 class ChessDB : virtual public ParseBuf<CharT, Traits>{
+
+    static int cnt;
     
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
@@ -29,41 +32,28 @@ public:
     bool encode{false};
 
     uint32_t NTAGS{1},
-             NGAMES{0};
+             NGAMES{0},
+             IDXPOS{util::constants::HDRSZ};
 
     std::unordered_map<string, uint32_t> tag_enumerations{{"", 0}};
-    std::vector<string> tags{""},
-                        BAKTAG;
+    std::vector<string> tags{""};
 
     // Map game index to starting byte and num plies
     std::unordered_map<long, std::pair<long, uint16_t> > index;
 
     game rg;
 
-    ChessDB(const string& file, bool exists) : ParseBuf<CharT,Traits>(file, exists ? "rb+" : "wb+") {
-        if(exists){ this->load(); }
-        else      { this->create(); }
-    }
-    ~ChessDB() {
-        this->encode = false;
+    logging::Logger logger;
 
-        // Tag enumeration
-        this->write_tag_enum();
-
-        // Update placeholders for num games and num tags in header
-        this->_fdev.seek(util::constants::TMESZ);
-        uint32_t ttags = this->tags.size();
-        this->sputn((char_type*)&this->NGAMES, sizeof(this->NGAMES));
-        this->sputn((char_type*)&ttags, sizeof(ttags));
-
-        // Close file
-        this->close();
-    }
+    ChessDB(const string&, bool, logging::LEVEL=logging::NONE, bool=false);
+    ~ChessDB();
 
     void load();
     void create();
-    void seek(int);
-    void seek_end();
+    void detach();
+    void seek_game(int);
+    void seek_index();
+    void seek_tags();
 
     // Write funcs
     int_type wparse();
@@ -72,7 +62,9 @@ public:
     void encode_ply(const ply&);
     uint32_t enum_extend(const string&);
     void write_tag_enum();
+    void write_index();
     void write_timestamp();
+    void write_header();
 
     // Read funcs
     void read();
@@ -81,6 +73,9 @@ public:
     void load_header();
     void load_index();
     void load_tag_enum();
+
+    template<typename CharT_, typename Traits_>
+    friend class ChessDBStream;
 };
 
 /******************************
@@ -98,7 +93,8 @@ class ChessDBStream : public ParseStream<CharT, Traits>{
     ChessDB<CharT, Traits> _pbuf;
 
 public:
-    ChessDBStream(const std::basic_string<CharT>& file) : ParseStream<CharT, Traits>(), _pbuf(file, std::filesystem::exists(file)) { this->rdbuf(&this->_pbuf); }
+    
+    ChessDBStream(const std::basic_string<CharT>&, logging::LEVEL=logging::NONE, bool=false);
     ChessDBStream<CharT, Traits>& operator<<(const game&);
     ChessDBStream<CharT, Traits>& operator>>(game&);
     void insert(const game&);

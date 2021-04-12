@@ -1,47 +1,69 @@
 #include "include/chessdb.hpp"
 
+template<typename CharT, typename Traits>
+int ChessDB<CharT, Traits>::cnt = 0;
+
 /******************************
     ChessDB Member Funcs
 ******************************/
+template<typename CharT, typename Traits>
+ChessDB<CharT, Traits>::ChessDB(const string& file, bool exists, logging::LEVEL lvl, bool flog)
+    : ParseBuf<CharT,Traits>(file, exists ? "rb+" : "wb+"),
+      logger(ChessDB::cnt, lvl, flog)
+{
+    if(exists){ this->load(); }
+    else      { this->create(); }
+    ++this->cnt;
+}
+
+template<typename CharT, typename Traits>
+ChessDB<CharT, Traits>::~ChessDB(){
+    // Dump remaining stats
+    this->detach();
+    // Close file
+    this->logger.debug("Closing");
+    this->close();
+}
 
 template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::load(){
-    this->_fdev.seek(0);
-
-    // Load meta data
+    this->logger.debug("Loading DB");
     this->load_header();
     this->load_index();
     this->load_tag_enum();
-
-    // Set stream pos to end of game data
-    // this->seek_end();
 }
 
 template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::create(){
+    this->logger.debug("Initializing DB");
+    this->write_header();
+}
+
+template<typename CharT, typename Traits>
+void ChessDB<CharT, Traits>::detach(){
+    this->logger.debug("Disconnecting from DB");
     this->encode = false;
-    this->write_timestamp();
-
-    // Placeholder 0 for num games and num tags
-    uint32_t nil = 0;
-    this->sputn((char_type*)&nil, util::constants::TAGSZ);
-    this->sputn((char_type*)&nil, util::constants::TAGSZ);
+    this->write_header();
+    /*
+        WRITE INDEX BEFORE TAG ENUM
+    */
+    this->write_index();
+    this->write_tag_enum();
 }
 
 template<typename CharT, typename Traits>
-void ChessDB<CharT, Traits>::seek(int i){ this->_fdev.seek(this->index[i].first); }
+void ChessDB<CharT, Traits>::seek_game(int i){ this->_fdev.seek(this->index[i].first); }
 
 template<typename CharT, typename Traits>
-void ChessDB<CharT, Traits>::seek_end(){
-    if(this->index.size()){
-        this->_fdev.seek(
-            this->index[this->NGAMES-1].first +                                     // Start byte of last game
-            util::constants::ATGSZ + util::constants::NPYSZ +                       // Tag-width + nplies-width
-            (this->index[this->NGAMES-1].second * util::constants::EPYSZ)           // nplies * eply-width
-        );
-    }
-    else{ this->_fdev.seek(util::constants::HDRSZ); }
+void ChessDB<CharT, Traits>::seek_index(){ this->_fdev.seek(this->IDXPOS); }
+
+template<typename CharT, typename Traits>
+void ChessDB<CharT, Traits>::seek_tags(){
+    this->seek_index();
+    this->_fdev.seek(this->NGAMES * util::constants::IDXSZ, SEEK_CUR);
 }
+
+
 
 /*
     WRITE FUNCS
@@ -57,7 +79,6 @@ ChessDB<CharT, Traits>::wparse(){
 template<typename CharT, typename Traits>
 typename ChessDB<CharT, Traits>::int_type
 ChessDB<CharT, Traits>::encode_game(){
-
     const game g = *reinterpret_cast<game*>(this->_buf.data());
     this->sync();
 
@@ -77,6 +98,9 @@ ChessDB<CharT, Traits>::encode_game(){
 
     // Increment game count and update index
     this->index.insert({++this->NGAMES - 1, {this->_fdev.tell(), nplies}});
+
+    // Update index pos
+    this->IDXPOS += util::constants::ATGSZ + util::constants::NPYSZ + nplies*util::constants::EPYSZ;
 
     return this->_buf.size();
 }
@@ -106,13 +130,27 @@ void ChessDB<CharT, Traits>::encode_ply(const ply& p){
 
 template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::write_tag_enum(){
-    this->seek_end();
+    this->logger.debug("Saving Tags");
+    this->seek_tags();
     this->sync();
 
-    this->_buf = this->tags[0] + util::constants::endl;
-    for(unsigned int i=1; i<this->NTAGS; ++i){
-        string t = this->tags[i] + util::constants::endl;
-        this->_buf.append(t.data(), t.size());
+    std::stringstream bufstr;
+    std::copy(this->tags.begin(), this->tags.end(), std::ostream_iterator<std::string>(bufstr, util::constants::endl.data()));
+    this->_buf = std::move(*bufstr.rdbuf()).str();
+
+    this->write();
+    this->sync();
+}
+
+template<typename CharT, typename Traits>
+void ChessDB<CharT, Traits>::write_index(){
+    this->logger.debug("Saving Index");
+    this->seek_index();
+    this->sync();
+
+    for(int i=0; i<this->index.size(); ++i){
+        this->_buf.append((char_type*)&this->index[i].first, sizeof(long));
+        this->_buf.append((char_type*)&this->index[i].second, util::constants::NPYSZ);
     }
 
     this->write();
@@ -120,11 +158,24 @@ void ChessDB<CharT, Traits>::write_tag_enum(){
 }
 
 template<typename CharT, typename Traits>
-void ChessDB<CharT, Traits>::write_timestamp(){
-    this->encode = false;
+void ChessDB<CharT, Traits>::write_header(){
+    this->logger.debug("Updating Header");
     this->_fdev.seek(0);
+    this->sync();
+
+    // Time, NGAMES, NTAGS, IDXPOS
     unsigned long long tme = Tempus::time();
-    this->sputn((char_type*)&tme, util::constants::TMESZ);
+    this->_buf.append((char_type*)&tme, util::constants::TMESZ);
+    this->_buf.append((char_type*)&this->NGAMES, util::constants::TAGSZ);
+    this->_buf.append((char_type*)&this->NTAGS, util::constants::TAGSZ);
+    this->_buf.append((char_type*)&this->IDXPOS, util::constants::TAGSZ);
+
+    this->logger.debug("NGAMES:", this->NGAMES);
+    this->logger.debug("NTAGS:", this->NTAGS);
+    this->logger.debug("IDXPOS:", this->IDXPOS);
+
+    this->write();
+    this->sync();
 }
 
 /*
@@ -136,7 +187,8 @@ void ChessDB<CharT, Traits>::read(){
     // Tags
     this->_fdev.xsgetn(this->_buf, util::constants::ATGSZ);
     // Plies
-    this->_fdev.xsgetn(this->_buf, this->read_nplies() * util::constants::EPYSZ);
+    uint16_t npl = this->read_nplies();
+    this->_fdev.xsgetn(this->_buf, npl * util::constants::EPYSZ);
 }
 
 template<typename CharT, typename Traits>
@@ -147,23 +199,19 @@ ChessDB<CharT, Traits>::rparse(){
     int loc = 0,
         N = this->_buf.size();
 
-    // std::cout << "Tags" << std::endl;
     for(pgndict::iterator it=this->rg.tags.begin(); it!=this->rg.tags.end(); ++it){
         it->second = this->tags[*(uint32_t*)(this->_buf.data() + loc)];
         loc += util::constants::TAGSZ;
     }
 
-    // std::cout << "Plies" << std::endl;
     std::vector<eply> eplies;
     while(loc < N){
         eplies.emplace_back(*(eply*)(this->_buf.data() + loc));
         loc += util::constants::EPYSZ;
     }
 
-    // std::cout << "Decode" << std::endl;
     this->rg.plies = this->dec.decode_game(eplies, this->rg.tags[fenstr]);
 
-    // std::cout << "Done" << std::endl;
     return this->rg.plies.size();
 }
 
@@ -176,10 +224,14 @@ uint16_t ChessDB<CharT, Traits>::read_nplies(){
 
 template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::load_header(){
+    this->logger.debug("Reading Header");
+    this->_fdev.seek(0);
+    this->sync();
+
     this->_fdev.xsgetn(this->_buf, util::constants::HDRSZ);
 
     // Ignore timestamp
-    // std::cout << Tempus::strtime(*(unsigned long long*)this->_buf.data()) << std::endl;
+    // unsigned long long last_read_t = *(unsigned long long*)this->_buf.data();
 
     // Extract num games
     this->NGAMES = *(uint32_t*)(this->_buf.data() + util::constants::TMESZ);
@@ -187,46 +239,68 @@ void ChessDB<CharT, Traits>::load_header(){
     // Extract num tags
     this->NTAGS = *(uint32_t*)(this->_buf.data() + util::constants::TMESZ + util::constants::TAGSZ);
 
-    // Overwrite timestamp
+    // Extract index pos
+    this->IDXPOS = *(uint32_t*)(this->_buf.data() + util::constants::TMESZ + 2*util::constants::TAGSZ);
+
+    this->logger.debug("NGAMES:", this->NGAMES);
+    this->logger.debug("NTAGS:", this->NTAGS);
+    this->logger.debug("IDXPOS:", this->IDXPOS);
+
     this->sync();
-    this->write_timestamp();
-    
 }
 
 template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::load_tag_enum(){
-    this->seek_end();
+    this->logger.debug("Reading Tags");
+    this->seek_tags();
+    this->sync();
 
-    // Skip null string at start of enum
-    this->_fdev.xsgetn(this->_buf, 1024, util::constants::nln);
-    for(unsigned int i=1; i<this->NTAGS; ++i){
-        this->sync();
-        this->_fdev.xsgetn(this->_buf, 1024, util::constants::nln);
-        this->tag_enumerations[this->_buf] = i;
-        this->tags.emplace_back(this->_buf);
+    // Read tags (from current position to EOF)
+    long loc = this->_fdev.tell();
+    this->_fdev.seek(0, SEEK_END);
+    long end = this->_fdev.tell();
+    this->_fdev.seek(loc, SEEK_SET);
+    this->_fdev.xsgetn(this->_buf, end-loc);
+
+    // Move buffer to stringstream and split on \n
+    std::stringstream bufstr;
+    bufstr.str(std::move(this->_buf));
+    this->tags.resize(this->NTAGS);
+    for(int i=0; i<this->NTAGS; ++i){
+        std::getline(bufstr, this->tags[i], util::constants::nln);
+        this->tag_enumerations[this->tags[i]] = i;
     }
 
-    if(this->BAKTAG.empty()){ this->BAKTAG = this->tags; }
+    this->sync();
 }
 
 template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::load_index(){
-    this->_fdev.seek(util::constants::HDRSZ);
+    this->logger.debug("Reading Index");
+    this->seek_index();
+    this->sync();
 
+    std::size_t sz = this->NGAMES * util::constants::IDXSZ;
+    this->_fdev.xsgetn(this->_buf, sz);
+
+    this->index.reserve(this->NGAMES);
     for(unsigned int i=0; i<this->NGAMES; ++i){
-
-        long pos = this->_fdev.tell();
-        this->_fdev.seek(util::constants::ATGSZ, SEEK_CUR);
-        uint16_t nplies = this->read_nplies();
-
-        this->index.insert({i, {pos, nplies}});
-        this->_fdev.seek(nplies * util::constants::EPYSZ, SEEK_CUR);
+        int loc = i*util::constants::IDXSZ;
+        long pos = *(long*)(this->_buf.data() + loc);
+        uint16_t npl = *(uint16_t*)(this->_buf.data() + loc + sizeof(long));
+        index.emplace(i, std::make_pair(pos, npl));
     }
+    this->sync();
 }
 
 /******************************
     ChessDB Member Funcs
 ******************************/
+
+template<typename CharT, typename Traits>
+ChessDBStream<CharT, Traits>::ChessDBStream(const std::basic_string<CharT>& file, logging::LEVEL lvl, bool flog)
+    : ParseStream<CharT, Traits>(),
+      _pbuf(file, std::filesystem::exists(file), lvl, flog) { this->rdbuf(&this->_pbuf); }
 
 template<typename CharT, typename Traits>
 ChessDBStream<CharT, Traits>& ChessDBStream<CharT, Traits>::operator<<(const game& g){
@@ -244,13 +318,13 @@ ChessDBStream<CharT, Traits>& ChessDBStream<CharT, Traits>::operator>>(game& g){
 
 template<typename CharT, typename Traits>
 void ChessDBStream<CharT, Traits>::insert(const game& g){
-    this->_pbuf.seek_end();
+    this->_pbuf.seek_index();
     *this << g;
 }
 
 template<typename CharT, typename Traits>
 game ChessDBStream<CharT, Traits>::select(int i){
-    this->_pbuf.seek(i);
+    this->_pbuf.seek_game(i);
     game res;
     *this >> res;
     return res;
