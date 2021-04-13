@@ -2,6 +2,6 @@ bin
 build
 data
 lib
-logs
 test
+**/logs
 **/deprecated
