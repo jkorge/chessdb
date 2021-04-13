@@ -51,7 +51,6 @@ void ChessBoard::clear(){
     this->full = 1;
 }
 
-
 /*********************************
     UPDATE BOARD FROM PLY
 *********************************/

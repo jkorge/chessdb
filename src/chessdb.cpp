@@ -141,7 +141,7 @@ void ChessDB<CharT, Traits>::write_index(){
     this->seek_index();
     this->sync();
 
-    for(int i=0; i<this->index.size(); ++i){
+    for(unsigned int i=0; i<this->index.size(); ++i){
         this->_buf.append((char_type*)&this->index[i].first, sizeof(long));
         this->_buf.append((char_type*)&this->index[i].second, util::constants::NPYSZ);
     }
@@ -244,7 +244,7 @@ void ChessDB<CharT, Traits>::load_tag_enum(){
     std::stringstream bufstr;
     bufstr.str(std::move(this->_buf));
     this->tags.resize(this->NTAGS);
-    for(int i=0; i<this->NTAGS; ++i){
+    for(unsigned int i=0; i<this->NTAGS; ++i){
         std::getline(bufstr, this->tags[i], util::constants::nln);
         this->tag_enumerations[this->tags[i]] = i;
     }

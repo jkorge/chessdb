@@ -1,14 +1,6 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include <immintrin.h>
-#include <cstdint>
-#include <string>
-#include <vector>
-#include <map>
-#include <regex>
-
-
 /**************************
     SHORTHAND TYPES
 **************************/
@@ -116,10 +108,10 @@ struct ply{
     ply ()
         : src(0),
           dst(0),
-          name(NONAME),
+          c(NOCOLOR),
           type(pawn),
           promo(pawn),
-          c(NOCOLOR),
+          name(NONAME),
           castle(0),
           capture(false),
           check(false),
@@ -129,9 +121,10 @@ struct ply{
     ply (U64 s, U64 d, ptype pt, ptype po, color col, int cas, bool cap, bool ch, bool m)
         : src(s),
           dst(d),
+          c(col),
           type(pt),
           promo(po),
-          c(col),
+          name(NONAME),
           castle(cas),
           capture(cap),
           check(ch),
@@ -140,9 +133,10 @@ struct ply{
     ply (square s, square d, ptype pt, ptype po, color col, int cas, bool cap, bool ch, bool m)
         : src(1ULL << s),
           dst(1ULL << d),
+          c(col),
           type(pt),
           promo(po),
-          c(col),
+          name(NONAME),
           castle(cas),
           capture(cap),
           check(ch),
@@ -152,10 +146,10 @@ struct ply{
     ply (const ply& other)
         : src(other.src),
           dst(other.dst),
-          name(other.name),
+          c(other.c),
           type(other.type),
           promo(other.promo),
-          c(other.c),
+          name(other.name),
           castle(other.castle),
           capture(other.capture),
           check(other.check),

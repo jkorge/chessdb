@@ -138,7 +138,7 @@ void FileBase<CharT, Traits>::xsputn(
 ){
     for(int i=0; i<n; ++i){
         if(buf[i] == delim){ break; }
-        else               { int_type c = std::fputc(buf[i], this->_M_file); }
+        else               { std::fputc(buf[i], this->_M_file); }
     }
 }
 
@@ -153,7 +153,7 @@ void FileBase<CharT, Traits>::xsputn(
     int_type sz = delim.size();
     for(int i=0; i<n; ++i){
         if(buf.substr(i, sz) == delim){ break; }
-        else                          { int_type c = std::fputc(buf[i], this->_M_file); }
+        else                          { std::fputc(buf[i], this->_M_file); }
     }
 }
 

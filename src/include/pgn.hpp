@@ -46,7 +46,6 @@ private:
     // Util functions
     void rchar(char_type, string&);
     void fixendl(string&);
-    bool badendl(const string&);
 
     // Parsing functions
     void tags();

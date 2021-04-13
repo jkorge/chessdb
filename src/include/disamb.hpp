@@ -21,7 +21,7 @@ public:
 
     U64 dpawn(const U64&, const U64&, ptype, color, const ChessBoard&, bool);
 
-    U64 dpiece(const U64&, const U64&, ptype, color, const ChessBoard&, bool);
+    U64 dpiece(const U64&, const U64&, ptype, color, const ChessBoard&);
 
     U64 pgn(const U64&, const U64&, ptype, color, const ChessBoard&, bool);
 };

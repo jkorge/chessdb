@@ -35,7 +35,7 @@ U64 Disamb::dpawn(const U64& src, const U64& dst, ptype pt, color c, const Chess
     }
 }
 
-U64 Disamb::dpiece(const U64& src, const U64& dst, ptype pt, color c, const ChessBoard& board, bool capture){
+U64 Disamb::dpiece(const U64& src, const U64& dst, ptype pt, color c, const ChessBoard& board){
     U64 candidates = board.board(pt, c),
         kloc = board.board(king, c),
         grid = board.board();
@@ -66,6 +66,6 @@ U64 Disamb::pgn(const U64& src, const U64& dst, ptype pt, color c, const ChessBo
     switch(pt){
         case king: return board.board(pt,c);
         case pawn: return this->dpawn(src, dst, pt, c, board, capture);
-        default:   return this->dpiece(src, dst, pt, c, board, capture);
+        default:   return this->dpiece(src, dst, pt, c, board);
     }
 }

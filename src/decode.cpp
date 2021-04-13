@@ -6,7 +6,6 @@ std::vector<ply> Decoder::decode_game(const std::vector<eply>& g, const std::str
     if(!fstr.empty()){ fen.parse(fstr, this->board); }
     else             { this->board.newgame(); }
 
-    int i = 0;
     for(std::vector<eply>::const_iterator it=g.begin(); it!=g.end(); ++it){
         res.emplace_back(this->decode_ply(*it, this->board));
         this->board.update(res.back());

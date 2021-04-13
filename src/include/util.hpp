@@ -3,11 +3,14 @@
 
 #include <immintrin.h>
 #include <cctype>
-#include <string>
-#include <map>
-#include <unordered_map>
-#include <regex>
+#include <cstdint>
+
 #include <algorithm>
+#include <map>
+#include <regex>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 /*
     INTER-DEPENDENT HEADERS - MAINTAIN #include ORDER HERE

@@ -49,13 +49,10 @@ void PGN<CharT, Traits>::fixendl(PGN<CharT, Traits>::string& buf){
     int_type idx;
     while((idx = buf.find('\n')) != string::npos){
         // All \n must be preceded by '.' or ' '
-        if(badendl(buf.substr(idx-1,2))){ buf.insert(idx++, 1, ' '); }
+        if(buf[idx-1] != '.' && buf[idx-1] != ' '){ buf.insert(idx++, 1, ' '); }
         buf.erase(idx, 1);
     }
 }
-
-template<typename CharT, typename Traits>
-bool PGN<CharT, Traits>::badendl(const PGN<CharT, Traits>::string& substr){ return std::regex_match(substr, util::pgn::nds); }
 
 /*
     Parsing Functions
@@ -70,16 +67,18 @@ void PGN<CharT, Traits>::tags(){
     this->_tags.reset();
 
     // strip brackets
-    for(const char *c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); ++c){ this->rchar(*c, tbuf); }
+    for(const char* c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); ++c){ this->rchar(*c, tbuf); }
 
     // Copy _buf to sstream for tokenizing
     std::basic_stringstream<CharT, Traits> bufstr(tbuf);
     while(std::getline(bufstr, tbuf)){
 
-        int_type pos = tbuf.find(' ');
+        int_type pos;
+        for(int i=0; i<tbuf.size(); ++i){ if(tbuf[i] == ' '){ pos = i; break; } }
+        std::transform(tbuf.begin(), tbuf.begin()+pos, tbuf.begin(), tolower);
         string keytok = tbuf.substr(0, pos);
-        util::transform::lowercase(keytok);
-        if(util::pgn::s2tag.find(keytok) == util::pgn::stend){
+        // util::transform::lowercase(keytok);
+        if(util::pgn::s2tag.find(keytok) != util::pgn::stend){
             this->_tags[util::pgn::s2tag[keytok]] = tbuf.substr(pos+2, this->tend-1);
         }
     }
@@ -113,8 +112,7 @@ template<typename CharT, typename Traits>
 typename PGN<CharT, Traits>::string
 PGN<CharT, Traits>::ptok(PGN<CharT, Traits>::string& tok){
     if(isdigit(tok[0])){ tok.erase(0, tok.find('.')+1); }
-    this->rchar('.', tok);
-    this->rchar('-', tok);
+    while((tok[0] == '.') | (tok[0] == '-')){ tok.erase(0,1); }
     return tok;
 }
 
