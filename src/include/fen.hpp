@@ -7,8 +7,8 @@
 
 class Fen{
 
-    static int cnt;
     logging::Logger logger;
+    static int cnt;
     
     bool is_avail(int, pname*);
 

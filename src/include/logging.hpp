@@ -65,12 +65,22 @@ namespace logging{
             unsigned int lineno;
         };
 
+        friend class Logger;
+
         // separates level/time block from process info block in log text
         const std::string sep = "<->";
 
-    public:
-        LEVEL minl;
+        std::string _srcfile;
+        std::stringstream _f_log;
+        std::ofstream _os;
         std::string filename;
+
+    protected:
+        LEVEL minl;
+        short _pid;
+        bool _log_to_file;
+
+    public:
 
         LoggerBase(LEVEL lvl, short pid, std::filesystem::path _srcf, bool log_to_file=false, int cnt=0) : minl(lvl), _pid(pid), _log_to_file(log_to_file) {
             
@@ -110,12 +120,6 @@ namespace logging{
         void close(){ if(this->is_open()){ this->_os.close(); } }
 
     private:
-
-        std::string _srcfile;
-        short _pid;
-        bool _log_to_file;
-        std::stringstream _f_log;
-        std::ofstream _os;
 
         void mkdirs(const std::filesystem::path& d){ if(!std::filesystem::is_directory(d)){ std::filesystem::create_directories(d); } }
 
@@ -161,8 +165,6 @@ namespace logging{
             tmp << " " << val;
             if(sizeof...(Args)){ this->concat(tmp, Args...); }
         }
-
-        friend class Logger;
     };
 
 
@@ -170,8 +172,8 @@ namespace logging{
 
     /*
         LOGGER
-            Writes to <_srcfile> console
-            Optional runtime arg `flog` enables logging to log file (eg. Logger instance in `foo.cpp` writes to `foo.log`)
+            Writes to console
+            Optional runtime arg `flog` enables logging to file (eg. Logger instance in `foo.cpp` writes to `foo.log`)
     */
     class Logger : public LoggerBase{
 

@@ -9,7 +9,7 @@ namespace Tempus{
     template<typename TICK>
     Time<TICK> get_time_point(){ return std::chrono::time_point_cast<TICK>(read_clock()); }
 
-    // read_clock + duration_cast
+    // get_time_point + return ticks since epoch
     template<typename TICK>
     TICK get_time(){ return get_time_point<TICK>().time_since_epoch(); }
 

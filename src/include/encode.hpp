@@ -6,7 +6,6 @@
 class Encoder {
 
     ply missing;                // default construct for missing or elided plies
-
     eply emissing{UINT16_MAX};  // use `11111111 11111111` for missing plies
 
 public:

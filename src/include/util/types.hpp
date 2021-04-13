@@ -98,15 +98,15 @@ typedef enum pname{
 
 struct ply{
 
-    color c;
-    ptype type, promo;
-    pname name;
     U64 src, dst;
-
+    color c;
+    ptype type,
+          promo;
+    pname name;
     int castle;             // 0 => No castle; 1 => kingside; -1 => queenside
-    bool capture;
-    bool check;
-    bool mate;
+    bool capture,
+         check,
+         mate;
 
     /*
         CONSTRUCTORS

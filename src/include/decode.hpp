@@ -7,11 +7,11 @@
 
 class Decoder{
 
-    ply missing;                // default construct for missing or elided plies
-    eply emissing{UINT16_MAX};  // use `11111111 11111111` for missing plies
-
     ChessBoard board;
     Fen fen;
+
+    ply missing;                // default construct for missing or elided plies
+    eply emissing{UINT16_MAX};  // use `11111111 11111111` for missing plies
 
 public:
     std::vector<ply> decode_game(const std::vector<eply>&, const std::string& ="");

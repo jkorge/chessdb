@@ -16,19 +16,28 @@
 template<typename CharT, typename Traits=std::char_traits<CharT> >
 class PGN : virtual public ParseBuf<CharT, Traits>{
 
-    static int cnt;
-
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
     typedef typename std::basic_string<char_type> string;
 
-    string _delim = {"\n\n"};
-    int tend;
+    template<typename CharT_, typename Traits_>
+    friend class PGNStream;
+
+    const string _delim = {"\n\n"};
+    std::vector<string> _tokens;
 
     logging::Logger logger;
     ChessBoard board;
     Disamb disamb;
     Fen fen;
+
+protected:
+    pgndict _tags;
+    std::vector<ply> _plies;
+
+private:
+    int tend;
+    static int cnt;
 
     // ParseBuf overrides
     void read();
@@ -52,15 +61,7 @@ class PGN : virtual public ParseBuf<CharT, Traits>{
     ply prest(const string&, color, bool, bool, ptype);
     int_type cmp(string&, const char, short=1);
 
-    template<typename CharT_, typename Traits_>
-    friend class PGNStream;
-
 public:
-
-    pgndict _tags;
-    std::vector<ply> _plies;
-    std::vector<string> _tokens;
-
     PGN(const string&, logging::LEVEL=logging::NONE, bool=false);
 };
 

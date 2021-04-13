@@ -4,7 +4,7 @@
 #include <streambuf>
 #include "filebase.hpp"
 
-constexpr int BUFSIZE = 4096;
+constexpr std::streamsize BUFSIZE = 4096;
 
 /*
     Streambuf subclass which reads from file and parses what it finds
@@ -16,18 +16,13 @@ class ParseBuf : virtual public std::basic_streambuf<CharT, Traits> {
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
     typedef typename std::basic_string<char_type> string;
-    
-public:
 
-    ParseBuf() : std::basic_streambuf<CharT, Traits>() {}
-    ParseBuf(const string& file, const string& mode) : std::basic_streambuf<CharT, Traits>(), _fdev(file, mode) {}
-    ~ParseBuf() { this->close(); }
+    template<typename _CharT, typename _Traits>
+    friend class ParseStream;
 
 protected:
-
     string _buf;
     FileBase<CharT, Traits> _fdev;
-
     void close();
     int sync();
 
@@ -41,9 +36,11 @@ protected:
     virtual int_type wparse();
     std::streamsize xsputn(const char_type* s, std::streamsize count);
     int_type overflow(int_type=Traits::eof());
-
-    template<typename _CharT, typename _Traits>
-    friend class ParseStream;
+    
+public:
+    ParseBuf() : std::basic_streambuf<CharT, Traits>() {}
+    ParseBuf(const string& file, const string& mode) : std::basic_streambuf<CharT, Traits>(), _fdev(file, mode) {}
+    ~ParseBuf() { this->close(); }
 
 };
 

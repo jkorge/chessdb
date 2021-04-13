@@ -11,10 +11,11 @@ public:
         white_bishops{0},  black_bishops{0},
         white_rooks{0},    black_rooks{0},
         white_queens{0},   black_queens{0},
-        white_king{0},     black_king{0};
+        white_king{0},     black_king{0},
+                    state{0};
 
-    U64 state{0};                                           // Current occupancy bitmap of game board
-    bool changed{true};                                     // Flag indicating if board has changed since last read
+    // Flag indicating if board has changed since last read
+    bool changed{true};
 
     /*
         Retrieve occupancy bitmap

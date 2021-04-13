@@ -8,8 +8,8 @@
 
 class Disamb{
 
-    static int cnt;
     logging::Logger logger;
+    static int cnt;
 
 public:
 

@@ -17,12 +17,6 @@ public:
     // Bitboard of where an en passant capture can be made
         enpas = 0;
 
-    // Which player moves next
-    color next = white;
-
-    // color of player IN check
-    color check = NOCOLOR;
-
     // Map of bitboards (each with exactly one 1-bit identifying a checking piece's location) to ptypes
     std::unordered_map<U64, ptype> checkers;
 
@@ -30,11 +24,17 @@ public:
     std::unordered_map<square, pname> map;
     std::unordered_map<pname, square> mat;
 
-    // Castling availability - 0000KQkq
-    BYTE cancas = 0b00001111;
+    // Which player moves next
+    color next = white;
+
+    // color of player IN check
+    color check = NOCOLOR;
 
     // Half and full move counters
     int half = 0, full = 1;
+
+    // Castling availability - 0000KQkq
+    BYTE cancas = 0b00001111;
 
     ChessBoard();
 
