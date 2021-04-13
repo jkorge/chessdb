@@ -31,13 +31,13 @@ public:
     long tell();
 
     void xsgetn(string&, std::streamsize);
-    void xsgetn(string&, std::streamsize, char_type);
-    void xsgetn(string&, std::streamsize, string&);
+    void xsgetn(string&, std::streamsize, const char_type);
+    void xsgetn(string&, std::streamsize, const string&);
 
     void xsputn(string&);
     void xsputn(string&, std::streamsize);
-    void xsputn(string&, std::streamsize, char_type);
-    void xsputn(string&, std::streamsize, string&);
+    void xsputn(string&, std::streamsize, const char_type);
+    void xsputn(string&, std::streamsize, const string&);
 };
 
 #endif

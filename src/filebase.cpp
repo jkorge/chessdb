@@ -64,7 +64,7 @@ template<typename CharT, typename Traits>
 void FileBase<CharT, Traits>::xsgetn(
     typename FileBase<CharT, Traits>::string& buf,
     std::streamsize n,
-    typename FileBase<CharT, Traits>::char_type delim
+    const typename FileBase<CharT, Traits>::char_type delim
 ){
     int_type c;
     for(int i=0; i<n; ++i){
@@ -81,7 +81,7 @@ template<typename CharT, typename Traits>
 void FileBase<CharT, Traits>::xsgetn(
     typename FileBase<CharT, Traits>::string& buf,
     std::streamsize n,
-    typename FileBase<CharT, Traits>::string& delim
+    const typename FileBase<CharT, Traits>::string& delim
 ){
 
     int_type c, N = delim.size();
@@ -134,7 +134,7 @@ template<typename CharT, typename Traits>
 void FileBase<CharT, Traits>::xsputn(
     typename FileBase<CharT, Traits>::string& buf,
     std::streamsize n,
-    typename FileBase<CharT, Traits>::char_type delim
+    const typename FileBase<CharT, Traits>::char_type delim
 ){
     for(int i=0; i<n; ++i){
         if(buf[i] == delim){ break; }
@@ -147,7 +147,7 @@ template<typename CharT, typename Traits>
 void FileBase<CharT, Traits>::xsputn(
     typename FileBase<CharT, Traits>::string& buf,
     std::streamsize n,
-    typename FileBase<CharT, Traits>::string& delim
+    const typename FileBase<CharT, Traits>::string& delim
 ){
 
     int_type sz = delim.size();
