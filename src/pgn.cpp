@@ -21,7 +21,7 @@ template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::read(){
     // Tags
     this->_fdev.xsgetn(this->_buf, BUFSIZE, this->_delim);
-    this->tend = this->_buf.size()-1;
+    this->tend = this->_buf.size();
     // Moves
     this->_fdev.xsgetn(this->_buf, BUFSIZE, this->_delim);
 }
@@ -41,8 +41,7 @@ typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::rparse(){
 // Remove all instances of a character from a string
 template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::rchar(PGN<CharT, Traits>::char_type c, PGN<CharT, Traits>::string& s){
-    short idx;
-    while((idx = s.find(c, 0)) != string::npos){ s.erase(idx, 1); }
+    s.erase(std::remove(s.begin(), s.end(), c), s.end());
 }
 
 template<typename CharT, typename Traits>
@@ -66,7 +65,7 @@ template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::tags(){
     this->logger.info("Parsing Tags");
 
-    string tbuf = this->_buf.substr(0,this->tend+1);
+    string tbuf = this->_buf.substr(0,this->tend);
     this->logger.debug(util::constants::endl + tbuf);
     this->_tags.reset();
 
@@ -80,11 +79,8 @@ void PGN<CharT, Traits>::tags(){
         int_type pos = tbuf.find(' ');
         string keytok = tbuf.substr(0, pos);
         util::transform::lowercase(keytok);
-
-        if(util::pgn::s2tag.find(keytok) != util::pgn::stend){
-            string valtok = tbuf.substr(pos+1);
-            this->rchar(util::pgn::value_delim, valtok);
-            this->_tags[util::pgn::s2tag[keytok]] = valtok;
+        if(util::pgn::s2tag.find(keytok) == util::pgn::stend){
+            this->_tags[util::pgn::s2tag[keytok]] = tbuf.substr(pos+2, this->tend-1);
         }
     }
     this->logger.info("End of Tags");
@@ -94,7 +90,7 @@ template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::movetext(){
     this->logger.info("Parsing Movetext");
 
-    string mbuf = this->_buf.substr(this->tend+1);
+    string mbuf = this->_buf.substr(this->tend);
     this->logger.debug(util::constants::endl + mbuf);
 
     // Check for elided white ply at start of movetext
@@ -117,7 +113,8 @@ template<typename CharT, typename Traits>
 typename PGN<CharT, Traits>::string
 PGN<CharT, Traits>::ptok(PGN<CharT, Traits>::string& tok){
     if(isdigit(tok[0])){ tok.erase(0, tok.find('.')+1); }
-    while((tok[0] == '.') | (tok[0] == '-')){ tok.erase(0,1); }
+    this->rchar('.', tok);
+    this->rchar('-', tok);
     return tok;
 }
 

@@ -58,10 +58,7 @@ template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::seek_index(){ this->_fdev.seek(this->IDXPOS); }
 
 template<typename CharT, typename Traits>
-void ChessDB<CharT, Traits>::seek_tags(){
-    this->seek_index();
-    this->_fdev.seek(this->NGAMES * util::constants::IDXSZ, SEEK_CUR);
-}
+void ChessDB<CharT, Traits>::seek_tags(){ this->_fdev.seek(this->IDXPOS + this->NGAMES * util::constants::IDXSZ); }
 
 
 
@@ -73,7 +70,7 @@ template<typename CharT, typename Traits>
 typename ChessDB<CharT, Traits>::int_type
 ChessDB<CharT, Traits>::wparse(){
     if(this->encode){ return this->encode_game(); }
-    else            { return 0;                   } // Unformatted output (e.g. timestamps, integer sizes)
+    else            { return 0;                   } // Unformatted output (i.e. anything BUT game data)
 }
 
 template<typename CharT, typename Traits>
@@ -83,18 +80,14 @@ ChessDB<CharT, Traits>::encode_game(){
     this->sync();
 
     // Tags
-    for(pgndict::const_iterator tagit=g.tags.cbegin(); tagit!=g.tags.cend(); ++tagit){
-        this->encode_tag(tagit->second);
-    }
+    for(pgndict::const_iterator tagit=g.tags.cbegin(); tagit!=g.tags.cend(); ++tagit){ this->encode_tag(tagit->second); }
 
     // Num plies
     uint16_t nplies = g.plies.size();
     this->_buf.append((char_type*)&nplies, sizeof(nplies));
 
     // Plies
-    for(std::vector<ply>::const_iterator movit=g.plies.cbegin(); movit!=g.plies.cend(); ++movit){
-        this->encode_ply(*movit);
-    }
+    for(std::vector<ply>::const_iterator movit=g.plies.cbegin(); movit!=g.plies.cend(); ++movit){ this->encode_ply(*movit); }
 
     // Increment game count and update index
     this->index.insert({++this->NGAMES - 1, {this->_fdev.tell(), nplies}});
@@ -170,9 +163,7 @@ void ChessDB<CharT, Traits>::write_header(){
     this->_buf.append((char_type*)&this->NTAGS, util::constants::TAGSZ);
     this->_buf.append((char_type*)&this->IDXPOS, util::constants::TAGSZ);
 
-    this->logger.debug("NGAMES:", this->NGAMES);
-    this->logger.debug("NTAGS:", this->NTAGS);
-    this->logger.debug("IDXPOS:", this->IDXPOS);
+    this->logger.debug("NGAMES:", this->NGAMES, "NTAGS:", this->NTAGS, "IDXPOS:", this->IDXPOS);
 
     this->write();
     this->sync();
@@ -187,8 +178,9 @@ void ChessDB<CharT, Traits>::read(){
     // Tags
     this->_fdev.xsgetn(this->_buf, util::constants::ATGSZ);
     // Plies
-    uint16_t npl = this->read_nplies();
-    this->_fdev.xsgetn(this->_buf, npl * util::constants::EPYSZ);
+    std::string tmp;
+    this->_fdev.xsgetn(tmp, util::constants::NPYSZ);
+    this->_fdev.xsgetn(this->_buf, (*(uint16_t*)tmp.data()) * util::constants::EPYSZ);
 }
 
 template<typename CharT, typename Traits>
@@ -216,13 +208,6 @@ ChessDB<CharT, Traits>::rparse(){
 }
 
 template<typename CharT, typename Traits>
-uint16_t ChessDB<CharT, Traits>::read_nplies(){
-    std::string tmp;
-    this->_fdev.xsgetn(tmp, util::constants::NPYSZ);
-    return *(uint16_t*)tmp.data();
-}
-
-template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::load_header(){
     this->logger.debug("Reading Header");
     this->_fdev.seek(0);
@@ -230,21 +215,14 @@ void ChessDB<CharT, Traits>::load_header(){
 
     this->_fdev.xsgetn(this->_buf, util::constants::HDRSZ);
 
-    // Ignore timestamp
+    // Timestamp
     // unsigned long long last_read_t = *(unsigned long long*)this->_buf.data();
 
-    // Extract num games
     this->NGAMES = *(uint32_t*)(this->_buf.data() + util::constants::TMESZ);
-
-    // Extract num tags
     this->NTAGS = *(uint32_t*)(this->_buf.data() + util::constants::TMESZ + util::constants::TAGSZ);
-
-    // Extract index pos
     this->IDXPOS = *(uint32_t*)(this->_buf.data() + util::constants::TMESZ + 2*util::constants::TAGSZ);
 
-    this->logger.debug("NGAMES:", this->NGAMES);
-    this->logger.debug("NTAGS:", this->NTAGS);
-    this->logger.debug("IDXPOS:", this->IDXPOS);
+    this->logger.debug("NGAMES:", this->NGAMES, "NTAGS:", this->NTAGS, "IDXPOS:", this->IDXPOS);
 
     this->sync();
 }
