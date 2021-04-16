@@ -104,12 +104,36 @@ color Fen::parse(std::string fs, ChessBoard& board){
     else{
         board.clear();
         rtok fentok(fs.begin(), fs.end(), util::constants::wsr, -1);
+
         // First field in FEN string contains board arrangment
         this->arrange(*fentok++, board);
-        // Second field indicates next player to move
-        c = (*fentok++) == "b" ? black : white;
-        // Remaining fields (castling availability, en passants, etc.) unused for now
-        while(fentok != util::constants::rtokend){ fentok++; }
+
+        // Next player to move
+        board.next = (*fentok++) == 'b' ? black : white;
+
+        // Castling availability
+        std::string cas = *fentok++;
+        BYTE i = 1;
+        for(const char* c=util::fen::castles; c!=std::end(util::fen::castles); ++c){
+            if(cas.find(*c) != std::string::npos){ board.cancas |= i; }
+            i <<= 1;
+        }
+
+        // En Passant
+        std::string enpas = *fentok++;
+        board.enpas = util::transform::mask(coords{util::repr::c2rank(enpas[0]), util::repr::c2file(enpas[1])});
+
+        // Move counters
+        board.half = std::stoi(*fentok++);
+        board.full = std::stoi(*fentok++);
+
+        // Check for pins
+        board.pinsearch();
+
+        // Check for...check
+        board.get_checkers(!board.next);
+        if(board.checkers.size()){ board.check = board.next; }
+
     }
 
     return c;
