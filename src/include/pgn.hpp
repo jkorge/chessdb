@@ -27,13 +27,13 @@ class PGN : virtual public ParseBuf<CharT, Traits>{
     std::vector<string> _tokens;
 
     logging::Logger logger;
-    ChessBoard board;
     Disamb disamb;
     Fen fen;
+    ChessBoard board;
 
 protected:
-    pgndict _tags;
     std::vector<ply> _plies;
+    pgndict _tags;
 
 private:
     int tend;
@@ -51,14 +51,12 @@ private:
     void tags();
     void movetext();
 
-    string ptok(string&);
     void tokenize(string&);
     bool isend(const string&);
     void pplies(color=white);
     ply pply(string&, color);
     ply pcastle(bool, color, bool, bool);
-    ply prest(const string&, color, bool, bool, ptype);
-    int_type cmp(string&, const char, short=1);
+    ply prest(const string&, color, bool, bool);
 
 public:
     PGN(const string&, logging::LEVEL=logging::NONE, bool=false);
@@ -85,6 +83,9 @@ public:
     PGNStream(const CharT*, logging::LEVEL=logging::NONE, bool=false);
 
     PGNStream<CharT, Traits>& operator>>(game&);
+    PGNStream<CharT, Traits>& operator>>(std::vector<game>& games);
+
+    game next();
     void close();
 };
 

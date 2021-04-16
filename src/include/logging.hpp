@@ -51,6 +51,10 @@ namespace logging{
         // Container for log txt and call stack details
         struct loc{
 
+            std::string txt;
+            const std::string dttm, func;
+            unsigned int lineno;
+
             // Template type for _txt allows std::string and C-string/string-literal
             template<class Source>
             loc(
@@ -59,10 +63,6 @@ namespace logging{
                 const char *_func=__builtin_FUNCTION(),
                 unsigned int _lineno=__builtin_LINE()
             ) noexcept : txt(_txt), dttm(_dttm), func(_func), lineno(_lineno) {}
-
-            std::string txt;
-            const std::string dttm, func;
-            unsigned int lineno;
         };
 
         friend class Logger;

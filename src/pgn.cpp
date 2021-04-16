@@ -69,15 +69,16 @@ void PGN<CharT, Traits>::tags(){
     // strip brackets
     for(const char* c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); ++c){ this->rchar(*c, tbuf); }
 
-    // Copy _buf to sstream for tokenizing
-    std::basic_stringstream<CharT, Traits> bufstr(tbuf);
+    // move tbuf to sstream for tokenizing
+    std::basic_stringstream<CharT, Traits> bufstr;
+    bufstr.str(std::move(tbuf));
+
     while(std::getline(bufstr, tbuf)){
 
-        int_type pos;
-        for(int i=0; i<tbuf.size(); ++i){ if(tbuf[i] == ' '){ pos = i; break; } }
+        int_type pos = tbuf.find(' ');
         std::transform(tbuf.begin(), tbuf.begin()+pos, tbuf.begin(), tolower);
         string keytok = tbuf.substr(0, pos);
-        // util::transform::lowercase(keytok);
+
         if(util::pgn::s2tag.find(keytok) != util::pgn::stend){
             this->_tags[util::pgn::s2tag[keytok]] = tbuf.substr(pos+2, this->tend-1);
         }
@@ -109,22 +110,15 @@ void PGN<CharT, Traits>::movetext(){
 }
 
 template<typename CharT, typename Traits>
-typename PGN<CharT, Traits>::string
-PGN<CharT, Traits>::ptok(PGN<CharT, Traits>::string& tok){
-    if(isdigit(tok[0])){ tok.erase(0, tok.find('.')+1); }
-    while((tok[0] == '.') | (tok[0] == '-')){ tok.erase(0,1); }
-    return tok;
-}
-
-template<typename CharT, typename Traits>
 void PGN<CharT, Traits>::tokenize(PGN<CharT, Traits>::string& mbuf){
 
     this->_tokens.clear();
     std::stringstream sstr(mbuf);
-    string tok;
     while(!sstr.eof()){
-        sstr >> tok;
-        this->_tokens.emplace_back(this->ptok(tok));
+        sstr >> mbuf;
+        if(isdigit(mbuf[0])){ mbuf.erase(0, mbuf.find('.')+1); }
+        while((mbuf[0] == '.') | (mbuf[0] == '-')){ mbuf.erase(0,1); }
+        this->_tokens.emplace_back(mbuf);
     }
 }
 
@@ -152,8 +146,9 @@ void PGN<CharT, Traits>::pplies(color c){
 
         this->logger.debug("Parsing:", util::repr::color2c(c), *it);
         
-        if(it->empty()){ this->_plies.emplace_back(ply()); }
-        else if(this->isend(*it)){ break; }
+        if(it->empty()){ this->_plies.emplace_back(); }
+        else
+        if(this->isend(*it)){ break; }
         else{
             ply p = this->pply(*it, c);
             p.name = board.update(p);
@@ -167,16 +162,16 @@ template<typename CharT, typename Traits>
 ply PGN<CharT, Traits>::pply(PGN<CharT, Traits>::string& p, color c){
 
     // Parse and remove flags
-    bool check = (bool) this->cmp(p, '+');
-    bool mate = (bool) this->cmp(p, '#');
-    ptype promo = static_cast<ptype>(this->cmp(p, '=', 2));
+    bool check = p.back() == '+',
+         mate = p.back() == '#';
+    if(check || mate){ p.erase(p.size()-1, 1); }
 
     bool kingside{!p.compare("O-O")},
          queenside{!p.compare("O-O-O")};
 
     // Shortcut for castles
     if(kingside | queenside){ return this->pcastle(queenside, c, check, mate); }
-    else                    { return this->prest(p, c, check, mate, promo); }
+    else                    { return this->prest(p, c, check, mate); }
 }
 
 template<typename CharT, typename Traits>
@@ -187,43 +182,40 @@ ply PGN<CharT, Traits>::pcastle(bool qs, color c, bool check, bool mate){
 }
 
 template<typename CharT, typename Traits>
-ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string& p, color c, bool check, bool mate, ptype promo){
+ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string& p, color c, bool check, bool mate){
     int_type f = 0, r = 0;
     square srcsq = 0, dstsq = 0;
     bool capture = false;
-    ptype pt = pawn;
+    ptype pt = pawn, promo = pawn;
 
     for(typename string::const_reverse_iterator it=p.rbegin(); it!=p.rend(); ++it){
         char_type ch = *it;
-        if     (util::transform::ispiece(ch)){ pt = util::repr::c2ptype(ch); }
-        else if(util::transform::isfile(ch)) { (!f++ ? dstsq : srcsq) += util::repr::c2file(ch); }
-        else if(isdigit(ch))      { (!r++ ? dstsq : srcsq) += 8*util::repr::c2rank(ch); }
-        else if(ch == 'x')        { capture = true; }
-        else                      { this->logger.error("Unrecognized character in ply:", ch); }
+        if(util::transform::isfile(ch)) { (!f++ ? dstsq : srcsq) += util::repr::c2file(ch);     }
+        else
+        if(std::isdigit(ch))            { (!r++ ? dstsq : srcsq) += util::repr::c2rank(ch) * 8; }
+        else
+        if(util::transform::ispiece(ch)){ pt = util::repr::c2ptype(ch); }
+        else
+        if(ch == 'x')                   { capture = true; }
+        else
+        if(ch == '=')                   { promo = pt; pt = pawn; }
+        else
+                                        { this->logger.warn("Unrecognized character in ply:", ch); }
     }
 
     U64 dst = util::transform::mask(dstsq),
         src = 0;
-    if(r==2 && f==2) { src = util::transform::mask(srcsq); }
+    if(r==2 && f==2) { src = util::transform::mask(srcsq);  }
     else{
         if(r==2)     { src = util::bitboard::rmasks[srcsq]; }
-        else if(f==2){ src = util::bitboard::fmasks[srcsq]; }
+        else
+        if(f==2)     { src = util::bitboard::fmasks[srcsq]; }
+
         src = this->disamb.pgn(src, dst, pt, c, this->board, capture);
-        this->logger.debug("src is", util::repr::coord2s(src));
+        this->logger.debug("src:", util::repr::coord2s(src));
     }
 
     return {src, dst, pt, promo, c, 0, capture, check, mate};
-}
-
-template<typename CharT, typename Traits>
-typename PGN<CharT, Traits>::int_type
-PGN<CharT, Traits>::cmp(PGN<CharT, Traits>::string& p, const char ch, short l){
-    short retval = 0, mod;
-    if((mod = p.find(ch)) != string::npos){
-        retval = (l==2) ? (int_type) util::repr::c2ptype(p[mod+1]) : 1;
-        p.erase(mod, l);
-    }
-    return retval;
 }
 
 /******************************
@@ -246,6 +238,20 @@ PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(game& g){
     g.plies = this->_pbuf._plies;
     return *this;
 }
+
+template<typename CharT, typename Traits>
+PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(std::vector<game>& games){
+    this->read(nullptr, 0);
+    games.emplace_back(this->_pbuf._tags, this->_pbuf._plies);
+    return *this;
+}
+
+template<typename CharT, typename Traits>
+game PGNStream<CharT, Traits>::next(){
+    this->read(nullptr, 0);
+    return {this->_pbuf._tags, this->_pbuf._plies};
+}
+
 
 template<typename CharT, typename Traits>
 void PGNStream<CharT, Traits>::close(){ this->_pbuf.close(); }
