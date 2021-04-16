@@ -188,7 +188,7 @@ void BitBoard::move(const Ts& src, const Td& dst, ptype pt, color c){
         Uses current occupancy
 */
 template<typename T>
-U64 BitBoard::ray(const T& src, ptype pt, direction dir) const{
+U64 BitBoard::ray(const T& src, ptype pt, int dir) const{
     U64 r = util::bitboard::rays[pt-2][util::transform::sq(src)][dir];
     if(not r){ return r; }
     square x = dir>3 ? util::transform::bitscanr(r & this->board()) : util::transform::bitscan(r & this->board());
@@ -201,11 +201,20 @@ U64 BitBoard::ray(const T& src, ptype pt, direction dir) const{
     Bitmap of squares attacked by sliding piece
         DOES NOT ASSUME EMPTY BOARD
         Calls `this->ray` for each direction
+        Directions (North points to rank 8):
+            0 => E
+            1 => NE
+            2 => N
+            3 => NW
+            4 => W
+            5 => SW
+            6 => S
+            7 => SE
 */
 template<typename T>
 U64 BitBoard::sliding_atk(const T& src, ptype pt) const{
     U64 res = 0;
-    for(int i=0; i<8; ++i){ res |= this->ray(src, pt, static_cast<direction>(i)); }
+    for(int i=0; i<8; ++i){ res |= this->ray(src, pt, i); }
     return res;
 }
 
@@ -214,11 +223,12 @@ U64 BitBoard::sliding_atk(const T& src, ptype pt) const{
 */
 template<typename Ts, typename Td>
 bool BitBoard::clearbt(const Ts& src, const Td& dst) const{
-    U64 lbt = util::bitboard::linebt(src, dst),
-        smsk = util::transform::mask(src),
-        dmsk = util::transform::mask(dst);
-    if(util::bitboard::attackfrom(smsk, king) & dmsk){ return true; }
+    if(util::bitboard::attackfrom(src, king) & util::transform::mask(dst)){
+        // src and dst are adjacent - always clear
+        return true;
+    }
     else{
+        U64 lbt = util::bitboard::linebt(src, dst);
         switch(lbt){
             case 0:  return false;
             default: return !(lbt & this->board());
@@ -288,9 +298,9 @@ template void BitBoard::move(const U64&, const square&, ptype, color);
 template void BitBoard::move(const coords&, const square&, ptype, color);
 template void BitBoard::move(const coords&, const U64&, ptype, color);
 
-template U64 BitBoard::ray(const square&, ptype, direction) const;
-template U64 BitBoard::ray(const U64&, ptype, direction) const;
-template U64 BitBoard::ray(const coords&, ptype, direction) const;
+template U64 BitBoard::ray(const square&, ptype, int) const;
+template U64 BitBoard::ray(const U64&, ptype, int) const;
+template U64 BitBoard::ray(const coords&, ptype, int) const;
 
 template bool BitBoard::clearbt(const square&, const square&) const;
 template bool BitBoard::clearbt(const U64&, const U64&) const;

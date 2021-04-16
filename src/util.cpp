@@ -12,15 +12,16 @@ ptype operator++(ptype& pt, int){
   return tmp;
 }
 
-direction operator++(direction& dir){
-  dir = static_cast<direction>((static_cast<int>(dir) + 1) % 8);
-  return dir;
-}
-direction operator++(direction& dir, int){
-  direction tmp = dir;
-  ++dir;
-  return tmp;
-}
+// direction operator++(direction& dir){
+//   dir = static_cast<direction>((static_cast<int>(dir) + 1) % 8);
+//   return dir;
+// }
+// direction operator++(direction& dir, int){
+//   direction tmp = dir;
+//   ++dir;
+//   return tmp;
+// }
+
 coords operator+(const coords& x, const coords& y){ return {x[0] + y[0], x[1] + y[1]}; }
 
 namespace util{

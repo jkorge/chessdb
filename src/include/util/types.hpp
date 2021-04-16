@@ -26,9 +26,9 @@ typedef std::array<int, 2> coords;
 coords operator+(const coords& x, const coords& y);
 
 // Compass directions (for sliding piece attack rays)
-typedef enum direction{E = 0, NE, N, NW, W, SW, S, SE, NODIR = -1} direction;
-direction operator++(direction&);
-direction operator++(direction&, int);
+// typedef enum direction{E = 0, NE, N, NW, W, SW, S, SE, NODIR = -1} direction;
+// direction operator++(direction&);
+// direction operator++(direction&, int);
 
 /**************************
     MATERIAL
@@ -156,12 +156,12 @@ struct ply{
           mate(other.mate) {}
 
     bool operator==(const ply& other) const{
-        return (this->c == other.c) &&
+        return (this->src == other.src) &&
+               (this->dst == other.dst) &&
+               (this->c == other.c) &&
                (this->type == other.type) &&
                (this->promo == other.promo) &&
                (this->name == other.name) &&
-               (this->src == other.src) &&
-               (this->dst == other.dst) &&
                (this->castle == other.castle) &&
                (this->capture == other.capture) &&
                (this->check == other.check) &&
