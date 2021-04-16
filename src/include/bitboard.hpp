@@ -72,7 +72,7 @@ public:
         Bitmap of squares attacked by single ray of sliding piece attack pattern
     */
     template<typename T>
-    U64 ray(const T&, ptype, direction) const;
+    U64 ray(const T&, ptype, int) const;
 
     /*
         Bitmap of squares attacked by sliding piece
