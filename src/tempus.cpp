@@ -56,7 +56,7 @@ namespace Tempus{
 
         unsigned long n = t0 % std::nano::den;
         Nanosecond T(t0 - n);
-        long long t = std::chrono::duration_cast<Second>(T).count();
+        int64_t t = std::chrono::duration_cast<Second>(T).count();
 
         nstr = std::to_string(n);
         nstr = std::string(n_dec_chars - nstr.length(), '0') + nstr;
