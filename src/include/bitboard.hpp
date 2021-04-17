@@ -37,20 +37,20 @@ public:
     */
 
     template<typename T>
-    color lookupc(const T&) const;
+    color lookupc(const T) const;
 
     template<typename T>
-    ptype lookupt(const T&) const;
+    ptype lookupt(const T) const;
 
     /*
         Remove piece(s) from board
     */
 
     template<typename T>
-    void remove(const T&, ptype, color);
+    void remove(const T, ptype, color);
 
     template<typename T>
-    void remove(const T&);
+    void remove(const T);
 
     void remove();
 
@@ -59,32 +59,32 @@ public:
     */
 
     template<typename T>
-    void place(const T&, ptype, color);
+    void place(const T, ptype, color);
 
     /*
         Move piece from src to dst
     */
 
     template<typename Ts, typename Td>
-    void move(const Ts&, const Td&, ptype, color);
+    void move(const Ts, const Td, ptype, color);
 
     /*
         Bitmap of squares attacked by single ray of sliding piece attack pattern
     */
     template<typename T>
-    U64 ray(const T&, ptype, int) const;
+    U64 ray(const T, ptype, int) const;
 
     /*
         Bitmap of squares attacked by sliding piece
     */
     template<typename T>
-    U64 sliding_atk(const T&, ptype) const;
+    U64 sliding_atk(const T, ptype) const;
 
     /*
         Determine if line connecting src and dst is unoccupied
     */
     template<typename Ts, typename Td>
-    bool clearbt(const Ts&, const Td&) const;
+    bool clearbt(const Ts, const Td) const;
 
     /*
         Visualizations

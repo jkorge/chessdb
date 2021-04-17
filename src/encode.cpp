@@ -1,6 +1,6 @@
 #include "include/encode.hpp"
 
-eply Encoder::encode_ply(const ply& p){ return p == this->missing ? this->emissing : (static_cast<uint16_t>(this->encode_piece(p)) << 8) | this->encode_action(p); }
+eply Encoder::encode_ply(const ply p){ return p == this->missing ? this->emissing : (static_cast<uint16_t>(this->encode_piece(p)) << 8) | this->encode_action(p); }
 
 std::vector<eply> Encoder::encode_game(const std::vector<ply>& g){
     std::vector<eply> res;
@@ -8,14 +8,14 @@ std::vector<eply> Encoder::encode_game(const std::vector<ply>& g){
     return res;
 }
 
-BYTE Encoder::encode_piece(const ply& p){
+BYTE Encoder::encode_piece(const ply p){
     BYTE _piece = static_cast<BYTE>(p.name);
     if(p.type != pawn && (p.name >= 8 & p.name <= 23)){ _piece |= this->encode_pawn_promotion(p.type); }
     if(p.type == queen)                               { _piece |= this->encode_queen_axis(util::transform::rf(p.src), util::transform::rf(p.dst)); }
     return _piece;
 }
 
-BYTE Encoder::encode_action(const ply& p){
+BYTE Encoder::encode_action(const ply p){
     coords src = util::transform::rf(p.src),
                 dst = util::transform::rf(p.dst);
 
@@ -39,9 +39,9 @@ BYTE Encoder::encode_mate(bool mte){ return mte ? util::constants::MATE_ : 0; }
 
 BYTE Encoder::encode_pawn_promotion(ptype promo, bool pce){ return static_cast<BYTE>(promo) << (pce ? 5 : 2); }
 
-BYTE Encoder::encode_queen_axis(const coords& src, const coords& dst){ return ((src[0]==dst[0]) || (src[1]==dst[1])) ? util::constants::QAROOK_ : util::constants::QABISHOP_; }
+BYTE Encoder::encode_queen_axis(const coords src, const coords dst){ return ((src[0]==dst[0]) || (src[1]==dst[1])) ? util::constants::QAROOK_ : util::constants::QABISHOP_; }
 
-BYTE Encoder::pawn_action(const coords& src, const coords& dst, bool cap, ptype promo){
+BYTE Encoder::pawn_action(const coords src, const coords dst, bool cap, ptype promo){
     // 000ppp<rr/ff>
     BYTE res;
     if(cap)  { res = dst[1] > src[1] ? 2 : 1; }
@@ -50,7 +50,7 @@ BYTE Encoder::pawn_action(const coords& src, const coords& dst, bool cap, ptype 
     return res;
 }
 
-BYTE Encoder::knight_action(const coords& src, const coords& dst){
+BYTE Encoder::knight_action(const coords src, const coords dst){
     // 00000aot
     bool f2 = abs(dst[1] - src[1]) == 2,
          rneg = dst[0] < src[0],
@@ -61,7 +61,7 @@ BYTE Encoder::knight_action(const coords& src, const coords& dst){
             1*((f2 & fneg) || (!f2 & rneg));
 }
 
-BYTE Encoder::bishop_action(const coords& src, const coords& dst){
+BYTE Encoder::bishop_action(const coords src, const coords dst){
     // 000admmm
     coords delta{dst[0] - src[0], dst[1] - src[1]};
 
@@ -70,7 +70,7 @@ BYTE Encoder::bishop_action(const coords& src, const coords& dst){
             abs(delta[0]);
 }
 
-BYTE Encoder::rook_action(const coords& src, const coords& dst){
+BYTE Encoder::rook_action(const coords src, const coords dst){
     // 000admmm
     coords delta{dst[0] - src[0], dst[1] - src[1]};
 
@@ -79,13 +79,13 @@ BYTE Encoder::rook_action(const coords& src, const coords& dst){
             (abs(delta[0]) | abs(delta[1]));
 }
 
-BYTE Encoder::queen_action(const coords& src, const coords& dst){
+BYTE Encoder::queen_action(const coords src, const coords dst){
     // 000admmm
     if((dst[0]==src[0]) | (dst[1]==src[1])){ return this->rook_action(src, dst); }
     else                                   { return this->bishop_action(src, dst); }
 }
 
-BYTE Encoder::king_action(const coords& src, const coords& dst){
+BYTE Encoder::king_action(const coords src, const coords dst){
     // 000cffrr
     coords delta{dst[0] - src[0], dst[1] - src[1]};
 

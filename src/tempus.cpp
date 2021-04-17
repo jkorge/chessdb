@@ -22,7 +22,7 @@ namespace Tempus{
 
         char tm[n_time_chars];
         std::string nstr;
-        long n;
+        int32_t n;
         std::time_t t;
         TICK prec(1);
 
@@ -49,12 +49,12 @@ namespace Tempus{
         
     }
 
-    std::string strtime(unsigned long long t0, const char *spec){
+    std::string strtime(uint64_t t0, const char *spec){
 
         char tm[n_time_chars];
         std::string nstr;
 
-        unsigned long n = t0 % std::nano::den;
+        uint32_t n = t0 % std::nano::den;
         Nanosecond T(t0 - n);
         int64_t t = std::chrono::duration_cast<Second>(T).count();
 

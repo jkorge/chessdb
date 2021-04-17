@@ -61,7 +61,7 @@ void ChessBoard::clear(){
     UPDATE BOARD FROM PLY
 *********************************/
 
-pname ChessBoard::update(const ply& p){
+pname ChessBoard::update(const ply p){
     
     if(p == this->missing){ return NONAME; }
     
@@ -88,13 +88,21 @@ pname ChessBoard::update(const ply& p){
     this->move(p.src, p.dst, p.type, p.c);
 
     // Special cases
-    if(p.castle)   { this->castle(p.castle, p.c); }
-    if(p.promo)    { this->promote(p.c, p.dst, p.promo); }
+    if(p.castle){
+        U64 src = rook_castle.at((p.castle<0) + 2*(p.c<0)),
+            dst = (p.castle > 0) ? (src >> 2) : (src << 3);
+        this->move(src, dst, rook, p.c);
+        this->swap(src, dst);
+        this->cancas &= p.c>0 ? 0b0011 : 0b1100;
+    }
+    if(p.promo){
+        this->remove(p.dst, pawn, p.c);
+        this->place(p.dst, p.promo, p.c);
+    }
 
     /*
         UPDATE BOARD STATE
     */
-
     // Castle Availability
     BYTE bsl = 0b0011 << (p.c>0 ? 2 : 0);
     if(this->cancas & bsl){
@@ -127,20 +135,7 @@ pname ChessBoard::update(const ply& p){
     return name;
 }
 
-void ChessBoard::castle(int cas, color c){
-    U64 src = rook_castle.at((cas<0) + 2*(c<0)),
-        dst = (cas > 0) ? (src >> 2) : (src << 3);
-    this->move(src, dst, rook, c);
-    this->swap(src, dst);
-    this->cancas &= c == white ? 0b0011 : 0b1100;
-}
-
-void ChessBoard::promote(color c, const U64& src, ptype promo){
-    this->remove(src, pawn, c);
-    this->place(src, promo, c);
-}
-
-pname ChessBoard::swap(const U64& src, const U64& dst){
+pname ChessBoard::swap(const U64 src, const U64 dst){
     int ssq = util::transform::sq(src),
         dsq = util::transform::sq(dst);
 
@@ -219,7 +214,7 @@ U64 ChessBoard::legal(ptype pt, color c) const{
 }
 
 template<typename T>
-U64 ChessBoard::legal(const T& src, ptype pt, color c) const{
+U64 ChessBoard::legal(const T src, ptype pt, color c) const{
     U64 res,
         msk = util::transform::mask(src),
         kloc = this->board(king, c);
@@ -253,7 +248,7 @@ U64 ChessBoard::legal(const T& src, ptype pt, color c) const{
     return res;
 }
 
-U64 ChessBoard::legal_king(const U64& src, color c) const{
+U64 ChessBoard::legal_king(const U64 src, color c) const{
     U64 res = 0,
         atk = 0,
         opwn = this->board(pawn, !c);
@@ -281,7 +276,7 @@ U64 ChessBoard::legal_king(const U64& src, color c) const{
     return res;
 }
 
-U64 ChessBoard::legal_pawn(const U64& src, color c) const{
+U64 ChessBoard::legal_pawn(const U64 src, color c) const{
     U64 res = 0,
         occ = this->board(),
         opp = this->board(!c),
@@ -357,7 +352,7 @@ std::vector<ply> ChessBoard::legal_plies(ptype pt, color c) const{
 }
 
 template<typename T>
-std::vector<ply> ChessBoard::legal_plies(const T& src, ptype pt, color c) const{
+std::vector<ply> ChessBoard::legal_plies(const T src, ptype pt, color c) const{
     std::vector<ply> plies;
     U64 pseudo = this->legal(src, pt, c),
         msk = util::transform::mask(src),
@@ -415,7 +410,7 @@ void ChessBoard::get_checkers(color c){
 }
 
 
-std::string ChessBoard::ply2san(const ply& p) const{
+std::string ChessBoard::ply2san(const ply p) const{
     /*
         [<N,B,R,Q,K>][f][r][x]fr[=[<N,B,R,Q>]][+#]
             - Piece type ID
@@ -488,10 +483,10 @@ std::string ChessBoard::ply2san(const ply& p) const{
 
 
 
-template U64 ChessBoard::legal(const square&, ptype, color) const;
-template U64 ChessBoard::legal(const U64&, ptype, color) const;
-template U64 ChessBoard::legal(const coords&, ptype, color) const;
+template U64 ChessBoard::legal(const square, ptype, color) const;
+template U64 ChessBoard::legal(const U64, ptype, color) const;
+template U64 ChessBoard::legal(const coords, ptype, color) const;
 
-template std::vector<ply> ChessBoard::legal_plies(const square&, ptype, color) const;
-template std::vector<ply> ChessBoard::legal_plies(const U64&, ptype, color) const;
-template std::vector<ply> ChessBoard::legal_plies(const coords&, ptype, color) const;
+template std::vector<ply> ChessBoard::legal_plies(const square, ptype, color) const;
+template std::vector<ply> ChessBoard::legal_plies(const U64, ptype, color) const;
+template std::vector<ply> ChessBoard::legal_plies(const coords, ptype, color) const;

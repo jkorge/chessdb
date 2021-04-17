@@ -39,10 +39,10 @@ namespace util{
         char color2c(color);
 
         // Get string from coordinates; Returns string "(r,f)" where r = rank and f = file
-        std::string coord2s_(const coords&);
+        std::string coord2s_(const coords);
 
         template<typename T>
-        std::string coord2s(const T&);
+        std::string coord2s(const T);
     }
 }
 

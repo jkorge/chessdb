@@ -89,7 +89,7 @@ U64& BitBoard::board(ptype pt, color c){
 */
 
 template<typename T>
-color BitBoard::lookupc(const T& src) const{
+color BitBoard::lookupc(const T src) const{
     U64 smsk = util::transform::mask(src);
     if     (this->board(white) & smsk){ return white; }
     else if(this->board(black) & smsk){ return black; }
@@ -97,7 +97,7 @@ color BitBoard::lookupc(const T& src) const{
 }
 
 template<typename T>
-ptype BitBoard::lookupt(const T& src) const{
+ptype BitBoard::lookupt(const T src) const{
     U64 smsk = util::transform::mask(src);
     if     (this->board(pawn)   & smsk){ return pawn; }
     else if(this->board(knight) & smsk){ return knight; }
@@ -114,14 +114,14 @@ ptype BitBoard::lookupt(const T& src) const{
 
 // Given color, piece type, and location
 template<typename T>
-void BitBoard::remove(const T& src, ptype pt, color c){
+void BitBoard::remove(const T src, ptype pt, color c){
     this->board(pt, c) &= ~util::transform::mask(src);
     this->changed = true;
 }
 
 // Given location only (remove piece from all occupancy maps)
 template<typename T>
-void BitBoard::remove(const T& src){
+void BitBoard::remove(const T src){
     U64 smsk = util::transform::mask(src);
 
     this->white_pawns   &= ~smsk;
@@ -165,7 +165,7 @@ void BitBoard::remove(){
 */
 
 template<typename T>
-void BitBoard::place(const T& dst, ptype pt, color c){
+void BitBoard::place(const T dst, ptype pt, color c){
     this->board(pt, c) |= util::transform::mask(dst);
     this->changed = true;
 }
@@ -176,7 +176,7 @@ void BitBoard::place(const T& dst, ptype pt, color c){
 */
 
 template<typename Ts, typename Td>
-void BitBoard::move(const Ts& src, const Td& dst, ptype pt, color c){
+void BitBoard::move(const Ts src, const Td dst, ptype pt, color c){
     this->remove(src, pt, c);
     this->place(dst, pt, c);
 }
@@ -188,7 +188,7 @@ void BitBoard::move(const Ts& src, const Td& dst, ptype pt, color c){
         Uses current occupancy
 */
 template<typename T>
-U64 BitBoard::ray(const T& src, ptype pt, int dir) const{
+U64 BitBoard::ray(const T src, ptype pt, int dir) const{
     U64 r = util::bitboard::rays[pt-2][util::transform::sq(src)][dir];
     if(not r){ return r; }
     square x = dir>3 ? util::transform::bitscanr(r & this->board()) : util::transform::bitscan(r & this->board());
@@ -212,7 +212,7 @@ U64 BitBoard::ray(const T& src, ptype pt, int dir) const{
             7 => SE
 */
 template<typename T>
-U64 BitBoard::sliding_atk(const T& src, ptype pt) const{
+U64 BitBoard::sliding_atk(const T src, ptype pt) const{
     U64 res = 0;
     for(int i=0; i<8; ++i){ res |= this->ray(src, pt, i); }
     return res;
@@ -222,7 +222,7 @@ U64 BitBoard::sliding_atk(const T& src, ptype pt) const{
     Determine if line connecting src and dst is unoccupied
 */
 template<typename Ts, typename Td>
-bool BitBoard::clearbt(const Ts& src, const Td& dst) const{
+bool BitBoard::clearbt(const Ts src, const Td dst) const{
     if(util::bitboard::attackfrom(src, king) & util::transform::mask(dst)){
         // src and dst are adjacent - always clear
         return true;
@@ -268,50 +268,50 @@ std::string BitBoard::odisplay(ptype pt, color c) const{ return util::bitboard::
 /*
     TEMPLATE INSTANCES
 */
-template color BitBoard::lookupc(const square&) const;
-template color BitBoard::lookupc(const U64&) const;
-template color BitBoard::lookupc(const coords&) const;
+template color BitBoard::lookupc(const square) const;
+template color BitBoard::lookupc(const U64) const;
+template color BitBoard::lookupc(const coords) const;
 
-template ptype BitBoard::lookupt(const square&) const;
-template ptype BitBoard::lookupt(const U64&) const;
-template ptype BitBoard::lookupt(const coords&) const;
+template ptype BitBoard::lookupt(const square) const;
+template ptype BitBoard::lookupt(const U64) const;
+template ptype BitBoard::lookupt(const coords) const;
 
-template void BitBoard::remove(const square&, ptype, color);
-template void BitBoard::remove(const U64&, ptype, color);
-template void BitBoard::remove(const coords&, ptype, color);
+template void BitBoard::remove(const square, ptype, color);
+template void BitBoard::remove(const U64, ptype, color);
+template void BitBoard::remove(const coords, ptype, color);
 
-template void BitBoard::remove(const square&);
-template void BitBoard::remove(const U64&);
-template void BitBoard::remove(const coords&);
+template void BitBoard::remove(const square);
+template void BitBoard::remove(const U64);
+template void BitBoard::remove(const coords);
 
-template void BitBoard::place(const square&, ptype, color);
-template void BitBoard::place(const U64&, ptype, color);
-template void BitBoard::place(const coords&, ptype, color);
+template void BitBoard::place(const square, ptype, color);
+template void BitBoard::place(const U64, ptype, color);
+template void BitBoard::place(const coords, ptype, color);
 
-template void BitBoard::move(const square&, const square&, ptype, color);
-template void BitBoard::move(const U64&, const U64&, ptype, color);
-template void BitBoard::move(const coords&, const coords&, ptype, color);
-template void BitBoard::move(const square&, const U64&, ptype, color);
-template void BitBoard::move(const square&, const coords&, ptype, color);
-template void BitBoard::move(const U64&, const coords&, ptype, color);
-template void BitBoard::move(const U64&, const square&, ptype, color);
-template void BitBoard::move(const coords&, const square&, ptype, color);
-template void BitBoard::move(const coords&, const U64&, ptype, color);
+template void BitBoard::move(const square, const square, ptype, color);
+template void BitBoard::move(const U64, const U64, ptype, color);
+template void BitBoard::move(const coords, const coords, ptype, color);
+template void BitBoard::move(const square, const U64, ptype, color);
+template void BitBoard::move(const square, const coords, ptype, color);
+template void BitBoard::move(const U64, const coords, ptype, color);
+template void BitBoard::move(const U64, const square, ptype, color);
+template void BitBoard::move(const coords, const square, ptype, color);
+template void BitBoard::move(const coords, const U64, ptype, color);
 
-template U64 BitBoard::ray(const square&, ptype, int) const;
-template U64 BitBoard::ray(const U64&, ptype, int) const;
-template U64 BitBoard::ray(const coords&, ptype, int) const;
+template U64 BitBoard::ray(const square, ptype, int) const;
+template U64 BitBoard::ray(const U64, ptype, int) const;
+template U64 BitBoard::ray(const coords, ptype, int) const;
 
-template bool BitBoard::clearbt(const square&, const square&) const;
-template bool BitBoard::clearbt(const U64&, const U64&) const;
-template bool BitBoard::clearbt(const coords&, const coords&) const;
-template bool BitBoard::clearbt(const square&, const U64&) const;
-template bool BitBoard::clearbt(const square&, const coords&) const;
-template bool BitBoard::clearbt(const U64&, const coords&) const;
-template bool BitBoard::clearbt(const U64&, const square&) const;
-template bool BitBoard::clearbt(const coords&, const square&) const;
-template bool BitBoard::clearbt(const coords&, const U64&) const;
+template bool BitBoard::clearbt(const square, const square) const;
+template bool BitBoard::clearbt(const U64, const U64) const;
+template bool BitBoard::clearbt(const coords, const coords) const;
+template bool BitBoard::clearbt(const square, const U64) const;
+template bool BitBoard::clearbt(const square, const coords) const;
+template bool BitBoard::clearbt(const U64, const coords) const;
+template bool BitBoard::clearbt(const U64, const square) const;
+template bool BitBoard::clearbt(const coords, const square) const;
+template bool BitBoard::clearbt(const coords, const U64) const;
 
-template U64 BitBoard::sliding_atk(const U64& src, ptype pt) const;
-template U64 BitBoard::sliding_atk(const coords& src, ptype pt) const;
-template U64 BitBoard::sliding_atk(const square& src, ptype pt) const;
+template U64 BitBoard::sliding_atk(const U64 src, ptype pt) const;
+template U64 BitBoard::sliding_atk(const coords src, ptype pt) const;
+template U64 BitBoard::sliding_atk(const square src, ptype pt) const;

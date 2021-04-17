@@ -38,10 +38,10 @@ template<typename CharT, typename Traits>
 bool FileBase<CharT, Traits>::eof(){ return std::feof(this->_M_file); }
 
 template<typename CharT, typename Traits>
-int FileBase<CharT, Traits>::seek(long offset, int origin){ return std::fseek(this->_M_file, offset, origin); }
+int FileBase<CharT, Traits>::seek(int32_t offset, int origin){ return std::fseek(this->_M_file, offset, origin); }
 
 template<typename CharT, typename Traits>
-long FileBase<CharT, Traits>::tell(){ return std::ftell(this->_M_file); }
+int32_t FileBase<CharT, Traits>::tell(){ return std::ftell(this->_M_file); }
 
 /*
     READ FUNCS
@@ -81,7 +81,7 @@ template<typename CharT, typename Traits>
 void FileBase<CharT, Traits>::xsgetn(
     typename FileBase<CharT, Traits>::string& buf,
     std::streamsize n,
-    const typename FileBase<CharT, Traits>::string& delim
+    const typename FileBase<CharT, Traits>::string delim
 ){
 
     int_type c, N = delim.size();
@@ -147,7 +147,7 @@ template<typename CharT, typename Traits>
 void FileBase<CharT, Traits>::xsputn(
     typename FileBase<CharT, Traits>::string& buf,
     std::streamsize n,
-    const typename FileBase<CharT, Traits>::string& delim
+    const typename FileBase<CharT, Traits>::string delim
 ){
 
     int_type sz = delim.size();

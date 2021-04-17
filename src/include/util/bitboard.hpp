@@ -5,23 +5,23 @@ namespace util{
     namespace bitboard{
 
         template<typename T>
-        U64 attackfrom(const T&, ptype, color=NOCOLOR);
+        U64 attackfrom(const T, ptype, color=NOCOLOR);
 
         template<typename Ts, typename Td>
-        bool colinear(const Ts&, const Td&);
+        bool colinear(const Ts, const Td);
 
         template<typename Ts, typename Td>
-        ptype linetype(const Ts&, const Td&);
+        ptype linetype(const Ts, const Td);
 
-        ptype linetype(const U64&);
+        ptype linetype(const U64);
 
-        U64 axisalign(const U64&);
+        U64 axisalign(const U64);
 
         template<typename Ts, typename Td>
-        U64 linebt(const Ts&, const Td&, bool=false);
+        U64 linebt(const Ts, const Td, bool=false);
 
         // String visualization of bitboard
-        std::string odisplay(const U64&, char='1');
+        std::string odisplay(const U64, char='1');
 
         int bvizidx(square);
         int bbvizidx(square);

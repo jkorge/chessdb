@@ -12,11 +12,11 @@ public:
 
     std::vector<eply> encode_game(const std::vector<ply>&);
 
-    eply encode_ply(const ply&);
+    eply encode_ply(const ply);
 
-    BYTE encode_piece(const ply&);
+    BYTE encode_piece(const ply);
 
-    BYTE encode_action(const ply&);
+    BYTE encode_action(const ply);
 
     BYTE encode_mat(ptype, color);
 
@@ -28,19 +28,19 @@ public:
 
     BYTE encode_pawn_promotion(ptype, bool=true);
 
-    BYTE encode_queen_axis(const coords&, const coords&);
+    BYTE encode_queen_axis(const coords, const coords);
 
-    BYTE pawn_action(const coords&, const coords&, bool, ptype);
+    BYTE pawn_action(const coords, const coords, bool, ptype);
 
-    BYTE knight_action(const coords&, const coords&);
+    BYTE knight_action(const coords, const coords);
 
-    BYTE bishop_action(const coords&, const coords&);
+    BYTE bishop_action(const coords, const coords);
 
-    BYTE rook_action(const coords&, const coords&);
+    BYTE rook_action(const coords, const coords);
 
-    BYTE queen_action(const coords&, const coords&);
+    BYTE queen_action(const coords, const coords);
 
-    BYTE king_action(const coords&, const coords&);
+    BYTE king_action(const coords, const coords);
 };
 
 

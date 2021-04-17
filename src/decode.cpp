@@ -1,6 +1,6 @@
 #include "include/decode.hpp"
 
-std::vector<ply> Decoder::decode_game(const std::vector<eply>& g, const std::string& fstr){
+std::vector<ply> Decoder::decode_game(const std::vector<eply>& g, const std::string fstr){
 
     std::vector<ply> res;
     if(!fstr.empty()){ fen.parse(fstr, this->board); }

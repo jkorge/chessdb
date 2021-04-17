@@ -34,7 +34,7 @@ class ChessDB : virtual public ParseBuf<CharT, Traits>{
     std::vector<string> tags{""};
 
     // Map game index to starting byte and num plies
-    std::unordered_map<long, std::pair<long, uint16_t> > index;
+    std::unordered_map<int32_t, std::pair<int32_t, uint16_t> > index;
 
 protected:
     game rg;

@@ -83,41 +83,41 @@ namespace util{
 
         namespace {
             // sq => sq
-            inline square sq_(const square& src){ return src; }
+            inline square sq_(const square src){ return src; }
 
             // mask => sq
-            inline square sq_(const U64& src){ return bitscan(src); }
+            inline square sq_(const U64 src){ return bitscan(src); }
 
             // coords => sq
-            inline square sq_(const coords& src){ return (8*src[0]) + src[1]; }
+            inline square sq_(const coords src){ return (8*src[0]) + src[1]; }
 
             // sq => mask
-            inline U64 mask_(const square& src){ return util::constants::ONE_ << src; }
+            inline U64 mask_(const square src){ return util::constants::ONE_ << src; }
 
             // mask => mask
-            inline U64 mask_(const U64& src){ return src; }
+            inline U64 mask_(const U64 src){ return src; }
 
             // coords => mask
-            inline U64 mask_(const coords& src){ return mask_(sq_(src)); }
+            inline U64 mask_(const coords src){ return mask_(sq_(src)); }
 
             // sq => coords
-            inline coords rf_(const square& src){ return {src/8, src%8}; }
+            inline coords rf_(const square src){ return {src/8, src%8}; }
 
             // mask => coords
-            inline coords rf_(const U64& src){ return rf_(sq_(src)); }
+            inline coords rf_(const U64 src){ return rf_(sq_(src)); }
 
             // coords => coords
-            inline coords rf_(const coords& src){ return src; }
+            inline coords rf_(const coords src){ return src; }
         }
 
         template<typename T>
-        square sq(const T& src){ return sq_(src); }
+        square sq(const T src){ return sq_(src); }
 
         template<typename T>
-        U64 mask(const T& src){ return mask_(src); }
+        U64 mask(const T src){ return mask_(src); }
 
         template<typename T>
-        coords rf(const T& src){ return rf_(src); }
+        coords rf(const T src){ return rf_(src); }
     }
     namespace repr{
 
@@ -278,17 +278,16 @@ namespace util{
         }
 
         // Get string from coordinates; Returns string "(r, f)" where r = rank and f = file
-        // std::string coord2s_(const coords& src){ return std::string("(") + std::to_string(src[0]) + ", " + std::to_string(src[1]) + ')'; }
-        std::string coord2s_(const coords& src){ return std::string(1, file2c(src[1])) + rank2c(src[0]); }
+        std::string coord2s_(const coords src){ return std::string(1, file2c(src[1])) + rank2c(src[0]); }
 
         template<typename T>
-        std::string coord2s(const T& src){ return coord2s_(util::transform::rf(src)); }
+        std::string coord2s(const T src){ return coord2s_(util::transform::rf(src)); }
     }
     namespace bitboard{
 
         // Bitmap of squares attacked by pt when positioned on src (ASSUMES EMPTY BOARD)
         template<typename T>
-        U64 attackfrom(const T& src, ptype pt, color c){
+        U64 attackfrom(const T src, ptype pt, color c){
             square ssq = util::transform::sq(src);
             switch(pt){
                 case pawn:
@@ -306,7 +305,7 @@ namespace util{
 
         // Determine if two points are colinear
         template<typename Ts, typename Td>
-        bool colinear(const Ts& src, const Td& dst){
+        bool colinear(const Ts src, const Td dst){
             int ssq = util::transform::sq(src),
                 dsq = util::transform::sq(dst);
 
@@ -316,7 +315,7 @@ namespace util{
 
         // Determine direction of line connecting two points
         template<typename Ts, typename Td>
-        ptype linetype(const Ts& src, const Td& dst){
+        ptype linetype(const Ts src, const Td dst){
             int ssq = util::transform::sq(src),
                 dsq = util::transform::sq(dst);
 
@@ -334,7 +333,7 @@ namespace util{
         }
 
         // Determine direction of line given as bitmap
-        ptype linetype(const U64& src){
+        ptype linetype(const U64 src){
             square sq = util::transform::bitscan(src);
             if     (src == (src & util::bitboard::dmasks[sq])){ return bishop; }
             else if(src == (src & util::bitboard::amasks[sq])){ return bishop; }
@@ -344,7 +343,7 @@ namespace util{
         }
 
         // Return bitmap of axis (rank, file, diagonal, or antidiagonal) colinear to src, a bitmap of a line; if none return 0
-        U64 axisalign(const U64& src){
+        U64 axisalign(const U64 src){
             square sq = util::transform::bitscan(src);
             if     (src == (src & util::bitboard::dmasks[sq])){ return util::bitboard::dmasks[sq]; }
             else if(src == (src & util::bitboard::amasks[sq])){ return util::bitboard::amasks[sq]; }
@@ -355,13 +354,13 @@ namespace util{
 
         // Bitmap of line between src and dst
         template<typename Ts, typename Td>
-        U64 linebt(const Ts& src, const Td& dst, bool endp){
+        U64 linebt(const Ts src, const Td dst, bool endp){
             U64 res = util::bitboard::lines[util::transform::sq(src)][util::transform::sq(dst)];
             if(endp){ res |= util::transform::mask(src) | util::transform::mask(dst); }
             return res;
         }
 
-        std::string odisplay(const U64& _bb, char c){
+        std::string odisplay(const U64 _bb, char c){
             std::string viz = util::bitboard::bbviz;
             U64 bb = _bb;
             while(bb){
@@ -1424,52 +1423,52 @@ template void util::transform::lowercase(wchar_t*, wchar_t*);
 template void util::transform::lowercase(std::basic_string<char>&);
 template void util::transform::lowercase(std::basic_string<wchar_t>&);
 
-template square util::transform::sq(const square&);
-template square util::transform::sq(const U64&);
-template square util::transform::sq(const coords&);
+template square util::transform::sq(const square);
+template square util::transform::sq(const U64);
+template square util::transform::sq(const coords);
 
-template U64 util::transform::mask(const square&);
-template U64 util::transform::mask(const U64&);
-template U64 util::transform::mask(const coords&);
+template U64 util::transform::mask(const square);
+template U64 util::transform::mask(const U64);
+template U64 util::transform::mask(const coords);
 
-template coords util::transform::rf(const square&);
-template coords util::transform::rf(const U64&);
-template coords util::transform::rf(const coords&);
+template coords util::transform::rf(const square);
+template coords util::transform::rf(const U64);
+template coords util::transform::rf(const coords);
 
-template std::string util::repr::coord2s(const square&);
-template std::string util::repr::coord2s(const U64&);
-template std::string util::repr::coord2s(const coords&);
+template std::string util::repr::coord2s(const square);
+template std::string util::repr::coord2s(const U64);
+template std::string util::repr::coord2s(const coords);
 
-template U64 util::bitboard::attackfrom(const square&, ptype, color=white);
-template U64 util::bitboard::attackfrom(const U64&, ptype, color=white);
-template U64 util::bitboard::attackfrom(const coords&, ptype, color=white);
+template U64 util::bitboard::attackfrom(const square, ptype, color=white);
+template U64 util::bitboard::attackfrom(const U64, ptype, color=white);
+template U64 util::bitboard::attackfrom(const coords, ptype, color=white);
 
-template bool util::bitboard::colinear(const square&, const square&);
-template bool util::bitboard::colinear(const U64&, const U64&);
-template bool util::bitboard::colinear(const coords&, const coords&);
-template bool util::bitboard::colinear(const square&, const U64&);
-template bool util::bitboard::colinear(const square&, const coords&);
-template bool util::bitboard::colinear(const U64&, const coords&);
-template bool util::bitboard::colinear(const U64&, const square&);
-template bool util::bitboard::colinear(const coords&, const square&);
-template bool util::bitboard::colinear(const coords&, const U64&);
+template bool util::bitboard::colinear(const square, const square);
+template bool util::bitboard::colinear(const U64, const U64);
+template bool util::bitboard::colinear(const coords, const coords);
+template bool util::bitboard::colinear(const square, const U64);
+template bool util::bitboard::colinear(const square, const coords);
+template bool util::bitboard::colinear(const U64, const coords);
+template bool util::bitboard::colinear(const U64, const square);
+template bool util::bitboard::colinear(const coords, const square);
+template bool util::bitboard::colinear(const coords, const U64);
 
-template ptype util::bitboard::linetype(const square&, const square&);
-template ptype util::bitboard::linetype(const U64&, const U64&);
-template ptype util::bitboard::linetype(const coords&, const coords&);
-template ptype util::bitboard::linetype(const square&, const U64&);
-template ptype util::bitboard::linetype(const square&, const coords&);
-template ptype util::bitboard::linetype(const U64&, const coords&);
-template ptype util::bitboard::linetype(const U64&, const square&);
-template ptype util::bitboard::linetype(const coords&, const square&);
-template ptype util::bitboard::linetype(const coords&, const U64&);
+template ptype util::bitboard::linetype(const square, const square);
+template ptype util::bitboard::linetype(const U64, const U64);
+template ptype util::bitboard::linetype(const coords, const coords);
+template ptype util::bitboard::linetype(const square, const U64);
+template ptype util::bitboard::linetype(const square, const coords);
+template ptype util::bitboard::linetype(const U64, const coords);
+template ptype util::bitboard::linetype(const U64, const square);
+template ptype util::bitboard::linetype(const coords, const square);
+template ptype util::bitboard::linetype(const coords, const U64);
 
-template U64 util::bitboard::linebt(const square&, const square&, bool=false);
-template U64 util::bitboard::linebt(const U64&, const U64&, bool=false);
-template U64 util::bitboard::linebt(const coords&, const coords&, bool=false);
-template U64 util::bitboard::linebt(const square&, const U64&, bool=false);
-template U64 util::bitboard::linebt(const square&, const coords&, bool=false);
-template U64 util::bitboard::linebt(const U64&, const coords&, bool=false);
-template U64 util::bitboard::linebt(const U64&, const square&, bool=false);
-template U64 util::bitboard::linebt(const coords&, const square&, bool=false);
-template U64 util::bitboard::linebt(const coords&, const U64&, bool=false);
+template U64 util::bitboard::linebt(const square, const square, bool=false);
+template U64 util::bitboard::linebt(const U64, const U64, bool=false);
+template U64 util::bitboard::linebt(const coords, const coords, bool=false);
+template U64 util::bitboard::linebt(const square, const U64, bool=false);
+template U64 util::bitboard::linebt(const square, const coords, bool=false);
+template U64 util::bitboard::linebt(const U64, const coords, bool=false);
+template U64 util::bitboard::linebt(const U64, const square, bool=false);
+template U64 util::bitboard::linebt(const coords, const square, bool=false);
+template U64 util::bitboard::linebt(const coords, const U64, bool=false);

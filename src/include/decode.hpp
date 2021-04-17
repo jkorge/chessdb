@@ -14,7 +14,7 @@ class Decoder{
     eply emissing{UINT16_MAX};  // use `11111111 11111111` for missing plies
 
 public:
-    std::vector<ply> decode_game(const std::vector<eply>&, const std::string& ="");
+    std::vector<ply> decode_game(const std::vector<eply>&, const std::string="");
 
     ply decode_ply(eply, ChessBoard&);
 

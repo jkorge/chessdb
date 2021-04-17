@@ -43,20 +43,13 @@ private:
     void read();
     int_type rparse();
 
-    // Util functions
-    void rchar(char_type, string&);
-    void fixendl(string&);
-
     // Parsing functions
     void tags();
     void movetext();
-
-    void tokenize(string&);
-    bool isend(const string&);
     void pplies(color=white);
-    ply pply(string&, color);
+    ply pply(string, color);
     ply pcastle(bool, color, bool, bool);
-    ply prest(const string&, color, bool, bool);
+    ply prest(const string, color, bool, bool);
 
 public:
     PGN(const string&, logging::LEVEL=logging::NONE, bool=false);

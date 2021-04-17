@@ -59,9 +59,9 @@ namespace util{
                               TAGSZ{sizeof(uint32_t)},                // Tag enumeration value
                               NPYSZ{sizeof(uint16_t)},                // nplies record
                               ATGSZ{16 * TAGSZ},                      // Tags in each game
-                              TMESZ{sizeof(unsigned long long)},      // Time (nsec since epoch)
+                              TMESZ{sizeof(uint64_t)},                // Time (nsec since epoch)
                               HDRSZ{TMESZ + 3*TAGSZ},                 // File header (Timestamp + number of games + number of enumerated tags + starting byte of index)
-                              IDXSZ{sizeof(long) + NPYSZ};            // Size of each entry in index
+                              IDXSZ{sizeof(int32_t) + NPYSZ};         // Size of each entry in index
 
         // Whitespace regex
         extern const std::regex wsr;

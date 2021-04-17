@@ -142,7 +142,7 @@ void ChessDB<CharT, Traits>::write_index(){
     this->sync();
 
     for(unsigned int i=0; i<this->index.size(); ++i){
-        this->_buf.append((char_type*)&this->index[i].first, sizeof(long));
+        this->_buf.append((char_type*)&this->index[i].first, sizeof(int32_t));
         this->_buf.append((char_type*)&this->index[i].second, util::constants::NPYSZ);
     }
 
@@ -157,7 +157,7 @@ void ChessDB<CharT, Traits>::write_header(){
     this->sync();
 
     // Time, NGAMES, NTAGS, IDXPOS
-    unsigned long long tme = Tempus::time();
+    uint64_t tme = Tempus::time();
     this->_buf.append((char_type*)&tme, util::constants::TMESZ);
     this->_buf.append((char_type*)&this->NGAMES, util::constants::TAGSZ);
     this->_buf.append((char_type*)&this->NTAGS, util::constants::TAGSZ);
@@ -216,7 +216,7 @@ void ChessDB<CharT, Traits>::load_header(){
     this->_fdev.xsgetn(this->_buf, util::constants::HDRSZ);
 
     // Timestamp
-    // unsigned long long last_read_t = *(unsigned long long*)this->_buf.data();
+    // uint64_t last_read_t = *(uint64_t*)this->_buf.data();
 
     this->NGAMES = *(uint32_t*)(this->_buf.data() + util::constants::TMESZ);
     this->NTAGS = *(uint32_t*)(this->_buf.data() + util::constants::TMESZ + util::constants::TAGSZ);
@@ -234,9 +234,9 @@ void ChessDB<CharT, Traits>::load_tag_enum(){
     this->sync();
 
     // Read tags (from current position to EOF)
-    long loc = this->_fdev.tell();
+    int32_t loc = this->_fdev.tell();
     this->_fdev.seek(0, SEEK_END);
-    long end = this->_fdev.tell();
+    int32_t end = this->_fdev.tell();
     this->_fdev.seek(loc, SEEK_SET);
     this->_fdev.xsgetn(this->_buf, end-loc);
 
@@ -264,8 +264,8 @@ void ChessDB<CharT, Traits>::load_index(){
     this->index.reserve(this->NGAMES);
     for(unsigned int i=0; i<this->NGAMES; ++i){
         int loc = i*util::constants::IDXSZ;
-        long pos = *(long*)(this->_buf.data() + loc);
-        uint16_t npl = *(uint16_t*)(this->_buf.data() + loc + sizeof(long));
+        int32_t pos = *(int32_t*)(this->_buf.data() + loc);
+        uint16_t npl = *(uint16_t*)(this->_buf.data() + loc + sizeof(int32_t));
         index.emplace(i, std::make_pair(pos, npl));
     }
     this->sync();

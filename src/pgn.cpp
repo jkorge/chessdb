@@ -35,26 +35,6 @@ typename PGN<CharT, Traits>::int_type PGN<CharT, Traits>::rparse(){
 }
 
 /*
-    Util Functions
-*/
-
-// Remove all instances of a character from a string
-template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::rchar(PGN<CharT, Traits>::char_type c, PGN<CharT, Traits>::string& s){
-    s.erase(std::remove(s.begin(), s.end(), c), s.end());
-}
-
-template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::fixendl(PGN<CharT, Traits>::string& buf){
-    int_type idx;
-    while((idx = buf.find('\n')) != string::npos){
-        // All \n must be preceded by '.' or ' '
-        if(buf[idx-1] != '.' && buf[idx-1] != ' '){ buf.insert(idx++, 1, ' '); }
-        buf.erase(idx, 1);
-    }
-}
-
-/*
     Parsing Functions
 */
 
@@ -67,7 +47,7 @@ void PGN<CharT, Traits>::tags(){
     this->_tags.reset();
 
     // strip brackets
-    for(const char* c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); ++c){ this->rchar(*c, tbuf); }
+    for(const char* c=util::pgn::tag_delims; c!=std::end(util::pgn::tag_delims); ++c){ tbuf.erase(std::remove(tbuf.begin(), tbuf.end(), *c), tbuf.end()); }
 
     // move tbuf to sstream for tokenizing
     std::basic_stringstream<CharT, Traits> bufstr;
@@ -97,21 +77,14 @@ void PGN<CharT, Traits>::movetext(){
     bool black_starts = std::regex_search(mbuf.substr(0,6), util::pgn::black_starts);
 
     // Concatenate lines
-    this->fixendl(mbuf);
+    int_type idx;
+    while((idx = mbuf.find('\n')) != string::npos){
+        // All \n must be preceded by '.' or ' '
+        if(mbuf[idx-1] != '.' && mbuf[idx-1] != ' '){ mbuf.insert(idx++, 1, ' '); }
+        mbuf.erase(idx, 1);
+    }
 
     // Tokenize into individual plies
-    this->tokenize(mbuf);
-
-    // Parse ply tokens
-    this->pplies(black_starts ? black : white);
-
-    this->logger.info("End of Movetext.");
-    this->logger.debug("Ply count:", this->_plies.size());
-}
-
-template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::tokenize(PGN<CharT, Traits>::string& mbuf){
-
     this->_tokens.clear();
     std::stringstream sstr(mbuf);
     while(!sstr.eof()){
@@ -120,17 +93,12 @@ void PGN<CharT, Traits>::tokenize(PGN<CharT, Traits>::string& mbuf){
         while((mbuf[0] == '.') | (mbuf[0] == '-')){ mbuf.erase(0,1); }
         this->_tokens.emplace_back(mbuf);
     }
-}
 
-template<typename CharT, typename Traits>
-bool PGN<CharT, Traits>::isend(const PGN<CharT, Traits>::string& tok){
-    if(
-        (tok ==       "*") ||
-        (tok ==     "1-0") ||
-        (tok ==     "0-1") ||
-        (tok == "1/2-1/2")
-    )   { return true; }
-    else{ return false; }
+    // Parse ply tokens
+    this->pplies(black_starts ? black : white);
+
+    this->logger.info("End of Movetext.");
+    this->logger.debug("Ply count:", this->_plies.size());
 }
 
 template<typename CharT, typename Traits>
@@ -148,7 +116,12 @@ void PGN<CharT, Traits>::pplies(color c){
         
         if(it->empty()){ this->_plies.emplace_back(); }
         else
-        if(this->isend(*it)){ break; }
+        if(
+            (*it ==       "*") ||
+            (*it ==     "1-0") ||
+            (*it ==     "0-1") ||
+            (*it == "1/2-1/2")
+        ){ break; }
         else{
             ply p = this->pply(*it, c);
             p.name = board.update(p);
@@ -159,8 +132,7 @@ void PGN<CharT, Traits>::pplies(color c){
 }
 
 template<typename CharT, typename Traits>
-ply PGN<CharT, Traits>::pply(PGN<CharT, Traits>::string& p, color c){
-
+ply PGN<CharT, Traits>::pply(PGN<CharT, Traits>::string p, color c){
     // Parse and remove flags
     bool check = p.back() == '+',
          mate = p.back() == '#';
@@ -182,7 +154,7 @@ ply PGN<CharT, Traits>::pcastle(bool qs, color c, bool check, bool mate){
 }
 
 template<typename CharT, typename Traits>
-ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string& p, color c, bool check, bool mate){
+ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string p, color c, bool check, bool mate){
     int_type f = 0, r = 0;
     square srcsq = 0, dstsq = 0;
     bool capture = false;
@@ -202,7 +174,7 @@ ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string& p, color c, bool
         else
                                         { this->logger.warn("Unrecognized character in ply:", ch); }
     }
-
+    
     U64 dst = util::transform::mask(dstsq),
         src = 0;
     if(r==2 && f==2) { src = util::transform::mask(srcsq);  }

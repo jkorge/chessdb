@@ -27,17 +27,17 @@ public:
     void open();
     void close();
     bool eof();
-    int seek(long, int=SEEK_SET);
-    long tell();
+    int seek(int32_t, int=SEEK_SET);
+    int32_t tell();
 
     void xsgetn(string&, std::streamsize);
     void xsgetn(string&, std::streamsize, const char_type);
-    void xsgetn(string&, std::streamsize, const string&);
+    void xsgetn(string&, std::streamsize, const string);
 
     void xsputn(string&);
     void xsputn(string&, std::streamsize);
     void xsputn(string&, std::streamsize, const char_type);
-    void xsputn(string&, std::streamsize, const string&);
+    void xsputn(string&, std::streamsize, const string);
 };
 
 #endif

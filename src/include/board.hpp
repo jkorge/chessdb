@@ -7,6 +7,8 @@
 
 class ChessBoard : public BitBoard{
 
+    friend class Fen;
+
     // Default constructed ply => Ply placeholder for missing data
     ply missing;
 
@@ -42,17 +44,19 @@ public:
 
     void clear();
 
-    pname update(const ply&);
+    pname update(const ply);
 
-    void castle(int, color);
+protected:
 
-    void promote(color, const U64&, ptype);
+    pname swap(const U64, const U64);
 
-    pname swap(const U64&, const U64&);
+    void scan(color);
 
     void pinsearch();
 
-    void scan(color);
+    void get_checkers(color);
+
+public:
 
     U64 legal() const;
 
@@ -61,11 +65,11 @@ public:
     U64 legal(ptype, color) const;
 
     template<typename T>
-    U64 legal(const T&, ptype, color) const;
+    U64 legal(const T, ptype, color) const;
 
-    U64 legal_king(const U64&, color) const;
+    U64 legal_king(const U64, color) const;
 
-    U64 legal_pawn(const U64&, color) const;
+    U64 legal_pawn(const U64, color) const;
 
     std::vector<ply> legal_plies() const;
 
@@ -74,11 +78,9 @@ public:
     std::vector<ply> legal_plies(ptype, color) const;
 
     template<typename T>
-    std::vector<ply> legal_plies(const T&, ptype, color) const;
+    std::vector<ply> legal_plies(const T, ptype, color) const;
 
-    void get_checkers(color);
-
-    std::string ply2san(const ply&) const;
+    std::string ply2san(const ply) const;
 };
 
 

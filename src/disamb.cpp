@@ -4,12 +4,12 @@ int Disamb::cnt = 0;
 
 Disamb::Disamb(logging::LEVEL lvl, bool flog) : logger(Disamb::cnt, lvl, flog) { ++this->cnt; }
 
-bool Disamb::moveable_pin(const U64& pros, const U64& dst, const U64& kloc){
+bool Disamb::moveable_pin(const U64 pros, const U64 dst, const U64 kloc){
     // Pins can only move along the line connecting the king and the pinning piece
     return (util::bitboard::linebt(pros, kloc, true) & util::bitboard::linebt(dst, kloc, true)) & ~kloc;
 }
 
-void Disamb::ppins(U64& candidates, const U64& dst, const color& c, const ChessBoard& board){
+void Disamb::ppins(U64 candidates, const U64 dst, const color c, const ChessBoard& board){
     // Seek pinned pawns
     U64 pinned = candidates & board.pins;
     if(pinned){
@@ -25,7 +25,7 @@ void Disamb::ppins(U64& candidates, const U64& dst, const color& c, const ChessB
     }
 }
 
-U64 Disamb::dpawn(const U64& src, const U64& dst, ptype pt, color c, const ChessBoard& board, bool capture){
+U64 Disamb::dpawn(const U64 src, const U64 dst, ptype pt, color c, const ChessBoard& board, bool capture){
     U64 candidates = board.board(pt, c);
     ppins(candidates, dst, c, board);
     if(capture){ return candidates & util::bitboard::attackfrom(dst, pt, !c) & src; }
@@ -35,7 +35,7 @@ U64 Disamb::dpawn(const U64& src, const U64& dst, ptype pt, color c, const Chess
     }
 }
 
-U64 Disamb::dpiece(const U64& src, const U64& dst, ptype pt, color c, const ChessBoard& board){
+U64 Disamb::dpiece(const U64 src, const U64 dst, ptype pt, color c, const ChessBoard& board){
     U64 candidates = board.board(pt, c),
         kloc = board.board(king, c),
         grid = board.board();
@@ -57,7 +57,7 @@ U64 Disamb::dpiece(const U64& src, const U64& dst, ptype pt, color c, const Ches
     return 0;
 }
 
-U64 Disamb::pgn(const U64& src, const U64& dst, ptype pt, color c, const ChessBoard& board, bool capture){
+U64 Disamb::pgn(const U64 src, const U64 dst, ptype pt, color c, const ChessBoard& board, bool capture){
     this->logger.debug("Disambiguating", util::repr::color2s(c), util::repr::ptype2s(pt), "to", util::repr::coord2s(dst));
     if(src){ this->logger.debug("Given src: ", util::repr::coord2s(util::transform::bitscan(src))); }
     switch(pt){
