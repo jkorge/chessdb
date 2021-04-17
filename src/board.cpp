@@ -62,9 +62,13 @@ void ChessBoard::clear(){
 *********************************/
 
 pname ChessBoard::update(const ply& p){
-
+    
     if(p == this->missing){ return NONAME; }
     
+    /*
+        APPLY PLAYER ACTION
+    */
+
     if(p.capture){
         if(p.type==pawn && (p.dst & this->enpas)){
             // En Passant captures
@@ -87,40 +91,40 @@ pname ChessBoard::update(const ply& p){
     if(p.castle)   { this->castle(p.castle, p.c); }
     if(p.promo)    { this->promote(p.c, p.dst, p.promo); }
 
-    this->update_state(p.src, p.type, p.c, p.capture);
+    /*
+        UPDATE BOARD STATE
+    */
 
-    if(p.check)    { this->get_checkers(p.c); this->check = !p.c;}
-    else           { this->check = NOCOLOR;   this->checkers.clear(); }
-
-    return name;
-}
-
-void ChessBoard::update_state(const U64& src, ptype pt, color c, bool cap){
-    // called by this->update ; adjust member vars as needed
-
-    // Half/Full move counters
-    (cap || pt == pawn) ? (this->half = 0) : ++this->half;
-    c<0 ? ++this->full : 0;
+    // Castle Availability
+    BYTE bsl = 0b0011 << (p.c>0 ? 2 : 0);
+    if(this->cancas & bsl){
+        if(p.type == king){ this->cancas &= ~bsl; }
+        else
+        if(p.type == rook){
+            BYTE ksl = 0b0010 << (p.c>0 ? 2 : 0),
+                 qsl = 0b0001 << (p.c>0 ? 2 : 0);
+            int idx = 2 * (p.c<0);
+            if(p.src == rook_castle.at(    idx)){ this->cancas &= ~ksl; }
+            else
+            if(p.src == rook_castle.at(1 + idx)){ this->cancas &= ~qsl; }
+        }
+    }
 
     // Pins
     this->pinsearch();
 
-    // Castle Availability
-    BYTE bsl = 0b0011 << (c>0 ? 2 : 0);
-    if(this->cancas & bsl){
-        if(pt == king){ this->cancas &= ~bsl; }
-        else
-        if(pt == rook){
-            BYTE ksl = 0b0010 << (c>0 ? 2 : 0),
-                 qsl = 0b0001 << (c>0 ? 2 : 0);
-            int idx = 2 * (c<0);
-            if(src == rook_castle.at(    idx)){ this->cancas &= ~ksl; }
-            else
-            if(src == rook_castle.at(1 + idx)){ this->cancas &= ~qsl; }
-        }
-    }
+    // Next to move
+    this->next = !p.c;
 
-    this->next = !c;
+    // Find all material executing check
+    if(p.check)    { this->get_checkers(p.c); this->check = this->next; }
+    else           { this->checkers.clear();  this->check = NOCOLOR; }
+
+    // Half/Full move counters
+    (p.capture || p.type == pawn) ? (this->half = 0) : ++this->half;
+    p.c<0 ? ++this->full : 0;
+
+    return name;
 }
 
 void ChessBoard::castle(int cas, color c){
@@ -156,21 +160,11 @@ pname ChessBoard::swap(const U64& src, const U64& dst){
 
 void ChessBoard::pinsearch(){
     this->pins = 0;
-    this->pinch(white);
-    this->pinch(black);
+    this->scan(white);
+    this->scan(black);
 }
 
-void ChessBoard::pinch(color c){
-    U64 okloc = this->board(king, !c),
-        same = this->board(c),
-        oppt = this->board(!c);
-
-    this->scan(bishop, c, okloc, oppt, same);
-    this->scan(rook, c, okloc, oppt, same);
-    this->scan(queen, c, okloc, oppt, same);
-}
-
-void ChessBoard::scan(ptype pt, color c, const U64& okloc, const U64& oppt, const U64& same){
+void ChessBoard::scan(color c){
     /*
         A pin is found if the following are all true:
             1. There exists an attack line (lbt) between candidate and king
@@ -178,16 +172,23 @@ void ChessBoard::scan(ptype pt, color c, const U64& okloc, const U64& oppt, cons
             3. There is only one piece with the same color as king on lbt
     */
 
-    U64 plocs = this->board(pt, c);
-    while(plocs){
-        square x = util::transform::bitscan(plocs);
-        if(okloc & util::bitboard::attackfrom(x, pt)){
-            U64 lbt = util::bitboard::linebt(x, okloc),
-                pnc = lbt & oppt,
-                pnb = lbt & same;
-            if(lbt && !pnb && !(pnc & pnc-1)){ this->pins |= pnc; }
+    U64 okloc = this->board(king, !c),
+        same = this->board(c),
+        oppt = this->board(!c);
+
+    for(int i=bishop; i<=queen; ++i){
+        ptype pt = static_cast<ptype>(i);
+        U64 plocs = this->board(pt, c);
+        while(plocs){
+            square x = util::transform::bitscan(plocs);
+            if(okloc & util::bitboard::attackfrom(x, pt)){
+                U64 lbt = util::bitboard::linebt(x, okloc),
+                    pnc = lbt & oppt,
+                    pnb = lbt & same;
+                if(lbt && !pnb && !(pnc & pnc-1)){ this->pins |= pnc; }
+            }
+            util::transform::lsbflip(plocs);
         }
-        util::transform::lsbflip(plocs);
     }
 }
 
@@ -219,89 +220,111 @@ U64 ChessBoard::legal(ptype pt, color c) const{
 
 template<typename T>
 U64 ChessBoard::legal(const T& src, ptype pt, color c) const{
-    U64 res = 0,
+    U64 res,
         msk = util::transform::mask(src),
-        kloc = this->board(king, c),
-        occ = this->board();
+        kloc = this->board(king, c);
     switch(pt){
-        case pawn: {
-            U64 opp = this->board(!c),
-                pst = c>0 ? util::constants::white_pawns : util::constants::black_pawns;
-            // Single push
-            res |= (c>0 ? msk << 8 : msk >> 8) & ~occ;
-            // Double push
-            if(msk & pst && res){ res |= (c>0 ? msk << 16 : msk >> 16) & ~occ; }
-            // Captures (including en passant)
-            res |= util::bitboard::attackfrom(src, pt, c) & (this->next == c ? (opp | this->enpas) : opp);
-            if(this->enpas & res){
-                U64 krank = util::bitboard::rmasks[util::transform::bitscan(kloc)];
-                if(krank & msk){
-                    U64 rqo = (this->board(rook, !c) | this->board(queen, !c)) & krank;
-                    while(rqo){
-                        square x = util::transform::bitscan(rqo);
-                        util::transform::lsbflip(rqo);
-                        U64 lbt = util::bitboard::linebt(x, kloc);
-                        if(not (lbt & this->board() & ~(c>0 ? this->enpas >> 8 : this->enpas << 8) & ~msk)){ res &= ~this->enpas; break; }
-                    }
-                }
-            }
-            break;
-        }
-        case knight: {
-            res |= util::bitboard::attackfrom(src, pt);
-            break;
-        }
+        case pawn:   res = this->legal_pawn(msk, c); break;
+        case knight: res = util::bitboard::attackfrom(src, pt); break;
         case bishop:
         case rook:
-        case queen: {
-            res |= this->sliding_atk(src, pt);
-            break;
-        }
-        default: {
-            // Bitboard of squares opponent is attacking
-            U64 atk = 0,
-                opwn = this->board(pawn, !c);
-            while(opwn){
-                atk |= util::bitboard::attackfrom(util::transform::bitscan(opwn), pawn, !c);
-                util::transform::lsbflip(opwn);
-            }
-            for(int i=knight; i<king; ++i){ atk |= this->legal(static_cast<ptype>(i), !c); }
-            res |= util::bitboard::attackfrom(src, pt)
-                    & ~atk
-                    & ~util::bitboard::attackfrom(this->board(pt, !c), pt);
-
-            if(this->check != c && this->cancas & (c == white ? 0b1100 : 0b0011)){
-                // Castles - check that squares b/t king and target squares are empty and not attacked
-                U64 ksl = 0x0cLL << (c == white ? 0 : 56),
-                    qsl = 0x60LL << (c == white ? 0 : 56);
-                if(ksl == (ksl & ~occ & ~atk)){ res |= kloc >> 2; }
-                if(qsl == (qsl & ~occ & ~atk)){ res |= kloc << 2; }
-            }
-        }
+        case queen:  res = this->sliding_atk(src, pt); break;
+        default:     res = this->legal_king(msk, c);
     }
+
     // Discount any moves that break a pin
     if(msk & this->pins){ res &= util::bitboard::axisalign(util::bitboard::linebt(msk, kloc, true)); }
-    // Modify results if in check
-    if(this->check == c){ res = this->legalc(res, pt, c); }
-    // Discount squares occupied by same colored pieces
-    res &= ~this->board(c);
-    return res;
-}
 
-U64 ChessBoard::legalc(U64 res, ptype pt, color c) const{
-    // color c = color of player IN check
-    U64 filter = 0,
-        kloc = this->board(king, c);
-    bool bloc = this->checkers.size() == 1;
-    for(std::unordered_map<U64, ptype>::const_iterator it=this->checkers.begin(); it!=this->checkers.end(); ++it){
-        U64 lbt = util::bitboard::linebt(it->first, kloc, true);
-        if(pt == king){ if(it->second > knight){ filter |= util::bitboard::axisalign(lbt) & ~it->first; } }
-        else if(bloc) { filter |= lbt; }
+    // Modify results if in check
+    if(this->check == c){
+        U64 filter = 0;
+        for(std::unordered_map<U64, ptype>::const_iterator it=this->checkers.begin(); it!=this->checkers.end(); ++it){
+            U64 lbt = util::bitboard::linebt(it->first, kloc, true);
+            if(pt != king && this->checkers.size() == 1){ filter |= lbt; }
+            else
+            if(pt == king && it->second > knight)       { filter |= util::bitboard::axisalign(lbt) & ~it->first; }
+        }
+        res &= pt==king ? ~filter : filter;
     }
 
-    res &= pt==king ? ~filter : filter;
+    // Discount squares occupied by same colored pieces
+    res &= ~this->board(c);
+
     return res;
 }
+
+U64 ChessBoard::legal_king(const U64& src, color c) const{
+    U64 res = 0,
+        atk = 0,
+        opwn = this->board(pawn, !c);
+
+    // Bitboard of squares opponent is attacking
+    while(opwn){
+        atk |= util::bitboard::attackfrom(util::transform::bitscan(opwn), pawn, !c);
+        util::transform::lsbflip(opwn);
+    }
+    for(int i=knight; i<king; ++i){ atk |= this->legal(static_cast<ptype>(i), !c); }
+
+    // Can move to squares other than `atk` and enemy king's attackable squares
+    res |= util::bitboard::attackfrom(src, king)
+            & ~atk
+            & ~util::bitboard::attackfrom(this->board(king, !c), king);
+
+    // Castles - ensure availability and not in check
+    if(this->check != c && this->cancas & (c == white ? 0b1100 : 0b0011)){
+        // Verify that squares b/t king and target squares are empty and not attacked
+        U64 ksl = 0x0cLL << (c == white ? 0 : 56),
+            qsl = 0x60LL << (c == white ? 0 : 56);
+        if(ksl == (ksl & ~this->board() & ~atk)){ res |= src >> 2; }
+        if(qsl == (qsl & ~this->board() & ~atk)){ res |= src << 2; }
+    }
+    return res;
+}
+
+U64 ChessBoard::legal_pawn(const U64& src, color c) const{
+    U64 res = 0,
+        occ = this->board(),
+        opp = this->board(!c),
+        kloc = this->board(king, c),
+        pst = c>0 ? util::constants::white_pawns : util::constants::black_pawns;
+
+    // Single push
+    res |= (c>0 ? src << 8 : src >> 8) & ~occ;
+
+    // Double push
+    if(src & pst && res){ res |= (c>0 ? src << 16 : src >> 16) & ~occ; }
+
+    // Captures (including en passant)
+    res |= util::bitboard::attackfrom(src, pawn, c) & (this->next == c ? (opp | this->enpas) : opp);
+
+    if(this->enpas & res){
+        /* Special case - e.p. capture would put king in check. Example:
+
+            8/2p5/3p4/KP5r/1R2Pp1k/8/6P1/8 b - e3 0 1
+
+               a   b   c   d   e   f   g   h
+            8 [  ][  ][  ][  ][  ][  ][  ][  ]
+            7 [  ][  ][b^][  ][  ][  ][  ][  ]
+            6 [  ][  ][  ][b^][  ][  ][  ][  ]
+            5 [wK][w^][  ][  ][  ][  ][  ][bR]
+            4 [  ][wR][  ][  ][w^][b^][  ][bK]
+            3 [  ][  ][  ][  ][  ][  ][  ][  ]
+            2 [  ][  ][  ][  ][  ][  ][w^][  ]
+            1 [  ][  ][  ][  ][  ][  ][  ][  ]
+
+           If black plays fxe3 then black's king would be in check by white's rook on b4 => fxe3 is NOT a legal move
+           Require that e.p. captures do not expose king to enemy rook/queen on the same rank
+        */
+        U64 rqo = (this->board(rook, !c) | this->board(queen, !c)) & util::bitboard::rmasks[util::transform::bitscan(kloc)];
+        while(rqo){
+            square x = util::transform::bitscan(rqo);
+            util::transform::lsbflip(rqo);
+            if(not (util::bitboard::linebt(x, kloc) & occ & ~(src | (c>0 ? this->enpas >> 8 : this->enpas << 8)))){ res &= ~this->enpas; break; }
+        }
+    }
+    return res;
+}
+
 
 std::vector<ply> ChessBoard::legal_plies() const{
     std::vector<ply> plies;
@@ -336,39 +359,38 @@ std::vector<ply> ChessBoard::legal_plies(ptype pt, color c) const{
 template<typename T>
 std::vector<ply> ChessBoard::legal_plies(const T& src, ptype pt, color c) const{
     std::vector<ply> plies;
-    U64 res = this->legal(src, pt, c),
+    U64 pseudo = this->legal(src, pt, c),
         msk = util::transform::mask(src),
         okloc = this->board(king, !c),
-        occ = this->board();
+        dst;
+    int cas = 0;
+    bool cap = false, chk = false, mte = false, pmo = false;
 
-    while(res){
-        square x = util::transform::bitscan(res);
-        U64 dst = util::transform::mask(x);
-        util::transform::lsbflip(res);
+    while(pseudo){
+        dst = util::transform::mask(util::transform::bitscan(pseudo));
+        util::transform::lsbflip(pseudo);
 
-        // Capture and check
-        bool cap = (pt!=pawn ? occ : (occ | this->enpas)) & dst,
-
-             chk = (okloc & util::bitboard::attackfrom(dst, pt, c))
-                && (pt==knight || this->clearbt(dst, okloc));
-
+        // Capture
+        cap = (pt!=pawn ? this->board() : (this->board() | this->enpas)) & dst;
+        // Check
+        chk = (okloc & util::bitboard::attackfrom(dst, pt, c)) && (pt==knight || this->clearbt(dst, okloc));
         // Castle
-        int cas = 0;
         if(pt == king){
             if(dst == (msk << 2)){ cas =  1; }
             else
             if(dst == (msk >> 2)){ cas = -1; }
+            else                 { cas =  0; }
         }
-
+        else{ cas = 0; }
         // Promotion
-        bool pmo = pt == pawn && (c>0 ? x >= 56 : x <= 7);
-        int lb = pmo ? knight : pawn,
-            ub = pmo ? king   : knight;
-        for(int i=lb; i<ub; ++i){
+        pmo = !pt && (c>0 ? dst & util::bitboard::rmasks[56] : dst & util::bitboard::rmasks[7]);
+        // Construct plies
+        for(int i=(pmo ? knight : pawn); i<(pmo ? king : knight); ++i){
             plies.emplace_back(msk, dst, pt, static_cast<ptype>(i), c, cas, cap, chk, false);
+            // Mate
             ChessBoard b = *this;
             b.update(plies.back());
-            plies.back().mate = chk && !b.legal(!c, true);
+            plies.back().mate = chk && !b.legal(b.next, true);
         }
     }
     return plies;

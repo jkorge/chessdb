@@ -19,8 +19,8 @@ void Disamb::ppins(U64& candidates, const U64& dst, const color& c, const ChessB
 
         while(pinned){
             U64 pros = util::transform::mask(util::transform::bitscan(pinned));
-            if(this->moveable_pin(pros, dst, kloc)){ candidates |= pros; }
             util::transform::lsbflip(pinned);
+            if(this->moveable_pin(pros, dst, kloc)){ candidates |= pros; }
         }
     }
 }
@@ -42,19 +42,16 @@ U64 Disamb::dpiece(const U64& src, const U64& dst, ptype pt, color c, const Ches
 
     while(candidates){
         U64 pros = util::transform::mask(util::transform::bitscan(candidates));
+        util::transform::lsbflip(candidates);
 
         if(pros & board.pins){
-            if(not this->moveable_pin(pros, dst, kloc)){
-                util::transform::lsbflip(candidates);
-                continue;
-            }
+            if(not this->moveable_pin(pros, dst, kloc)){ continue; }
         }
         if(
             (!src || pros & src) &&
             (dst & util::bitboard::attackfrom(pros, pt, c)) &&
             (pt == knight || !(grid & util::bitboard::linebt(pros, dst)))
         ){ return pros; }
-        else{ util::transform::lsbflip(candidates); }
     }
     this->logger.debug("Failed to disambiguate");
     return 0;

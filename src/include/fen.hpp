@@ -22,7 +22,7 @@ public:
 
     Fen(logging::LEVEL=logging::NONE, bool=false);
     
-    color parse(std::string, ChessBoard&);
+    void parse(std::string, ChessBoard&);
 
 };
 

@@ -28,9 +28,6 @@ namespace util{
         template<typename CharT>
         void lowercase(std::basic_string<CharT>&);
 
-        // Flip least-significant bit
-        void lsbflip(U64&);
-
         // Coordinate conversions
         template<typename T>
         square sq(const T&);
@@ -41,15 +38,14 @@ namespace util{
         template<typename T>
         coords rf(const T&);
 
-        template<typename T>
-        square bitscan(const T&);
+        // Index of least significant 1-bit (aka square number)
+        inline square bitscan(const U64& src){ return _tzcnt_u64(src); }
 
-        template<typename T>
-        square bitscanr(const T&);
+        // Index of most significant 1-bit
+        inline square bitscanr(const U64& src){ return 63 - _lzcnt_u64(src); }
 
-        square bitscan(const U64&);
-
-        square bitscanr(const U64&);
+        // Flip least-significant bit
+        inline void lsbflip(U64& x){ x &= x-1; }
 
     }
 }

@@ -139,8 +139,8 @@ void PGN<CharT, Traits>::pplies(color c){
     this->board.newgame();
     this->_plies.clear();
 
-    if(!this->_tags[fenstr].empty()){ c = fen.parse(this->_tags[fenstr], this->board); }
-    this->board.next = c;
+    if(!this->_tags[fenstr].empty()){ fen.parse(this->_tags[fenstr], this->board); }
+    else{ this->board.next = c; }
 
     for(typename std::vector<string>::iterator it=this->_tokens.begin(); it!=this->_tokens.end(); ++it){
 

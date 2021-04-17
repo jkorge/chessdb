@@ -44,8 +44,6 @@ public:
 
     pname update(const ply&);
 
-    void update_state(const U64&, ptype, color, bool);
-
     void castle(int, color);
 
     void promote(color, const U64&, ptype);
@@ -54,9 +52,7 @@ public:
 
     void pinsearch();
 
-    void pinch(color);
-
-    void scan(ptype, color, const U64&, const U64&, const U64&);
+    void scan(color);
 
     U64 legal() const;
 
@@ -67,7 +63,9 @@ public:
     template<typename T>
     U64 legal(const T&, ptype, color) const;
 
-    U64 legalc(U64, ptype, color) const;
+    U64 legal_king(const U64&, color) const;
+
+    U64 legal_pawn(const U64&, color) const;
 
     std::vector<ply> legal_plies() const;
 

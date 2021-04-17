@@ -12,16 +12,6 @@ ptype operator++(ptype& pt, int){
   return tmp;
 }
 
-// direction operator++(direction& dir){
-//   dir = static_cast<direction>((static_cast<int>(dir) + 1) % 8);
-//   return dir;
-// }
-// direction operator++(direction& dir, int){
-//   direction tmp = dir;
-//   ++dir;
-//   return tmp;
-// }
-
 coords operator+(const coords& x, const coords& y){ return {x[0] + y[0], x[1] + y[1]}; }
 
 namespace util{
@@ -87,55 +77,38 @@ namespace util{
         template<typename CharT>
         void lowercase(std::basic_string<CharT>& s){ std::transform(s.begin(), s.end(), s.begin(), tolower); }
 
-        // Flip least-significant bit
-        void lsbflip(U64& x){ x &= x-1; }
+        /*
+            COORDINATE CONVERSIONS
+        */
 
-        // Coordinate conversions
         namespace {
-            // Index of least significant 1-bit (aka square number)
-            square bitscan_(const U64& src){ return _tzcnt_u64(src); }
-
-            // Index of most significant 1-bit
-            square bitscanr_(const U64& src){ return 63 - _lzcnt_u64(src); }
-
             // sq => sq
-            square sq_(const square& src){ return src; }
+            inline square sq_(const square& src){ return src; }
 
             // mask => sq
-            square sq_(const U64& src){ return bitscan_(src); }
+            inline square sq_(const U64& src){ return bitscan(src); }
 
             // coords => sq
-            square sq_(const coords& src){ return (8*src[0]) + src[1]; }
+            inline square sq_(const coords& src){ return (8*src[0]) + src[1]; }
 
             // sq => mask
-            U64 mask_(const square& src){ return util::constants::ONE_ << src; }
+            inline U64 mask_(const square& src){ return util::constants::ONE_ << src; }
 
             // mask => mask
-            U64 mask_(const U64& src){ return src; }
+            inline U64 mask_(const U64& src){ return src; }
 
             // coords => mask
-            U64 mask_(const coords& src){ return mask_(sq_(src)); }
+            inline U64 mask_(const coords& src){ return mask_(sq_(src)); }
 
             // sq => coords
-            coords rf_(const square& src){ return {src/8, src%8}; }
+            inline coords rf_(const square& src){ return {src/8, src%8}; }
 
             // mask => coords
-            coords rf_(const U64& src){ return rf_(sq_(src)); }
+            inline coords rf_(const U64& src){ return rf_(sq_(src)); }
 
             // coords => coords
-            coords rf_(const coords& src){ return src; }
+            inline coords rf_(const coords& src){ return src; }
         }
-
-        // Generic functions to route to preceding
-        template<typename T>
-        square bitscan(const T& src){ return bitscan_(mask(src)); }
-
-        template<typename T>
-        square bitscanr(const T& src){ return bitscanr_(mask(src)); }
-
-        square bitscan(const U64& src){ return bitscan_(src); }
-
-        square bitscanr(const U64& src){ return bitscanr_(src); }
 
         template<typename T>
         square sq(const T& src){ return sq_(src); }
@@ -347,19 +320,17 @@ namespace util{
             int ssq = util::transform::sq(src),
                 dsq = util::transform::sq(dst);
 
-            ptype res;
-
             if(
                 (util::bitboard::dmasks[ssq] & util::bitboard::dmasks[dsq]) ||
                 (util::bitboard::amasks[ssq] & util::bitboard::amasks[dsq])
-            ){ res = bishop; }
-            else if(
+            ){ return bishop; }
+            else
+            if(
                 (util::bitboard::rmasks[ssq] & util::bitboard::rmasks[dsq]) ||
                 (util::bitboard::fmasks[ssq] & util::bitboard::fmasks[dsq])
-            ){ res = rook; }
-            else{ res = NOTYPE; }
-
-            return res;
+            ){ return rook; }
+            else
+             { return NOTYPE; }
         }
 
         // Determine direction of line given as bitmap
@@ -1464,9 +1435,6 @@ template U64 util::transform::mask(const coords&);
 template coords util::transform::rf(const square&);
 template coords util::transform::rf(const U64&);
 template coords util::transform::rf(const coords&);
-
-template square util::transform::bitscan(const square&);
-template square util::transform::bitscan(const coords&);
 
 template std::string util::repr::coord2s(const square&);
 template std::string util::repr::coord2s(const U64&);

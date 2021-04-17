@@ -91,7 +91,7 @@ void Fen::arrange(std::string fs, ChessBoard& board){
 }
 
 // Arrange pieces on board according to FEN string. Return color indicating which player moves next
-color Fen::parse(std::string fs, ChessBoard& board){
+void Fen::parse(std::string fs, ChessBoard& board){
 
     this->logger.info("Parsing FEN string:", fs);
     color c;
@@ -99,7 +99,6 @@ color Fen::parse(std::string fs, ChessBoard& board){
     if(!fs.compare(util::fen::new_game)){
         this->logger.debug("FEN string for standard new game");
         board.newgame();
-        c = white;
     }
     else{
         board.clear();
@@ -135,6 +134,4 @@ color Fen::parse(std::string fs, ChessBoard& board){
         if(board.checkers.size()){ board.check = board.next; }
 
     }
-
-    return c;
 }
