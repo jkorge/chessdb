@@ -6,13 +6,32 @@
 class BitBoard{
 public:
 
-    U64 white_pawns{0},    black_pawns{0},
-        white_knights{0},  black_knights{0},
-        white_bishops{0},  black_bishops{0},
-        white_rooks{0},    black_rooks{0},
-        white_queens{0},   black_queens{0},
-        white_king{0},     black_king{0},
-                    state{0};
+    // U64 white_pawns{0},    black_pawns{0},
+    //     white_knights{0},  black_knights{0},
+    //     white_bishops{0},  black_bishops{0},
+    //     white_rooks{0},    black_rooks{0},
+    //     white_queens{0},   black_queens{0},
+    //     white_king{0},     black_king{0},
+    //                 state{0};
+
+    /*
+        white_pawns => 0
+        white_knights => 1
+        white_bishops => 2
+        white_rooks => 3
+        white_queens => 4
+        white_king => 5
+
+        black_pawns => 6
+        black_knights => 7
+        black_bishops => 8
+        black_rooks => 9
+        black_queens => 10
+        white_king => 11
+
+        occupancy => 12
+    */
+    std::array<U64, 13> boards = {0};
 
     // Flag indicating if board has changed since last read
     bool changed{true};
@@ -20,6 +39,7 @@ public:
     /*
         Retrieve occupancy bitmap
     */
+
     U64 board() const;
 
     U64 board();
@@ -73,12 +93,6 @@ public:
     */
     template<typename T>
     U64 ray(const T, ptype, int) const;
-
-    /*
-        Bitmap of squares attacked by sliding piece
-    */
-    template<typename T>
-    U64 sliding_atk(const T, ptype) const;
 
     /*
         Determine if line connecting src and dst is unoccupied

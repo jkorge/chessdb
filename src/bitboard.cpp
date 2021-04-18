@@ -4,35 +4,37 @@
     Retrieve occupancy bitmap
 */
 U64 BitBoard::board() const{
-    return this->white_pawns | this->white_knights | this->white_bishops | this->white_rooks | this->white_queens | this->white_king |
-           this->black_pawns | this->black_knights | this->black_bishops | this->black_rooks | this->black_queens | this->black_king;
+    if(this->changed){
+        return this->boards[0] | this->boards[1] | this->boards[2] | this->boards[3] | this->boards[ 4] | this->boards[ 5] |
+               this->boards[6] | this->boards[7] | this->boards[8] | this->boards[9] | this->boards[10] | this->boards[11];
+    }
+    else{ return this->boards[12]; }
 }
-
 
 U64 BitBoard::board(){
     if(this->changed){
-        this->state = this->white_pawns | this->white_knights | this->white_bishops | this->white_rooks | this->white_queens | this->white_king |
-                      this->black_pawns | this->black_knights | this->black_bishops | this->black_rooks | this->black_queens | this->black_king;
+        this->boards[12] = this->boards[0] | this->boards[1] | this->boards[2] | this->boards[3] | this->boards[ 4] | this->boards[ 5] |
+                           this->boards[6] | this->boards[7] | this->boards[8] | this->boards[9] | this->boards[10] | this->boards[11];
         this->changed = false;
     }
-    return this->state;
+    return this->boards[12];
 }
 
 U64 BitBoard::board(color c) const{
     switch(c){
-        case white: return this->white_pawns | this->white_knights | this->white_bishops | this->white_rooks | this->white_queens | this->white_king;
-        default:    return this->black_pawns | this->black_knights | this->black_bishops | this->black_rooks | this->black_queens | this->black_king;
+        case white: return this->boards[0] | this->boards[1] | this->boards[2] | this->boards[3] | this->boards[ 4] | this->boards[ 5];
+        default:    return this->boards[6] | this->boards[7] | this->boards[8] | this->boards[9] | this->boards[10] | this->boards[11];
     }
 }
 
 U64 BitBoard::board(ptype pt) const{
     switch(pt){
-        case pawn:   return this->white_pawns   | this->black_pawns;
-        case knight: return this->white_knights | this->black_knights;
-        case bishop: return this->white_bishops | this->black_bishops;
-        case rook:   return this->white_rooks   | this->black_rooks;
-        case queen:  return this->white_queens  | this->black_queens;
-        default:     return this->white_king    | this->black_king;
+        case pawn:   return this->boards[0] | this->boards[ 6];
+        case knight: return this->boards[1] | this->boards[ 7];
+        case bishop: return this->boards[2] | this->boards[ 8];
+        case rook:   return this->boards[3] | this->boards[ 9];
+        case queen:  return this->boards[4] | this->boards[10];
+        default:     return this->boards[5] | this->boards[11];
     }
 }
 
@@ -40,22 +42,22 @@ const U64& BitBoard::board(ptype pt, color c) const{
     switch(c){
         case white:
             switch(pt){
-                case pawn:   return this->white_pawns;
-                case knight: return this->white_knights;
-                case bishop: return this->white_bishops;
-                case rook:   return this->white_rooks;
-                case queen:  return this->white_queens;
-                default:     return this->white_king;
+                case pawn:   return this->boards[ 0];
+                case knight: return this->boards[ 1];
+                case bishop: return this->boards[ 2];
+                case rook:   return this->boards[ 3];
+                case queen:  return this->boards[ 4];
+                default:     return this->boards[ 5];
             }
 
         default:
             switch(pt){
-                case pawn:   return this->black_pawns;
-                case knight: return this->black_knights;
-                case bishop: return this->black_bishops;
-                case rook:   return this->black_rooks;
-                case queen:  return this->black_queens;
-                default:     return this->black_king;
+                case pawn:   return this->boards[ 6];
+                case knight: return this->boards[ 7];
+                case bishop: return this->boards[ 8];
+                case rook:   return this->boards[ 9];
+                case queen:  return this->boards[10];
+                default:     return this->boards[11];
             }
     }
 }
@@ -64,22 +66,22 @@ U64& BitBoard::board(ptype pt, color c){
     switch(c){
         case white:
             switch(pt){
-                case pawn:   return this->white_pawns;
-                case knight: return this->white_knights;
-                case bishop: return this->white_bishops;
-                case rook:   return this->white_rooks;
-                case queen:  return this->white_queens;
-                default:     return this->white_king;
+                case pawn:   return this->boards[ 0];
+                case knight: return this->boards[ 1];
+                case bishop: return this->boards[ 2];
+                case rook:   return this->boards[ 3];
+                case queen:  return this->boards[ 4];
+                default:     return this->boards[ 5];
             }
 
         default:
             switch(pt){
-                case pawn:   return this->black_pawns;
-                case knight: return this->black_knights;
-                case bishop: return this->black_bishops;
-                case rook:   return this->black_rooks;
-                case queen:  return this->black_queens;
-                default:     return this->black_king;
+                case pawn:   return this->boards[ 6];
+                case knight: return this->boards[ 7];
+                case bishop: return this->boards[ 8];
+                case rook:   return this->boards[ 9];
+                case queen:  return this->boards[10];
+                default:     return this->boards[11];
             }
     }
 }
@@ -115,50 +117,35 @@ ptype BitBoard::lookupt(const T src) const{
 // Given color, piece type, and location
 template<typename T>
 void BitBoard::remove(const T src, ptype pt, color c){
-    this->board(pt, c) &= ~util::transform::mask(src);
-    this->changed = true;
+    U64 smsk = ~util::transform::mask(src);
+    this->board(pt, c) &= smsk;
+    this->boards[12] &= smsk;
 }
 
 // Given location only (remove piece from all occupancy maps)
 template<typename T>
 void BitBoard::remove(const T src){
-    U64 smsk = util::transform::mask(src);
+    U64 smsk = ~util::transform::mask(src);
 
-    this->white_pawns   &= ~smsk;
-    this->white_knights &= ~smsk;
-    this->white_bishops &= ~smsk;
-    this->white_rooks   &= ~smsk;
-    this->white_queens  &= ~smsk;
-    this->white_king    &= ~smsk;
+    this->boards[ 0] &= smsk;
+    this->boards[ 1] &= smsk;
+    this->boards[ 2] &= smsk;
+    this->boards[ 3] &= smsk;
+    this->boards[ 4] &= smsk;
+    this->boards[ 5] &= smsk;
 
-    this->black_pawns   &= ~smsk;
-    this->black_knights &= ~smsk;
-    this->black_bishops &= ~smsk;
-    this->black_rooks   &= ~smsk;
-    this->black_queens  &= ~smsk;
-    this->black_king    &= ~smsk;
+    this->boards[ 6] &= smsk;
+    this->boards[ 7] &= smsk;
+    this->boards[ 8] &= smsk;
+    this->boards[ 9] &= smsk;
+    this->boards[10] &= smsk;
+    this->boards[11] &= smsk;
 
-    this->changed = true;
+    this->boards[12] &= smsk;
 }
 
 // Remove all pieces from all occupancy maps
-void BitBoard::remove(){
-    this->white_pawns   = util::constants::ZERO_;
-    this->white_knights = util::constants::ZERO_;
-    this->white_bishops = util::constants::ZERO_;
-    this->white_rooks   = util::constants::ZERO_;
-    this->white_queens  = util::constants::ZERO_;
-    this->white_king    = util::constants::ZERO_;
-
-    this->black_pawns   = util::constants::ZERO_;
-    this->black_knights = util::constants::ZERO_;
-    this->black_bishops = util::constants::ZERO_;
-    this->black_rooks   = util::constants::ZERO_;
-    this->black_queens  = util::constants::ZERO_;
-    this->black_king    = util::constants::ZERO_;
-
-    this->changed = true;
-}
+void BitBoard::remove(){ this->boards.fill(util::constants::ZERO_); }
 
 /*
     Place piece(s) on board
@@ -166,8 +153,9 @@ void BitBoard::remove(){
 
 template<typename T>
 void BitBoard::place(const T dst, ptype pt, color c){
-    this->board(pt, c) |= util::transform::mask(dst);
-    this->changed = true;
+    U64 dmsk = util::transform::mask(dst);
+    this->board(pt, c) |= dmsk;
+    this->boards[12] |= dmsk;
 }
 
 
@@ -195,27 +183,6 @@ U64 BitBoard::ray(const T src, ptype pt, int dir) const{
     if(x == -1 || x == 64){ return r; }
     U64 rx = util::bitboard::rays[pt-2][x][dir];
     return r ^ rx;
-}
-
-/*
-    Bitmap of squares attacked by sliding piece
-        DOES NOT ASSUME EMPTY BOARD
-        Calls `this->ray` for each direction
-        Directions (North points to rank 8):
-            0 => E
-            1 => NE
-            2 => N
-            3 => NW
-            4 => W
-            5 => SW
-            6 => S
-            7 => SE
-*/
-template<typename T>
-U64 BitBoard::sliding_atk(const T src, ptype pt) const{
-    U64 res = 0;
-    for(int i=0; i<8; ++i){ res |= this->ray(src, pt, i); }
-    return res;
 }
 
 /*
@@ -256,7 +223,7 @@ std::string BitBoard::display() const{
     return viz;
 }
 
-std::string BitBoard::odisplay() const{ return util::bitboard::odisplay(this->board()); }
+std::string BitBoard::odisplay() const{ return util::bitboard::odisplay(this->boards[12]); }
 
 std::string BitBoard::odisplay(color c) const{ return util::bitboard::odisplay(this->board(c)); }
 
@@ -311,7 +278,3 @@ template bool BitBoard::clearbt(const U64, const coords) const;
 template bool BitBoard::clearbt(const U64, const square) const;
 template bool BitBoard::clearbt(const coords, const square) const;
 template bool BitBoard::clearbt(const coords, const U64) const;
-
-template U64 BitBoard::sliding_atk(const U64 src, ptype pt) const;
-template U64 BitBoard::sliding_atk(const coords src, ptype pt) const;
-template U64 BitBoard::sliding_atk(const square src, ptype pt) const;
