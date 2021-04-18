@@ -367,8 +367,7 @@ std::vector<ply> ChessBoard::legal_plies(const T src, ptype pt, color c) const{
 
         // Capture
         cap = (pt!=pawn ? this->board() : (this->board() | this->enpas)) & dst;
-        // Check
-        chk = (okloc & util::bitboard::attackfrom(dst, pt, c)) && (pt==knight || this->clearbt(dst, okloc));
+
         // Castle
         if(pt == king){
             if(dst == (msk << 2)){ cas =  1; }
@@ -377,15 +376,28 @@ std::vector<ply> ChessBoard::legal_plies(const T src, ptype pt, color c) const{
             else                 { cas =  0; }
         }
         else{ cas = 0; }
+
         // Promotion
         pmo = !pt && (c>0 ? dst & util::bitboard::rmasks[56] : dst & util::bitboard::rmasks[7]);
+
         // Construct plies
         for(int i=(pmo ? knight : pawn); i<(pmo ? king : knight); ++i){
-            plies.emplace_back(msk, dst, pt, static_cast<ptype>(i), c, cas, cap, chk, false);
-            // Mate
+            plies.emplace_back(msk, dst, pt, static_cast<ptype>(i), c, cas, cap, false, false);
+
+            // Check/Mate
             ChessBoard b = *this;
             b.update(plies.back());
-            plies.back().mate = chk && !b.legal(b.next, true);
+
+            chk = b.legal(c) & b.board(king, !c);
+            if(chk){
+                b.get_checkers(c);
+                b.check = b.next;
+                mte = !b.legal(b.next, true);
+            }
+            else{ mte = false; }
+
+            plies.back().check = chk;
+            plies.back().mate = mte;
         }
     }
     return plies;
