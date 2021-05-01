@@ -1,9 +1,6 @@
 #include <cstdlib>
 
 #include "devutil.hpp"
-#include "tempus.hpp"
-#include "pgn.hpp"
-#include "chessdb.hpp"
 
 const int NCOLS = 5;
 
@@ -11,7 +8,7 @@ typedef table<20> tbl;
 
 int main(int argc, char** argv){
     std::string src_file = "/Users/jkorg/Desktop/chess/data/otb/OTB.pgn",
-                dst_file = "/Users/jkorg/Desktop/chess/data/otb/OTB.cdb";
+                dst_file = "OTB.cdb";
 
     int batch_size = 100000;
 

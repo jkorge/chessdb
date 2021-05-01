@@ -1,10 +1,6 @@
 #include <cstdlib>
 
 #include "devutil.hpp"
-#include "logging.hpp"
-#include "tempus.hpp"
-#include "pgn.hpp"
-#include "chessdb.hpp"
 
 typedef header<20> hdr;
 int pfreq{20};
@@ -91,8 +87,7 @@ std::vector<game> load_db(std::string& file){
 
 bool error_check(const std::vector<game>& games, const std::vector<game>& lgames){
     hdr::print("Error Check");
-    ChessBoard board;
-    Fen fen;
+    Board board;
 
     if(games != lgames){
         int N = games.size(),
@@ -103,21 +98,19 @@ bool error_check(const std::vector<game>& games, const std::vector<game>& lgames
         }
         else{
             for(int i=0; i<lgames.size(); ++i){
-                if(!games[i].tags.at(fenstr).empty()){ fen.parse(games[i].tags.at(fenstr), board); }
-                else{ board.newgame(); }
+                if(!games[i].tags.at(fenstr).empty()){ fen::parse(games[i].tags.at(fenstr), board); }
+                else{ board.reset(); }
                 for(int j=0; j<lgames[i].plies.size(); ++j){
 
                     if(lgames[i].plies[j] != games[i].plies[j]){
                         // Print details where files disagree
-                        std::cout << "Game " << i << " ply " << j << ":\n" << board.display() << '\n';
+                        std::cout << "Game " << i << " ply " << j << ":\n" << board.to_string() << '\n';
 
                         board.update(games[i].plies[j]);
-                        std::cout << board.display() << "\nsrc: ";
-                        // printply(games[i].plies[j]);
+                        std::cout << board.to_string() << "\npgn: ";
                         pprint(games[i].plies[j], board);
 
-                        std::cout << "dst: ";
-                        // printply(lgames[i].plies[j]);
+                        std::cout << "cdb: ";
                         pprint(lgames[i].plies[j], board);
                         std::cout << '\n';
                     }

@@ -1,55 +1,55 @@
 -----------------------------------------------------------------------------------------------------------------------
 Piece       8-bit unsigned int
 -----------------------------------------------------------------------------------------------------------------------
-    Pieces are enum from 0-31:
-        white_rook_a        0
-        white_knight_b      1
-        white_bishop_c      2
-        white_queen_d       3
-        white_king_e        4
-        white_bishop_f      5
-        white_knight_g      6
-        white_rook_h        7
+    Pieces are encoded as an enum of their color and type
+        white
+            pawn        0
+            knight      1
+            bishop      2
+            rook        3
+            queen       4
+            king        5
 
-        white_pawn_a        8
-        white_pawn_b        9
-        white_pawn_c        10
-        white_pawn_d        11
-        white_pawn_e        12
-        white_pawn_f        13
-        white_pawn_g        14
-        white_pawn_h        15
+        black
+            pawn        6
+            knight      7
+            bishop      8
+            rook        9
+            queen       10
+            king        11
 
-        black_pawn_a        16
-        black_pawn_b        17
-        black_pawn_c        18
-        black_pawn_d        19
-        black_pawn_e        20
-        black_pawn_f        21
-        black_pawn_g        22
-        black_pawn_h        23
-
-        black_rook_a        24
-        black_knight_b      25
-        black_bishop_c      26
-        black_queen_d       27
-        black_king_e        28
-        black_bishop_f      29
-        black_knight_g      30
-        black_rook_h        31
-
-    Queens have extra info on 3rd most sig. bit
+    Most significant bit is reserved for encoding queen's movement type
         0 => piece's movement is encoded according to bishop encoding
         1 => piece's movement is encoded according to rook encoding
 
-    Pawns have extra info on 3 most sig. bits - promotion encoding
-    Indicates how the piece is expected to move (ie. AFTER being promoted)
-        000 => no promotion
-        001 => knight
-        010 => bishop
-        011 => rook
-        100 => queen (bishop move)
-        101 => queen (rook move)
+    To identify where on the board the piece is, bits 4-6 (0-indexed, least significant on the right) identify which 0-indexed 1 bit in the board's occupancy for the given color+type identifies the piece.
+    This means there can be at most, 8 pieces of a given color+type
+        e.g. white pawn occupancy at start of new game
+            00000000 00000000 00000000 00000000 00000000 00000000 11111111 00000000
+
+                          q pid enum
+                          ----------
+        white's a-pawn => 0 000 0000
+        white's e-pawn => 0 100 0000
+        white's h-pawn => 0 111 0000
+
+        e.g. black rook occupancy after a queenside castle (kingside rook unmoved)
+            10001000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+                          q pid enum
+                          ----------
+        black's a-rook => 0 000 1001
+        black's h-rook => 0 001 1001
+
+        e.g. queen movements (assuming no pawns have been promoted)
+                          q pid enum
+                          ----------
+        white's queen =>  0 000 0100 (bishop move)
+        white's queen =>  1 000 0100 (rook move)
+
+        black's queen =>  0 000 1011 (bishop move)
+        black's queen =>  1 000 1011 (rook move)
+
+    Pawns change their type after being promoted
 
 -----------------------------------------------------------------------------------------------------------------------
 Action      8-bit unsigned int

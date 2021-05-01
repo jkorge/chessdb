@@ -1,25 +1,26 @@
-#include <string>
-#include <locale>
-#include <iostream>
-#include <bitset>
+#include <cstring>
 
-#include "util.hpp"
-#include "board.hpp"
-#include "disamb.hpp"
+#include <bitset>
+#include <iomanip>
+#include <iostream>
+#include <locale>
+#include <string>
+
+#include "chessdb.hpp"
 
 /*
     FUNCTION DECLARATIONS
 */
 std::string bar(int);
 void bbprint(const U64&, std::string="", char='1');
-void bprint(const ChessBoard&);
-void lprint(ptype, color, const ChessBoard&);
-void lprint(color c, const ChessBoard& board);
-void lprint(const ChessBoard& board);
-void pprint(const ply&, const ChessBoard&);
-ply pply(std::string p, color c, const ChessBoard& board);
-ply pcastle(bool qs, color c, bool check, bool mate, const ChessBoard& board);
-ply prest(const std::string& p, color c, bool check, bool mate, const ChessBoard& board);
+void bprint(Board&);
+void lprint(ptype, color, const Board&);
+void lprint(color c, const Board& board);
+void lprint(const Board& board);
+void pprint(const ply&, const Board&);
+ply pply(std::string p, color c, const Board& board);
+ply pcastle(bool qs, color c, bool check, bool mate, const Board& board);
+ply prest(const std::string p, color c, bool check, bool mate, const Board& board);
 
 /*
     STRUCTS, TYPEDEFS, ETC.
@@ -63,11 +64,11 @@ struct table{
 
     static void prow(const ply& p){
         table<W>::row(
-            util::repr::color2s(p.c),
-            util::repr::ptype2s(p.type),
-            util::repr::ptype2s(p.promo),
-            util::repr::coord2s(p.src),
-            util::repr::coord2s(p.dst),
+            color2s(p.c),
+            ptype2s(p.type),
+            ptype2s(p.promo),
+            coord2s(p.src),
+            coord2s(p.dst),
             (p.castle ? (p.castle>0 ? "ks" : "qs") : "__"),
             p.capture,
             p.check,
@@ -77,11 +78,11 @@ struct table{
 
     static void prrow(const ply& p){
         table<W>::rrow(
-            util::repr::color2s(p.c),
-            util::repr::ptype2s(p.type),
-            util::repr::ptype2s(p.promo),
-            util::repr::coord2s(p.src),
-            util::repr::coord2s(p.dst),
+            color2s(p.c),
+            ptype2s(p.type),
+            ptype2s(p.promo),
+            coord2s(p.src),
+            coord2s(p.dst),
             (p.castle ? (p.castle>0 ? "ks" : "qs") : "__"),
             p.capture,
             p.check,
@@ -111,35 +112,35 @@ std::string bar(int length){ return std::string(length, '-'); }
 
 void bbprint(const U64& bb, std::string txt, char c){
     std::cout << txt
-              << util::bitboard::odisplay(bb, c)
+              << bb2s(bb, c)
               << '\n';
 }
 
-void bprint(const ChessBoard& board){ std::cout << board.display() << '\n'; }
+void bprint(Board& board){ std::cout << board.to_string() << '\n'; }
 
-void lprint(ptype pt, color c, const ChessBoard& board){
+void lprint(ptype pt, color c, const Board& board){
     U64 res = board.legal(pt, c);
     if(res){
         bbprint(
             res,
-            util::repr::color2s(c) + " " + util::repr::ptype2s(pt),
-            util::fen::ptype2c(pt, c)
+            color2s(c) + " " + ptype2s(pt),
+            ptype2c(pt)
         );
     }
 }
 
-void lprint(color c, const ChessBoard& board){ for(int j=pawn; j<=king; ++j){ lprint(static_cast<ptype>(j), c, board); } }
+void lprint(color c, const Board& board){ for(int j=pawn; j<=king; ++j){ lprint(static_cast<ptype>(j), c, board); } }
 
-void lprint(const ChessBoard& board){ for(int i=white; i>=black; i-=2){ lprint(static_cast<color>(i), board); } }
+void lprint(const Board& board){ for(int i=white; i>=black; i-=2){ lprint(static_cast<color>(i), board); } }
 
-void pprint(const ply& p, const ChessBoard& board){
+void pprint(const ply& p, const Board& board){
     table<10>::row(
         board.ply2san(p),
-        util::repr::color2s(p.c),
-        util::repr::ptype2s(p.type),
-        util::repr::ptype2s(p.promo),
-        util::repr::coord2s(p.src),
-        util::repr::coord2s(p.dst),
+        color2s(p.c),
+        ptype2s(p.type),
+        ptype2s(p.promo),
+        coord2s(bitscan(p.src)),
+        coord2s(bitscan(p.dst)),
         (p.castle ? (p.castle>0 ? "ks" : "qs") : "__"),
         p.capture,
         p.check,
@@ -147,8 +148,7 @@ void pprint(const ply& p, const ChessBoard& board){
     );
 }
 
-ply pply(std::string p, color c, const ChessBoard& board){
-
+ply pply(std::string p, color c, const Board& board){
     // Parse and remove flags
     bool check = p.back() == '+',
          mate = p.back() == '#';
@@ -163,43 +163,41 @@ ply pply(std::string p, color c, const ChessBoard& board){
 }
 
 
-ply pcastle(bool qs, color c, bool check, bool mate, const ChessBoard& board){
+ply pcastle(bool qs, color c, bool check, bool mate, const Board& board){
     U64 src = board.board(king, c),
         dst = qs ? (src >> 2) : (src << 2);
     return {src, dst, king, pawn, c, qs ? -1 : 1, false, check, mate};
 }
 
-
-ply prest(const std::string& p, color c, bool check, bool mate, const ChessBoard& board){
+ply prest(const std::string p, color c, bool check, bool mate, const Board& board){
     int f = 0, r = 0;
     square srcsq = 0, dstsq = 0;
     bool capture = false;
     ptype pt = pawn, promo = pawn;
 
-    for(std::string::const_reverse_iterator it=p.rbegin(); it!=p.rend(); ++it){
+    for(typename std::string::const_reverse_iterator it=p.rbegin(); it!=p.rend(); ++it){
         char ch = *it;
-        if(util::transform::isfile(ch)) { (!f++ ? dstsq : srcsq) += util::repr::c2file(ch);     }
+        if(isfile(ch))      { (!f++ ? dstsq : srcsq) += c2file(ch);     }
         else
-        if(std::isdigit(ch))            { (!r++ ? dstsq : srcsq) += util::repr::c2rank(ch) * 8; }
+        if(std::isdigit(ch)){ (!r++ ? dstsq : srcsq) += c2rank(ch) * 8; }
         else
-        if(util::transform::ispiece(ch)){ pt = util::repr::c2ptype(ch); }
+        if(ispiece(ch))     { pt = c2ptype(ch); }
         else
-        if(ch == 'x')                   { capture = true; }
+        if(ch == 'x')       { capture = true; }
         else
-        if(ch == '=')                   { promo = pt; pt = pawn; }
+        if(ch == '=')       { promo = pt; pt = pawn; }
     }
-
-    U64 dst = util::transform::mask(dstsq),
+    
+    U64 dst = mask(dstsq),
         src = 0;
-    if(r==2 && f==2) { src = util::transform::mask(srcsq);  }
+    if(r==2 && f==2) { src = mask(srcsq);  }
     else{
-        if(r==2)     { src = util::bitboard::rmasks[srcsq]; }
+        if(r==2)     { src = rank(srcsq); }
         else
-        if(f==2)     { src = util::bitboard::fmasks[srcsq]; }
-        Disamb disamb;
-        src = disamb.pgn(src, dst, pt, c, board, capture);
+        if(f==2)     { src = file(srcsq); }
+
+        src = disamb::pgn(src, dst, pt, c, board, capture);
     }
 
     return {src, dst, pt, promo, c, 0, capture, check, mate};
 }
-
