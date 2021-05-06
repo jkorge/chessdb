@@ -18,6 +18,7 @@ void lprint(ptype, color, const Board&);
 void lprint(color c, const Board& board);
 void lprint(const Board& board);
 void pprint(const ply&, const Board&);
+void println(unsigned int=__builtin_LINE());
 ply pply(std::string p, color c, const Board& board);
 ply pcastle(bool qs, color c, bool check, bool mate, const Board& board);
 ply prest(const std::string p, color c, bool check, bool mate, const Board& board);
@@ -147,6 +148,8 @@ void pprint(const ply& p, const Board& board){
         p.mate
     );
 }
+
+void println(unsigned int ln){ std::cout << ln << '\n'; }
 
 ply pply(std::string p, color c, const Board& board){
     // Parse and remove flags

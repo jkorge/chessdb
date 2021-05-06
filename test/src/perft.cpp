@@ -1,46 +1,65 @@
-#include <fstream>
+#include <future>
+#include <thread>
 
 #include "devutil.hpp"
 
-// cmd options
-bool DIV{false};
-std::vector<std::string> MOVETEXT;
-std::string REPR{"/"}, FENSTR;
+/**************************************************
+        VARIABLES, STRUCTS, & TYPEDEFS
+**************************************************/
 
-// tracking leaf node properties
-long N_TERMINAL{0},
-    N_CAPTURES{0},
-    N_CHECKS{0},
-    N_MATES{0},
-    N_TERMINAL_TOTAL{0},
-    N_CAPTURES_TOTAL{0},
-    N_CHECKS_TOTAL{0},
-    N_MATES_TOTAL{0},
-    MAX_DEPTH{1};
+// cmd options
+bool DET{true};
+std::string REPR{"/"},
+            FENSTR;
+std::vector<std::string> MOVETEXT;
+
+// maximum search depth
+long MAX_DEPTH{1};
 
 // formatting specs
 constexpr std::size_t sz{20};
-constexpr int NCOLS{6};
 typedef table<sz> tbl;
+int NCOLS{6};
 
-// recurse over legal plies from board position @ root up to MAX_DEPTH
-void search_tree(Board root, int lvl=1){
-
-    std::vector<ply> plies = root.legal_plies(root.next);
-    std::vector<Board> successors(plies.size(), root);
-    for(int i=0; i<plies.size(); ++i){
-        if(lvl == MAX_DEPTH){
-            ++N_TERMINAL;
-            if(plies[i].capture){ ++N_CAPTURES; }
-            if(plies[i].check)  { ++N_CHECKS; }
-            if(plies[i].mate)   { ++N_MATES; }
-        }
-        else{
-            successors[i].update(plies[i]);
-            search_tree(successors[i], lvl + 1);
-        }
+// Array typedef to contain results
+typedef struct stats : std::array<uint64_t, 5>{
+    stats operator+(const stats& other) const{
+        return {
+            this->at(0) + other.at(0),
+            this->at(1) + other.at(1),
+            this->at(2) + other.at(2),
+            this->at(3) + other.at(3),
+            this->at(4) + other.at(4)
+        };
     }
-}
+
+    void operator+=(const stats& other){
+        this->operator[](0) += other.at(0);
+        this->operator[](1) += other.at(1);
+        this->operator[](2) += other.at(2);
+        this->operator[](3) += other.at(3);
+        this->operator[](4) += other.at(4);
+    }
+} stats;
+
+// container for results
+stats RESULTS = {0};
+
+/**************************************************
+                FUNCTION DECLARATIONS
+**************************************************/
+
+stats search(Board, int);
+stats searchn(Board, int);
+Board setup();
+void print_header();
+void print_footer();
+void perft(Board);
+void perft1(Board);
+
+/**************************************************
+                        MAIN
+**************************************************/
 
 int main(int argc, char** argv){
     std::cout << std::boolalpha;
@@ -50,15 +69,66 @@ int main(int argc, char** argv){
     for(int i=1; i<argc; ++i){
         if(!std::strcmp(argv[i], "-d")){ MAX_DEPTH = std::stoi(argv[++i]); }
         else
-        if(!std::strcmp(argv[i], "-x")){ DIV = true; }
-        else
         if(!std::strcmp(argv[i], "-m")){
             REPR.clear();
             while(i<argc-1 && argv[i+1][0] != '-'){ MOVETEXT.emplace_back(argv[++i]); }
         }
         else
         if(!std::strcmp(argv[i], "-f")){ FENSTR = argv[++i]; }
+        else
+        if(!std::strcmp(argv[i], "-q")){ DET = false; NCOLS = 3; }
     }
+
+    Board root = setup();
+    if(MAX_DEPTH > 1){ perft(root); }
+    else             { perft1(root); }
+
+    return 0;
+}
+
+/**************************************************
+                FUNCTION DEFINITIONS
+**************************************************/
+
+// recurse over legal plies from board position @ root up to MAX_DEPTH
+stats search(Board root, int lvl){
+    std::vector<ply> plies = root.legal_plies(root.next);
+    if(lvl == MAX_DEPTH){ return {(uint64_t)plies.size(), 0ULL, 0ULL, 0ULL, 0ULL}; }
+
+    std::vector<Board> successors(plies.size(), root);
+    stats n = {0};
+    for(int i=0; i<plies.size(); ++i){
+        successors[i].update(plies[i]);
+        n[0] += search(successors[i], lvl + 1)[0];
+    }
+
+    return n;
+}
+
+// search_tree + track extra stats
+stats searchn(Board root, int lvl){
+
+    std::vector<ply> plies = root.legal_plies(root.next);
+    if(lvl == MAX_DEPTH){
+        stats ret = {(uint64_t)plies.size(), 0ULL, 0ULL, 0ULL, 0ULL};
+        for(int i=0; i<plies.size(); ++i){
+            if(plies[i].capture){ ++ret[1]; }
+            if(plies[i].check)  { ++ret[2]; }
+            if(plies[i].mate)   { ++ret[3]; }
+        }
+        return ret;
+    }
+
+    std::vector<Board> successors(plies.size(), root);
+    stats res = {0};
+    for(int i=0; i<plies.size(); ++i){
+        successors[i].update(plies[i]);
+        res += searchn(successors[i], lvl + 1);
+    }
+    return res;
+}
+
+Board setup(){
 
     Board root;
 
@@ -70,65 +140,111 @@ int main(int argc, char** argv){
         root.update(pply(MOVETEXT[i], root.next, root));
     }
 
+    // Trim REPR to fit in table cell
     if(REPR.size() > sz){ REPR = REPR.substr(0, sz-3) + "..."; }
-    if(!FENSTR.empty() || REPR != "/"){ std::cout << root.to_string() << '\n'; }
+    // Print board if not standard new game
+    if(!FENSTR.empty() || REPR != "/"){ bprint(root); }
 
-    uint64_t t0, t1, T = 0;
-    tbl::row("Ply", "N", "Captures", "Checks", "Checkmates", "Time");
+    return root;
+}
+
+void print_header(){
     tbl::sep(NCOLS);
+    if(DET){ tbl::row("Ply", "N", "Captures", "Checks", "Checkmates", "Time"); }
+    else   { tbl::row("Ply", "N", "Time"); }
+    tbl::sep(NCOLS);
+}
 
-    if(DIV){
+void print_footer(){
+    tbl::sep(NCOLS);
+    if(DET){ tbl::row(REPR, RESULTS[0], RESULTS[1], RESULTS[2], RESULTS[3], Tempus::strtime(RESULTS[4])); }
+    else   { tbl::row(REPR, RESULTS[0], Tempus::strtime(RESULTS[4])); }
+    tbl::sep(NCOLS);
+}
 
-        std::vector<ply> plies = root.legal_plies(root.next);
-        std::vector<Board> successors(plies.size(), root);
+void perft(Board root){
 
-        for(int i=0; i<plies.size(); ++i){
+    // First level down from root
+    std::vector<ply> plies = root.legal_plies(root.next);
+    std::vector<Board> successors(plies.size(), root);
+    for(int i=0; i<plies.size(); ++i){ successors[i].update(plies[i]); }
 
-            if(MAX_DEPTH > 1){
+    int N = successors.size();
 
-                successors[i].update(plies[i]);
+    // Vectors for thread objects and their results
+    std::vector<std::thread> threads;
+    std::vector<std::future<stats> > futures(N);
+    std::vector<stats> fulfilled(N);
 
-                t0 = Tempus::time();
-                search_tree(successors[i], 2);
-                t1 = Tempus::time();
+    // Create threads
+    for(int i=0; i<N; ++i){
+        std::promise<stats> prms;
+        futures[i] = prms.get_future();
 
-                T += t1 - t0;
-                tbl::row(root.ply2san(plies[i]), N_TERMINAL, N_CAPTURES, N_CHECKS, N_MATES, Tempus::strtime(t1 - t0));
+        // Construct in-place at back of vector
+        threads.emplace_back([prms=std::move(prms)](Board root) mutable{
+            uint64_t t0 = Tempus::time();
+            stats res = DET ? searchn(root, 2) : search(root, 2);
+            res[4] = Tempus::time() - t0;
+            prms.set_value(res);
+        }, successors[i]);
+    }
 
-                N_TERMINAL_TOTAL += N_TERMINAL;
-                N_CAPTURES_TOTAL += N_CAPTURES;
-                N_CHECKS_TOTAL += N_CHECKS;
-                N_MATES_TOTAL += N_MATES;
+    // Await results from futures
+    for(int i=0; i<N; ++i){
+        fulfilled[i] = futures[i].get();
+        threads[i].join();
+    }
 
-                N_TERMINAL = N_CAPTURES = N_CHECKS = N_MATES = 0;
-            }
-            else{
-                ++N_TERMINAL;
-                if(plies[i].capture){ ++N_CAPTURES; }
-                if(plies[i].check)  { ++N_CHECKS; }
-                if(plies[i].mate)   { ++N_MATES; }
+    // Print results to console
+    print_header();
+    for(int i=0; i<N; ++i){
+        if(DET){
+            // Accumulate results
+            RESULTS[0] += fulfilled[i][0];
+            RESULTS[1] += fulfilled[i][1];
+            RESULTS[2] += fulfilled[i][2];
+            RESULTS[3] += fulfilled[i][3];
+            RESULTS[4]  = std::max(RESULTS[4], fulfilled[i][4]);
 
-                tbl::row(root.ply2san(plies[i]), N_TERMINAL, N_CAPTURES, N_CHECKS, N_MATES, Tempus::strtime(0));
-
-                N_TERMINAL_TOTAL += 1;
-                N_CAPTURES_TOTAL += plies[i].capture;
-                N_CHECKS_TOTAL += plies[i].check;
-                N_MATES_TOTAL += plies[i].mate;
-                N_TERMINAL = N_CAPTURES = N_CHECKS = N_MATES = 0;
-            }
+            // Print
+            tbl::row(root.ply2san(plies[i]), fulfilled[i][0], fulfilled[i][1], fulfilled[i][2], fulfilled[i][3], Tempus::strtime(fulfilled[i][4]));
         }
-        tbl::sep(NCOLS);
-        tbl::row(REPR, N_TERMINAL_TOTAL, N_CAPTURES_TOTAL, N_CHECKS_TOTAL, N_MATES_TOTAL, Tempus::strtime(T));
-        tbl::sep(NCOLS);
-    }
-    else{
-        t0 = Tempus::time();
-        search_tree(root);
-        t1 = Tempus::time();
+        else{
+            // Accumulate results
+            RESULTS[0] += fulfilled[i][0];
+            RESULTS[4]  = std::max(RESULTS[4], fulfilled[i][4]);
 
-        tbl::row(REPR, N_TERMINAL, N_CAPTURES, N_CHECKS, N_MATES, Tempus::strtime(t1 - t0));
-        tbl::sep(NCOLS);
+            // Print
+            tbl::row(root.ply2san(plies[i]), fulfilled[i][0], Tempus::strtime(fulfilled[i][4]));
+        }
     }
+    print_footer();
+}
 
-    return 0;
+void perft1(Board root){
+
+    std::vector<uint64_t> times;
+    uint64_t t0 = Tempus::time();
+
+    // First level down from root
+    std::vector<ply> plies = root.legal_plies(root.next);
+    RESULTS[0] = plies.size();
+    if(DET){
+        for(int i=0; i<RESULTS[0]; ++i){
+            RESULTS[1] += plies[i].capture;
+            RESULTS[2] += plies[i].check;
+            RESULTS[3] += plies[i].mate;
+            times.emplace_back(Tempus::time() - t0);
+        }
+    }
+    RESULTS[4] = Tempus::time() - t0;
+
+    // Print results to console
+    print_header();
+    for(int i=0; i<RESULTS[0]; ++i){
+        if(DET){ tbl::row(root.ply2san(plies[i]), 1, (int)plies[i].capture, (int)plies[i].check, (int)plies[i].mate, Tempus::strtime(times[i])); }
+        else   { tbl::row(root.ply2san(plies[i]), 1, Tempus::strtime(Tempus::time() - t0)); }
+    }
+    print_footer();
 }
