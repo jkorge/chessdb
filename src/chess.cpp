@@ -1432,6 +1432,37 @@ const std::array<std::array<std::array<U64, 8>, 64>, 3> rays = {
     _ray< queen,63, 0>::value, _ray< queen,63,1>::value, _ray< queen,63, 2>::value, _ray< queen,63,3>::value, _ray< queen,63,4>::value, _ray< queen,63,5>::value, _ray< queen,63, 6>::value, _ray< queen,63,7>::value
 };
 
+namespace {
+    // Flip least and most significant 1-bits
+    U64 exflip(U64 x){ return (x & x-1) & (x ^ mask(bitscanr(x))); }
+
+    U64 batkm(square sq){ return ~(ONE_ << sq) & (exflip(dmasks[sq]) | exflip(amasks[sq])); }
+
+    U64 ratkm(square sq){ return ~(ONE_ << sq) & (exflip(rmasks[sq]) | exflip(fmasks[sq])); }
+}
+
+const std::array<U64, 64> battackm = {
+    batkm( 0), batkm( 1), batkm( 2), batkm( 3), batkm( 4), batkm( 5), batkm( 6), batkm( 7),
+    batkm( 8), batkm( 9), batkm(10), batkm(11), batkm(12), batkm(13), batkm(14), batkm(15),
+    batkm(16), batkm(17), batkm(18), batkm(19), batkm(20), batkm(21), batkm(22), batkm(23),
+    batkm(24), batkm(25), batkm(26), batkm(27), batkm(28), batkm(29), batkm(30), batkm(31),
+    batkm(32), batkm(33), batkm(34), batkm(35), batkm(36), batkm(37), batkm(38), batkm(39),
+    batkm(40), batkm(41), batkm(42), batkm(43), batkm(44), batkm(45), batkm(46), batkm(47),
+    batkm(48), batkm(49), batkm(50), batkm(51), batkm(52), batkm(53), batkm(54), batkm(55),
+    batkm(56), batkm(57), batkm(58), batkm(59), batkm(60), batkm(61), batkm(62), batkm(63)
+};
+
+const std::array<U64, 64> rattackm = {
+    ratkm( 0), ratkm( 1), ratkm( 2), ratkm( 3), ratkm( 4), ratkm( 5), ratkm( 6), ratkm( 7),
+    ratkm( 8), ratkm( 9), ratkm(10), ratkm(11), ratkm(12), ratkm(13), ratkm(14), ratkm(15),
+    ratkm(16), ratkm(17), ratkm(18), ratkm(19), ratkm(20), ratkm(21), ratkm(22), ratkm(23),
+    ratkm(24), ratkm(25), ratkm(26), ratkm(27), ratkm(28), ratkm(29), ratkm(30), ratkm(31),
+    ratkm(32), ratkm(33), ratkm(34), ratkm(35), ratkm(36), ratkm(37), ratkm(38), ratkm(39),
+    ratkm(40), ratkm(41), ratkm(42), ratkm(43), ratkm(44), ratkm(45), ratkm(46), ratkm(47),
+    ratkm(48), ratkm(49), ratkm(50), ratkm(51), ratkm(52), ratkm(53), ratkm(54), ratkm(55),
+    ratkm(56), ratkm(57), ratkm(58), ratkm(59), ratkm(60), ratkm(61), ratkm(62), ratkm(63)
+};
+
 const std::string pieces = "KQRBN";
 
 const std::string files = "abcdefgh";
@@ -1515,6 +1546,24 @@ std::map<pgntag, std::string> tag2s = {
     {black_uscf, "blackuscf"}
 };
 
+// Track if magic bitboards have been initialized
+bool initialized = false;
+
+// Arrays for magic numbers
+Magic BMagics[64];
+
+Magic RMagics[64];
+
+// Arrays for all possible sliding attack patterns
+U64 BishopAttacks[5248];
+
+U64 RookAttacks[102400];
+
+// PRNG for producing magic numbers
+std::random_device rd;
+std::mt19937_64 gen(rd());
+std::uniform_int_distribution<U64> dist;
+
 /**************************************************
                 FUNCTION DEFINITIONS
 **************************************************/
@@ -1522,102 +1571,6 @@ std::map<pgntag, std::string> tag2s = {
 bool ispiece(char c){ return pieces.find(c) != std::string::npos; }
 
 bool isfile(char c){ return files.find(c) != std::string::npos; }
-
-int c2file(char f){
-    switch(f){
-        case 'a': return 0;
-        case 'b': return 1;
-        case 'c': return 2;
-        case 'd': return 3;
-        case 'e': return 4;
-        case 'f': return 5;
-        case 'g': return 6;
-        default:  return 7;
-    }
-}
-
-int c2rank(char r){
-    switch(r){
-        case '1': return 0;
-        case '2': return 1;
-        case '3': return 2;
-        case '4': return 3;
-        case '5': return 4;
-        case '6': return 5;
-        case '7': return 6;
-        default:  return 7;
-    }
-}
-
-ptype c2ptype(char p){
-    switch(p){
-        case '^': return pawn;
-        case 'N': return knight;
-        case 'B': return bishop;
-        case 'R': return rook;
-        case 'Q': return queen;
-        case 'K': return king;
-        default:  return NOTYPE;
-    }
-}
-
-char file2c(int f){
-    switch(f){
-        case 0:  return 'a';
-        case 1:  return 'b';
-        case 2:  return 'c';
-        case 3:  return 'd';
-        case 4:  return 'e';
-        case 5:  return 'f';
-        case 6:  return 'g';
-        default: return 'h';
-    }
-}
-
-char rank2c(int r){
-    switch(r){
-        case 0:  return '1';
-        case 1:  return '2';
-        case 2:  return '3';
-        case 3:  return '4';
-        case 4:  return '5';
-        case 5:  return '6';
-        case 6:  return '7';
-        default: return '8';
-    }
-}
-
-char ptype2c(ptype p){
-    switch(p){
-        case pawn:   return '^';
-        case knight: return 'N';
-        case bishop: return 'B';
-        case rook:   return 'R';
-        case queen:  return 'Q';
-        case king:   return 'K';
-        default:     return '_';
-    }
-}
-
-char color2c(color c){
-    switch(c){
-        case white: return 'w';
-        case black: return 'b';
-        default:    return ' ';
-    }
-}
-
-color operator!(const color& c){ return static_cast<color>(black * c); }
-
-std::string color2s(color c){
-    switch(c){
-        case white: return "white";
-        case black: return "black";
-        default:    return "none";
-    }
-}
-
-std::string coord2s(square x){ return std::string(1, file2c(x%8)) + rank2c(x/8); }
 
 std::string ptype2s(ptype pt){
     switch(pt){
@@ -1631,6 +1584,16 @@ std::string ptype2s(ptype pt){
     }
 }
 
+std::string color2s(color c){
+    switch(c){
+        case white: return "white";
+        case black: return "black";
+        default:    return "none";
+    }
+}
+
+std::string coord2s(square x){ return std::string(1, file2c(x%8)) + rank2c(x/8); }
+
 std::string pgndict2s(const pgndict& pd){
     std::string res;
     for(pgndict::const_iterator it=pd.begin(); it!=pd.end(); ++it){
@@ -1643,12 +1606,32 @@ std::string bb2s(U64 bb, char c){
     std::string viz = bbviz;
     U64 _bb = bb;
     while(_bb){
-        square x = bitscan(_bb);
-        lsbflip(_bb);
+        square x = lsbpop(_bb);
         int idx = bbvizidx(x);
         viz[idx] = c;
     }
     return viz;
+}
+
+U64 random_magic(){
+    U64 res = ALL_;
+    for(int i=0; i<3; ++i){ res &= dist(gen); }
+    return res;
+}
+
+U64 slide_atk(const square src, const ptype pt, const U64 occ){
+    U64 res = 0ULL;
+    for(int i=0; i<8; ++i){
+        // Ray rooted @ src, directed along axis i
+        U64 r = ray(src, pt, i);
+        if(not r){ continue; }
+        // Nearest (to src), occupied square on the ray
+        square x = i>3 ? bitscanr(r & occ) : bitscan(r & occ);
+        if(x == -1 || x == 64){ res |= r; continue; }
+        // Squares on ray bounded by (src, x]
+        res |= r ^ ray(x, pt, i);
+    }
+    return res;
 }
 
 // Empty board patterns
@@ -1670,8 +1653,56 @@ U64 attack(const square src, const ptype pt, const color c){
 
 U64 line(const square src, const square dst, bool endp){
     U64 res = lines[src][dst];
-    if(endp){ res |= (1LL << src) | (1LL << dst); }
+    if(endp){ res |= (1ULL << src) | (1ULL << dst); }
     return res;
+}
+
+// Sliding attack masks (exludes edge squares)
+U64 attackm(square src, ptype pt){
+    switch(pt){
+        case bishop: return battackm[src];
+        case rook:   return rattackm[src];
+        default:     return battackm[src] | rattackm[src];
+    }
+}
+
+// Intialize magic bitboards
+void magic_init(const ptype pt, U64* table, Magic* magics){
+
+    U64 occupancy[4096], reference[4096], edges, b;
+    int epoch[4096] = {}, cnt = 0, size = 0;
+
+    for(square sq=0; sq<64; ++sq){
+
+        Magic& m = magics[sq];
+        m.mask  = attackm(sq, pt);
+        m.shift = 64 - popcnt(m.mask);
+
+        m.attacks = !sq ? table : magics[sq - 1].attacks + size;
+
+        b = size = 0;
+        do{
+            occupancy[size] = b;
+            reference[size] = slide_atk(sq, pt, b);
+            ++size;
+            b = (b - m.mask) & m.mask;
+        } while(b);
+
+        for(int i=0; i<size; ){
+            for(m.magic=0; popcnt((m.magic * m.mask) >> 56) < 6; ){ m.magic = random_magic(); }
+
+            for (++cnt, i=0; i<size; ++i){
+                int idx = m.index(occupancy[i]);
+
+                if(epoch[idx] < cnt){
+                    epoch[idx] = cnt;
+                    m.attacks[idx] = reference[i];
+                }
+                else
+                if(m.attacks[idx] != reference[i]){ break; }
+            }
+        }
+    }
 }
 
 /**************************************************
@@ -1680,7 +1711,14 @@ U64 line(const square src, const square dst, bool endp){
 
 ply missing;
 
-Board::Board(){ this->reset(); }
+Board::Board(){
+    if(!initialized){
+        magic_init(bishop, BishopAttacks, BMagics);
+        magic_init(rook, RookAttacks, RMagics);
+        initialized = true;
+    }
+    this->reset();
+}
 
 void Board::reset(){
     this->board = newgame;
@@ -1720,13 +1758,13 @@ ptype Board::lookupt(const U64 src){
 
 void Board::remove(const U64 src, const ptype pt, const color c){
     this->board(pt, c) &= ~src;
-    this->board(c) &= ~src;
-    this->board() &= ~src;
+    this->board(c)     &= ~src;
+    this->board()      &= ~src;
 }
 
 void Board::remove(const U64 src){ for(int i=0; i<15; ++i){ this->board[i] &= ~src; } }
 
-void Board::remove(){ this->board.fill(0LL); }
+void Board::remove(){ this->board.fill(0ULL); }
 
 void Board::place(const U64 dst, const ptype pt, const color c){
     this->board(pt, c) |= dst;
@@ -1740,7 +1778,7 @@ void Board::move(const U64 src, const U64 dst, const ptype pt, const color c){
 }
 
 bool Board::clearbt(const square sq1, const square sq2) const{
-    if(attack(sq1, king) & (1LL << sq2)){ return true; }
+    if(attack(sq1, king) & (1ULL << sq2)){ return true; }
     else{
         U64 lbt = line(sq1, sq2);
         switch(lbt){
@@ -1792,9 +1830,8 @@ void Board::update(const ply p){
     }
 
     // Update castling availability
-    BYTE bsl = 0b0011 << (cc ? 2 : 0);
-    if(this->cancas & bsl){
-        if(p.type == king){ this->cancas &= ~bsl; }
+    if(this->cancas & (cc ? 0b1100 : 0b0011)){
+        if(p.type == king){ this->cancas &= ~(cc ? 0b1100 : 0b0011); }
         else
         if(p.type == rook){
             int idx = 2 * !cc;
@@ -1802,6 +1839,13 @@ void Board::update(const ply p){
             else
             if(p.src == rook_castle.at(idx+1)){ this->cancas &= ~(0b0001 << (cc ? 2 : 0)); }
         }
+    }
+    if(p.capture && this->cancas & (cc ? 0b0011 : 0b1100)){
+        // Check if capturing a rook
+        int idx = 2 * cc;
+        if(p.dst == rook_castle.at(idx  )){ this->cancas &= ~(0b0010 << (!cc ? 2 : 0)); }
+        else
+        if(p.dst == rook_castle.at(idx+1)){ this->cancas &= ~(0b0001 << (!cc ? 2 : 0)); }
     }
 
     // Check for pins
@@ -1821,37 +1865,29 @@ void Board::search_pins(){
             3. There is only one piece with the same color as the opposing king on that line
     */
 
-    this->pins = 0;
+    this->pins = 0ULL;
 
     for(int i=white; i>=black; i-=2){
         color c = static_cast<color>(i);
 
-        const U64 okloc = this->board(king, !c),
-                  same = this->board(c),
-                  oppt = this->board(!c);
-
-        const square oksq = bitscan(okloc);
+        const square ksq = bitscan(this->board(king, !c));
 
         for(int j=bishop; j<=queen; ++j){
             ptype pt = static_cast<ptype>(j);
             U64 plocs = this->board(pt, c);
 
             while(plocs){
-                square x = bitscan(plocs);
-                lsbflip(plocs);
-
-                if(okloc & attack(x, pt)){
-                    U64 lbt = line(x, oksq),
-                        pnc = lbt & oppt,
-                        pnb = lbt & same;
-                    if(lbt && !pnb && !(pnc & pnc-1)){ this->pins |= pnc; }
-                }
+                square x = lsbpop(plocs);
+                U64 atk = this->board(king, !c) & attack(x, pt),
+                    pin = line(x, ksq) & this->board(!c),
+                    block = line(x, ksq) & this->board(c);
+                if(atk && popcnt(pin) == 1 && !popcnt(block)){ this->pins |= pin; }
             }
         }
     }
 }
 
-void Board::search_checks(color c){
+void Board::search_checks(const color c){
     // color c = color of player EXECUTING check
     this->checkers.clear();
     const U64 kloc = this->board(king, !c);
@@ -1860,35 +1896,38 @@ void Board::search_checks(color c){
         ptype pt = static_cast<ptype>(i);
         U64 bb = this->board(pt, c);
         while(bb){
-            square x = bitscan(bb);
-            lsbflip(bb);
-            if(this->legal(x, pt, c) & kloc){ this->checkers[mask(x)] = pt; }
+
+            square x = lsbpop(bb);
+            U64 atk = 0;
+
+            if(pt <= knight){ atk |= attack(x, pt, c); }
+            if(pt == bishop || pt == queen){ atk |= BMagics[x].attacks[BMagics[x].index(this->board())]; }
+            if(pt == rook   || pt == queen){ atk |= RMagics[x].attacks[RMagics[x].index(this->board())]; }
+
+            if(atk & kloc){ this->checkers[mask(x)] = pt; }
         }
     }
 }
 
-U64 Board::legal(bool king_search) const{
+U64 Board::legal(const bool king_search) const{
     U64 res = 0;
     for(int i=white; i>=black; i-=2){ res|= this->legal(static_cast<color>(i), king_search); }
     return res;
 }
 
-U64 Board::legal(color c, bool king_search) const{
+U64 Board::legal(const color c, const bool king_search) const{
     U64 res = 0;
     for(int j=pawn; j<=king; ++j){ res |= this->legal(static_cast<ptype>(j), c, king_search); }
     return res;
 }
 
-U64 Board::legal(ptype pt, color c, bool king_search) const{
+U64 Board::legal(const ptype pt, const color c, const bool king_search) const{
     U64 res = 0, bb = this->board[pt+6*(c<0)];
-    while(bb){
-        res |= this->legal(bitscan(bb), pt, c, king_search);
-        lsbflip(bb);
-    }
+    while(bb){ res |= this->legal(lsbpop(bb), pt, c, king_search); }
     return res;
 }
 
-U64 Board::legal(square src, ptype pt, color c, bool king_search) const{
+U64 Board::legal(const square src, const ptype pt, const color c, const bool king_search) const{
     bool cc = c>0;
     U64 res = 0;
     const U64 occ = this->board(), bsrc = mask(src);
@@ -1897,21 +1936,19 @@ U64 Board::legal(square src, ptype pt, color c, bool king_search) const{
     switch(pt){
 
         case pawn: {
-            const U64 opp = this->board(!c),
-                      pst = cc ? white_pawns : black_pawns;
             // Single push
             res |= (cc ? bsrc << 8 : bsrc >> 8) & ~occ;
             // Double push
-            if(res && bsrc & pst){ res |= (cc ? bsrc << 16 : bsrc >> 16) & ~occ; }
+            if(res && bsrc & (cc ? white_pawns : black_pawns)){ res |= (cc ? bsrc << 16 : bsrc >> 16) & ~occ; }
             // Captures
-            res |= attack(src, pawn, c) & (this->next == c ? (opp | this->enpas) : opp);
-            if(this->enpas & res){
+            res |= attack(src, pawn, c) & (this->next == c ? (this->board(!c) | this->enpas) : this->board(!c));
+            if(res & this->enpas){
                 // Remove en passant discovered checks
-                U64 rqo = rank(kloc) & (this->board(rook, !c) | this->board(queen, !c)),
-                    rem = ~(bsrc | (cc ? this->enpas >> 8 : this->enpas << 8));
-                while(rqo){
-                    if(not (line(bitscan(rqo), kloc) & occ & rem)){ res &= ~this->enpas; break; }
-                    lsbflip(rqo);
+                U64 krank = rank(kloc);
+                if(bsrc & krank){
+                    U64 rnp = krank & occ & ~(bsrc | (cc ? this->enpas >> 8 : this->enpas << 8)),
+                        ros = krank & (this->board(queen, !c) | this->board(rook, !c));
+                    while(ros){ if(not (line(kloc, lsbpop(ros)) & rnp)){ res &= ~this->enpas; break; } }
                 }
             }
             break;
@@ -1922,37 +1959,38 @@ U64 Board::legal(square src, ptype pt, color c, bool king_search) const{
             break;
         }
 
-        case bishop:
-        case rook:
+        case bishop: {
+            res |= BMagics[src].attacks[BMagics[src].index(occ)];
+            break;
+        }
+        case rook: {
+            res |= RMagics[src].attacks[RMagics[src].index(occ)];
+            break;
+        }
         case queen: {
-            for(int i=0; i<8; ++i){
-                // Ray rooted @ src, directed along axis i
-                U64 r = ray(src, pt, i);
-                if(not r){ continue; }
-                // Nearest (to src), occupied square on the ray
-                square x = i>3 ? bitscanr(r & occ) : bitscan(r & occ);
-                if(x == -1 || x == 64){ res |= r; continue; }
-                // Squares on ray bounded by (src, x]
-                res |= r ^ ray(x, pt, i);
-            }
+            res |= BMagics[src].attacks[BMagics[src].index(occ)];
+            res |= RMagics[src].attacks[RMagics[src].index(occ)];
             break;
         }
 
         default: {
-            U64 atk = 0, opwn = this->board(pawn, !c), okloc = this->board(king, !c);
-            // Squares attacked by opponent
-            while(opwn){
-                atk |= attack(bitscan(opwn), pawn, !c);
-                lsbflip(opwn);
-            }
+            // king
+            U64 atk = 0,
+                opwn = this->board(pawn, !c),
+                okloc = this->board(king, !c);
+            // Squares attacked by opponent's...
+            // ...pawns
+            while(opwn){ atk |= attack(lsbpop(opwn), pawn, !c); }
+            // ...pieces
             for(int i=knight; i<king; ++i){ atk |= this->legal(static_cast<ptype>(i), !c, true); }
+            // ...king
             if(okloc){ atk |= attack(bitscan(okloc), king); }
             res |= attack(src, king) & ~atk;
             // Castles
             if(this->check != c && this->cancas & (cc ? 0b1100 : 0b0011)){
-                U64 ksl = 0x60LL << (cc ? 0 : 56),
-                    qslc = 0x0eLL << (cc ? 0 : 56),
-                    qsls = 0x0cLL << (cc ? 0 : 56);
+                U64 ksl = 0x60ULL << (cc ? 0 : 56),
+                    qslc = 0x0eULL << (cc ? 0 : 56),
+                    qsls = 0x0cULL << (cc ? 0 : 56);
                 bool ks = this->cancas & (cc ? 0b1000 : 0b0010),
                      qs = this->cancas & (cc ? 0b0100 : 0b0001);
                 if(ks && ksl == (ksl & ~occ & ~atk)){ res |= bsrc << 2; }
@@ -1969,7 +2007,7 @@ U64 Board::legal(square src, ptype pt, color c, bool king_search) const{
         U64 filter = 0;
         for(std::unordered_map<U64, ptype>::const_iterator it=this->checkers.begin(); it!=this->checkers.end(); ++it){
             if(pt != king && this->checkers.size() == 1){
-                // Block or Capture (line includes endpoints)
+                // Block or Capture
                 filter |= line(bitscan(it->first), kloc, true);
                 // En Passant capture
                 if(pt == pawn && this->enpas == (cc ? (it->first << 8) : (it->first >> 8))){ filter |= this->enpas; }
@@ -1995,7 +2033,7 @@ std::vector<ply> Board::legal_plies() const{
     return plies;
 }
 
-std::vector<ply> Board::legal_plies(color c) const{
+std::vector<ply> Board::legal_plies(const color c) const{
     std::vector<ply> plies;
     for(int j=pawn; j<=king; ++j){
         std::vector<ply> _p = this->legal_plies(static_cast<ptype>(j), c);
@@ -2008,8 +2046,7 @@ std::vector<ply> Board::legal_plies(ptype pt, color c) const{
     std::vector<ply> plies;
     U64 bb = this->board(pt, c);
     while(bb){
-        std::vector<ply> _p = this->legal_plies(bitscan(bb), pt, c);
-        lsbflip(bb);
+        std::vector<ply> _p = this->legal_plies(lsbpop(bb), pt, c);
         plies.insert(plies.end(), _p.begin(), _p.end());
     }
     return plies;
@@ -2017,24 +2054,22 @@ std::vector<ply> Board::legal_plies(ptype pt, color c) const{
 
 std::vector<ply> Board::legal_plies(square src, ptype pt, color c) const{
     std::vector<ply> plies;
-    U64 moves = this->legal(src, pt, c),
-        okloc = this->board(king, !c);
+    U64 moves = this->legal(src, pt, c);
     int cas = 0;
     bool cap = false, chk = false, mte = false, pmo = false;
 
     while(moves){
-        U64 dst = mask(bitscan(moves));
-        lsbflip(moves);
+        U64 dst = mask(lsbpop(moves));
 
         // Capture
         cap = (pt != pawn ? this->board() : (this->board() | this->enpas)) & dst;
 
         // Castle
         if(pt == king){
-            if(dst == (1LL << src+2)){ cas =  1; }
+            if(dst == (1ULL << src+2)){ cas =  1; }
             else
-            if(dst == (1LL << src-2)){ cas = -1; }
-            else                     { cas =  0; }
+            if(dst == (1ULL << src-2)){ cas = -1; }
+            else                      { cas =  0; }
         }
         else{ cas = 0; }
 
@@ -2048,10 +2083,10 @@ std::vector<ply> Board::legal_plies(square src, ptype pt, color c) const{
 
             Board b = *this;
             b.update(plies.back());
+            b.search_checks(c);
 
-            chk = b.legal(c) & b.board(king, !c);
+            chk = b.checkers.size() > 0;
             if(chk){
-                b.search_checks(c);
                 b.check = b.next;
                 mte = !b.legal(b.next);
             }
@@ -2088,8 +2123,7 @@ std::string Board::ply2san(const ply p) const{
 
     while(bb){
         // Seek pieces which can reach dst (ie. seek need for disambiugation)
-        square x = bitscan(bb);
-        lsbflip(bb);
+        square x = lsbpop(bb);
         if(this->legal(x, p.type, p.c) & p.dst){
             if(srcf != x%8){ dbf = true; }
             else
@@ -2123,12 +2157,11 @@ std::string Board::to_string(){
     U64 bb = this->board();
 
     while(bb){
-        square x = bitscan(bb);
-        U64 src = 1LL << x;
+        square x = lsbpop(bb);
+        U64 src = 1ULL << x;
         int idx = bvizidx(x);
         viz[idx+1] = color2c(this->lookupc(src));
         viz[idx+2] = ptype2c(this->lookupt(src));
-        lsbflip(bb);
     }
     return viz;
 }
@@ -2149,12 +2182,12 @@ namespace disamb{
         if(pinned){
             // Remove from candidates and add back in only if `moveable_pin` returns `true`
             candidates &= ~pinned;
-            U64 kloc = board.board(king, c);
+            square kloc = bitscan(board.board(king, c)),
+                   dsq = bitscan(dst);
 
             while(pinned){
-                U64 pros = mask(bitscan(pinned));
-                lsbflip(pinned);
-                if(moveable_pin(bitscan(pros), bitscan(dst), bitscan(kloc))){ candidates |= pros; }
+                U64 pros = mask(lsbpop(pinned));
+                if(moveable_pin(bitscan(pros), dsq, kloc)){ candidates |= pros; }
             }
         }
     }
@@ -2171,19 +2204,19 @@ namespace disamb{
 
     U64 dpiece(const U64 src, const U64 dst, ptype pt, color c, const Board& board){
         U64 candidates = board.board(pt, c),
-            kloc = board.board(king, c),
             grid = board.board();
+        square kloc = bitscan(board.board(king, c)),
+               dsq = bitscan(dst);
 
         while(candidates){
-            U64 pros = mask(bitscan(candidates));
-            lsbflip(candidates);
+            U64 pros = mask(lsbpop(candidates));
             if(pros & board.pins){
-                if(not moveable_pin(bitscan(pros), bitscan(dst), bitscan(kloc))){ continue; }
+                if(not moveable_pin(bitscan(pros), dsq, kloc)){ continue; }
             }
             if(
                 (!src || pros & src) &&
                 (dst & attack(bitscan(pros), pt, c)) &&
-                (pt == knight || !(grid & line(bitscan(pros), bitscan(dst))))
+                (pt == knight || !(grid & line(bitscan(pros), dsq)))
             ){ return pros; }
         }
         return 0;

@@ -30,8 +30,7 @@ BYTE Encoder::encode_piece(const ply p, Board& board){
     U64 bb = board.board(p.type, p.c);
     int cnt = 0, src = bitscan(p.src);
     while(bb){
-        if(bitscan(bb) == src){ break; }
-        lsbflip(bb);
+        if(lsbpop(bb) == src){ break; }
         ++cnt;
     }
     BYTE _piece = static_cast<BYTE>(p.type + 6*(p.c<0)) | (cnt << 4);
@@ -222,11 +221,11 @@ coords Decoder::bishop_action(BYTE _action){
     int  m = _action & 7;
     if(d ^ a){
         if(d){ return {-m, -m}; }
-        else { return {m, -m}; }
+        else { return { m, -m}; }
     }
     else{
         if(d){ return {-m, m}; }
-        else { return {m, m}; }
+        else { return { m, m}; }
     }
 }
 

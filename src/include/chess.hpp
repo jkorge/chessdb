@@ -4,9 +4,10 @@
 #include <immintrin.h>
 #include <cctype>
 #include <cstdint>
+#include <cstdlib>
 
-#include <iostream>
 #include <array>
+#include <random>
 #include <regex>
 #include <string>
 #include <unordered_map>
@@ -22,15 +23,14 @@ typedef uint64_t U64;
 
 typedef int square;
 
-// typedef std::array<int, 2> coords;
-
 typedef enum color{ white = 1, black = -1, NOCOLOR = 0 } color;
 
 typedef enum ptype {pawn = 0, knight, bishop, rook, queen, king, NOTYPE = -1} ptype;
 
 typedef struct ply{
 
-    U64 src, dst;
+    U64 src,
+        dst;
     color c;
     ptype type,
           promo;
@@ -90,6 +90,7 @@ typedef struct ply{
           check(other.check),
           mate(other.mate) {}
 
+    // Comparison operators
     bool operator==(const ply& other) const{
         return (this->src == other.src) &&
                (this->dst == other.dst) &&
@@ -108,29 +109,29 @@ typedef struct ply{
 typedef uint16_t eply;
 
 typedef struct bitboard : std::array<U64, 15>{
-    const U64& operator()(ptype pt, color c) const{ return this->operator[](pt + 6*(c<0)); }
-    U64& operator()(ptype pt, color c){ return this->operator[](pt + 6*(c<0)); }
+    inline const U64& operator()(ptype pt, color c) const{ return this->operator[](pt + 6*(c<0)); }
+    inline U64& operator()(ptype pt, color c){ return this->operator[](pt + 6*(c<0)); }
 
-    const U64& operator()(color c) const{ return this->operator[](12 + (c<0)); }
-    U64& operator()(color c){ return this->operator[](12 + (c<0)); }
+    inline const U64& operator()(color c) const{ return this->operator[](12 + (c<0)); }
+    inline U64& operator()(color c){ return this->operator[](12 + (c<0)); }
 
-    U64 operator()(ptype pt){ return this->operator[](pt) | this->operator[](pt+6); }
+    inline U64 operator()(ptype pt){ return this->operator[](pt) | this->operator[](pt+6); }
 
-    const U64& operator()() const{ return this->operator[](14); }
-    U64& operator()(){ return this->operator[](14); }
+    inline const U64& operator()() const{ return this->operator[](14); }
+    inline U64& operator()(){ return this->operator[](14); }
 } bitboard;
 
 typedef struct coords : std::array<int, 2>{
     coords() : std::array<int, 2>{0} {}
-    coords(square x) : std::array<int, 2>{x/8, x%8} {}
-    coords(U64 src); // defined below under `INLINE FUNCTIONS`
-    coords(int r, int f) : std::array<int, 2>{r, f} {}
+    coords(const square x) : std::array<int, 2>{x/8, x%8} {}
+    coords(const U64 src); // defined below under `INLINE FUNCTIONS`
+    coords(const int r, const int f) : std::array<int, 2>{r, f} {}
     coords operator+(const coords& other) const{ return {this->at(0) + other.at(0), this->at(1) + other.at(1)}; }
 } coords;
 
 typedef enum pgntag{
 /*
-    This is NOT an enum of all PGN-tag keys
+    This is NOT an enum of all PGN tags
     Only those deemed most useful in analyzing games are included here
     See https://www.chessclub.com/help/PGN-spec for more info on PGN specifications
 */
@@ -202,6 +203,14 @@ struct egame{
     bool operator!=(const egame& other) const{ return not (*this == other); }
 };
 
+struct Magic{
+    U64 mask, magic;
+    U64* attacks;
+    uint32_t shift;
+
+    int index(U64 occ) const{ return ((occ & this->mask) * this->magic) >> this->shift; }
+};
+
 /**************************************************
                 GLOBAL CONSTANTS
 **************************************************/
@@ -270,6 +279,10 @@ extern const std::array<std::array<U64, 64>, 64> lines;
 
 extern const std::array<std::array<std::array<U64, 8>, 64>, 3> rays;
 
+extern const std::array<U64, 64> battackm;
+
+extern const std::array<U64, 64> rattackm;
+
 extern const std::string pieces;
 
 extern const std::string files;
@@ -287,31 +300,130 @@ extern std::map<std::string, pgntag> s2tag;
 extern std::map<pgntag, std::string> tag2s;
 
 /**************************************************
+                CONSTEXPR FUNCTIONS
+**************************************************/
+
+// invert color (NOCOLOR => NOCOLOR)
+constexpr color operator!(const color& c){ return static_cast<color>(black * c); }
+
+constexpr int c2file(char f){
+    switch(f){
+        case 'a': return 0;
+        case 'b': return 1;
+        case 'c': return 2;
+        case 'd': return 3;
+        case 'e': return 4;
+        case 'f': return 5;
+        case 'g': return 6;
+        default:  return 7;
+    }
+}
+
+constexpr int c2rank(char r){
+    switch(r){
+        case '1': return 0;
+        case '2': return 1;
+        case '3': return 2;
+        case '4': return 3;
+        case '5': return 4;
+        case '6': return 5;
+        case '7': return 6;
+        default:  return 7;
+    }
+}
+
+constexpr ptype c2ptype(char p){
+    switch(p){
+        case '^': return pawn;
+        case 'N': return knight;
+        case 'B': return bishop;
+        case 'R': return rook;
+        case 'Q': return queen;
+        case 'K': return king;
+        default:  return NOTYPE;
+    }
+}
+
+constexpr char file2c(int f){
+    switch(f){
+        case 0:  return 'a';
+        case 1:  return 'b';
+        case 2:  return 'c';
+        case 3:  return 'd';
+        case 4:  return 'e';
+        case 5:  return 'f';
+        case 6:  return 'g';
+        default: return 'h';
+    }
+}
+
+constexpr char rank2c(int r){
+    switch(r){
+        case 0:  return '1';
+        case 1:  return '2';
+        case 2:  return '3';
+        case 3:  return '4';
+        case 4:  return '5';
+        case 5:  return '6';
+        case 6:  return '7';
+        default: return '8';
+    }
+}
+
+constexpr char ptype2c(ptype p){
+    switch(p){
+        case pawn:   return '^';
+        case knight: return 'N';
+        case bishop: return 'B';
+        case rook:   return 'R';
+        case queen:  return 'Q';
+        case king:   return 'K';
+        default:     return '_';
+    }
+}
+
+constexpr char color2c(color c){
+    switch(c){
+        case white: return 'w';
+        case black: return 'b';
+        default:    return ' ';
+    }
+}
+
+// Flip LS1B
+constexpr void lsbflip(U64& x){ x &= x-1; }
+
+// Square number => U64
+constexpr U64 mask(const square x){ return 1LL << x; }
+
+// Printing utils
+constexpr int bvizidx(square sq){ return 36 + 35*(7 - sq/8) + 4*(sq%8); }
+
+constexpr int bbvizidx(square sq){ return 2 + 25*(7 - sq/8) + 3*(sq%8); }
+
+/**************************************************
                 INLINE FUNCTIONS
 **************************************************/
 
-// Bitscans
+// Bitscan Foward - Index of LS1B (64 if src == 0)
 inline square bitscan(const U64 src){ return _tzcnt_u64(src); }
 
+// Bitscan Reverse - Index of MS1B (-1 if src == 0)
 inline square bitscanr(const U64 src){ return 63 - _lzcnt_u64(src); }
 
+// Count number of 1 bits
+inline int popcnt(const U64 x){ return _mm_popcnt_u64(x); }
+
 // Coords constructor - depends on bitscan
-inline coords::coords(U64 src) : coords::coords(bitscan(src)) {}
+inline coords::coords(const U64 src) : coords::coords(bitscan(src)) {}
 
-// Flip LS1B
-inline void lsbflip(U64& x){ x &= x-1; }
+// Bitscan, flip ls1b, return bitscan result
+inline square lsbpop(U64& x){ square s = bitscan(x); lsbflip(x); return s; }
 
-// Square number => U64
-inline U64 mask(const square x){ return 1LL << x; }
-
-// Printing utils
-inline int bvizidx(square sq){ return 36 + 35*(7 - sq/8) + 4*(sq%8); }
-
-inline int bbvizidx(square sq){ return 2 + 25*(7 - sq/8) + 3*(sq%8); }
-
-// Empty board patterns
+// Empty board patterns for sliding pieces
 inline U64 ray(const square sq, const ptype pt, const int dir){ return rays[pt-2][sq][dir]; }
 
+// Board axes
 inline U64 axis(const square sq1, const square sq2){ return axes[sq1][sq2]; }
 
 inline U64 rank(const square sq){ return rmasks[sq]; }
@@ -330,37 +442,30 @@ bool ispiece(char);
 
 bool isfile(char);
 
-int c2file(char);
-
-int c2rank(char);
-
-ptype c2ptype(char);
-
-char file2c(int);
-
-char rank2c(int);
-
-char ptype2c(ptype);
-
-char color2c(color);
-
-color operator!(const color&);
+std::string ptype2s(ptype);
 
 std::string color2s(color);
 
 std::string coord2s(square);
 
-std::string ptype2s(ptype);
-
 std::string pgndict2s(const pgndict&);
 
 std::string bb2s(U64, char='1');
+
+U64 random_magic();
+
+U64 slide_atk(const square, const ptype, const U64);
 
 // Empty board patterns
 U64 attack(const square, const ptype, const color=NOCOLOR);
 
 U64 line(const square, const square, bool=false);
 
+// Sliding attack masks (exludes edge squares)
+U64 attackm(const square, const ptype);
+
+// Intialize magic bitboards
+void magic_init(const ptype, U64*, Magic*);
 
 /**************************************************
                     BOARD CLASS
@@ -410,6 +515,13 @@ public:
     std::vector<ply> legal_plies(color) const;
     std::vector<ply> legal_plies(ptype, color) const;
     std::vector<ply> legal_plies(square, ptype, color) const;
+
+    // std::vector<ply> legal_plies() const;
+    // std::vector<ply> legal_plies(const color c) const;
+    // std::vector<ply> legal_plies(const ptype pt, const color c) const;
+    // std::vector<ply> legal_plies(const square src, const ptype pt, const color c) const;
+    // ply plygen(const square src, const square dst, const ptype pt, const color c) const;
+    // std::vector<ply> plygen(const square src, const square dst, const color c) const;
 
     std::string ply2san(const ply) const;
 
