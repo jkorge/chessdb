@@ -26,44 +26,28 @@ constexpr char tag_delims[]{"[]"},
                key_delim = ' ',
                value_delim = '\"';
 
+// Size requirements for precomputed plies (PGN)
+constexpr std::size_t psz = 924,
+                      nsz = 4896,
+                      bsz = 8640,
+                      rsz = 11904,
+                      qsz = 15264,
+                      ksz = 2526;
+
 // Delimiter for parsing moves in SAN
 const std::regex move_num_r("(\\d{1,}\\.)");
 
 // Regex for movetext that opens with an elided white ply (e.g. "1... Rd8")
 const std::regex elided("\\d{1,}\\.{3}");
 
-/**************************************************
-                      ENCODER
-**************************************************/
+namespace encode{
+    std::vector<eply> Game(const game&);
 
-class Encoder {
+    eply Ply(const ply, Board&);
 
-    Board board;
+    BYTE piece(const ply, Board&);
 
-    ply missing;                // default construct for missing or elided plies
-    eply emissing{UINT16_MAX};  // use `11111111 11111111` for missing plies
-
-public:
-
-    std::vector<eply> encode_game(const game&);
-
-    eply encode_ply(const ply, Board&);
-
-    BYTE encode_piece(const ply, Board&);
-
-    BYTE encode_action(const ply);
-
-    BYTE encode_mat(ptype, color);
-
-    BYTE encode_capture(bool);
-
-    BYTE encode_check(bool);
-
-    BYTE encode_mate(bool);
-
-    BYTE encode_pawn_promotion(ptype, bool=true);
-
-    BYTE encode_queen_axis(const coords, const coords);
+    BYTE action(const ply);
 
     BYTE pawn_action(const coords, const coords, bool, ptype);
 
@@ -76,37 +60,12 @@ public:
     BYTE queen_action(const coords, const coords);
 
     BYTE king_action(const coords, const coords);
-};
+}
 
-/**************************************************
-                      DECODER
-**************************************************/
+namespace decode{
+    std::vector<ply> Game(const std::vector<eply>&, const std::string="");
 
-class Decoder{
-
-    Board board;
-
-    ply missing;                // default construct for missing or elided plies
-    eply emissing{UINT16_MAX};  // use `11111111 11111111` for missing plies
-
-public:
-    std::vector<ply> decode_game(const std::vector<eply>&, const std::string="");
-
-    ply decode_ply(eply, Board&);
-
-    ptype decode_type(BYTE);
-
-    color decode_color(BYTE);
-
-    bool decode_capture(BYTE);
-
-    bool decode_check(BYTE);
-
-    bool decode_mate(BYTE);
-
-    ptype decode_pawn_promotion(BYTE);
-
-    ptype decode_queen_axis(BYTE);
+    ply Ply(eply, Board&);
 
     coords pawn_action(BYTE, color);
 
@@ -116,10 +75,10 @@ public:
 
     coords rook_action(BYTE);
 
-    coords queen_action(BYTE, ptype);
+    coords queen_action(BYTE, BYTE);
 
     coords king_action(BYTE);
-};
+}
 
 /**************************************************
                       PGN
@@ -142,6 +101,9 @@ class PGN : virtual public ParseBuf<CharT, Traits>{
 protected:
     std::vector<ply> _plies;
     pgndict _tags;
+public:
+    std::map<ptype, std::vector<ply> > ply_map;
+    std::map<std::string, ply*> san_map;
 
 private:
     int tend;
@@ -149,6 +111,8 @@ private:
     // ParseBuf overrides
     void read();
     int_type rparse();
+
+    void brp(U64, U64, ptype, bool, bool, bool);
 
     // Parsing functions
     void tags();
@@ -203,8 +167,8 @@ class ChessDB : virtual public ParseBuf<CharT, Traits>{
     template<typename CharT_, typename Traits_>
     friend class ChessDBStream;
 
-    Encoder enc;
-    Decoder dec;
+    // Encoder enc;
+    // Decoder dec;
 public:
     std::unordered_map<string, uint32_t> tag_enumerations{{"", 0}};
     std::vector<string> tags{""};
