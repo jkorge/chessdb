@@ -1708,8 +1708,7 @@ void magic_init(const ptype pt, U64* table, Magic* magics){
 /**************************************************
                     BOARD CLASS
 **************************************************/
-
-ply missing;
+namespace { ply missing; }
 
 Board::Board(){
     if(!initialized){
