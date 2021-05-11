@@ -18,8 +18,8 @@ long MAX_DEPTH{1};
 
 // formatting specs
 constexpr std::size_t sz{20};
-typedef table<sz> tbl;
-int NCOLS{6};
+typedef table<6, 20, true> tbl;
+typedef table<3, 20, true> tab;
 
 // Array typedef to contain results
 typedef struct stats : std::array<uint64_t, 5>{
@@ -51,11 +51,11 @@ stats RESULTS = {0};
 
 stats search(Board, int);
 stats searchn(Board, int);
+void perft(Board);
+void perft1(Board);
 Board setup();
 void print_header();
 void print_footer();
-void perft(Board);
-void perft1(Board);
 
 /**************************************************
                         MAIN
@@ -76,10 +76,11 @@ int main(int argc, char** argv){
         else
         if(!std::strcmp(argv[i], "-f")){ FENSTR = argv[++i]; }
         else
-        if(!std::strcmp(argv[i], "-q")){ DET = false; NCOLS = 3; }
+        if(!std::strcmp(argv[i], "-q")){ DET = false; }
     }
 
     Board root = setup();
+
     if(MAX_DEPTH > 1){ perft(root); }
     else             { perft1(root); }
 
@@ -126,40 +127,6 @@ stats searchn(Board root, int lvl){
         res += searchn(successors[i], lvl + 1);
     }
     return res;
-}
-
-Board setup(){
-
-    Board root;
-
-    // Advance board state according to cmd args
-    if(!FENSTR.empty()){ fen::parse(FENSTR, root); }
-    for(int i=0; i<MOVETEXT.size(); ++i){
-        if(white == root.next){ REPR += std::to_string(i/2 + 1) + "."; }
-        REPR += MOVETEXT[i] + " ";
-        root.update(pply(MOVETEXT[i], root.next, root));
-    }
-
-    // Trim REPR to fit in table cell
-    if(REPR.size() > sz){ REPR = REPR.substr(0, sz-3) + "..."; }
-    // Print board if not standard new game
-    if(!FENSTR.empty() || REPR != "/"){ bprint(root); }
-
-    return root;
-}
-
-void print_header(){
-    tbl::sep(NCOLS);
-    if(DET){ tbl::row("Ply", "N", "Captures", "Checks", "Checkmates", "Time"); }
-    else   { tbl::row("Ply", "N", "Time"); }
-    tbl::sep(NCOLS);
-}
-
-void print_footer(){
-    tbl::sep(NCOLS);
-    if(DET){ tbl::row(REPR, RESULTS[0], RESULTS[1], RESULTS[2], RESULTS[3], Tempus::strtime(RESULTS[4])); }
-    else   { tbl::row(REPR, RESULTS[0], Tempus::strtime(RESULTS[4])); }
-    tbl::sep(NCOLS);
 }
 
 void perft(Board root){
@@ -216,7 +183,7 @@ void perft(Board root){
             RESULTS[4]  = std::max(RESULTS[4], fulfilled[i][4]);
 
             // Print
-            tbl::row(root.ply2san(plies[i]), fulfilled[i][0], Tempus::strtime(fulfilled[i][4]));
+            tab::row(root.ply2san(plies[i]), fulfilled[i][0], Tempus::strtime(fulfilled[i][4]));
         }
     }
     print_footer();
@@ -244,7 +211,38 @@ void perft1(Board root){
     print_header();
     for(int i=0; i<RESULTS[0]; ++i){
         if(DET){ tbl::row(root.ply2san(plies[i]), 1, (int)plies[i].capture, (int)plies[i].check, (int)plies[i].mate, Tempus::strtime(times[i])); }
-        else   { tbl::row(root.ply2san(plies[i]), 1, Tempus::strtime(Tempus::time() - t0)); }
+        else   { tab::row(root.ply2san(plies[i]), 1, Tempus::strtime(Tempus::time() - t0)); }
     }
     print_footer();
+}
+
+Board setup(){
+
+    Board root;
+
+    // Advance board state according to cmd args
+    if(!FENSTR.empty()){ fen::parse(FENSTR, root); }
+    for(int i=0; i<MOVETEXT.size(); ++i){
+        if(white == root.next){ REPR += std::to_string(i/2 + 1) + "."; }
+        REPR += MOVETEXT[i] + " ";
+        root.update(pply(MOVETEXT[i], root.next, root));
+    }
+
+    // Trim REPR to fit in table cell
+    if(REPR.size() > sz){ REPR = REPR.substr(0, sz-3) + "..."; }
+
+    // Print board if not standard new game
+    if(!FENSTR.empty() || REPR != "/"){ bprint(root); }
+
+    return root;
+}
+
+void print_header(){
+    if(DET){ tbl::header("Ply", "N", "Captures", "Checks", "Checkmates", "Time"); }
+    else   { tab::header("Ply", "N", "Time"); }
+}
+
+void print_footer(){
+    if(DET){ tbl::header(REPR, RESULTS[0], RESULTS[1], RESULTS[2], RESULTS[3], Tempus::strtime(RESULTS[4])); }
+    else   { tab::header(REPR, RESULTS[0], Tempus::strtime(RESULTS[4])); }
 }

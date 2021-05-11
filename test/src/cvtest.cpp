@@ -1,8 +1,10 @@
 #include <cstdlib>
+#include <filesystem>
 
 #include "devutil.hpp"
 
 typedef header<20> hdr;
+typedef table<2, 20> tbl;
 int pfreq{20};
 
 void prog(float i, float N, char end='\0'){ std::cout << int(100 * (i/N)) << '%' << end; }
@@ -16,8 +18,8 @@ std::vector<game> load_pgn(std::string file, int start, int stop=-1){
     // Containers
     std::vector<game> games;
     game g;
-    unsigned long long t0 = Tempus::time();
     double T;
+    unsigned long long t0 = Tempus::time();
 
     for(int i=0; i<start; ++i){ pstr >> g; }
 
@@ -42,6 +44,7 @@ std::vector<game> load_pgn(std::string file, int start, int stop=-1){
         }
         prog(1.0, 1.0);
     }
+    
     T = Tempus::time() - t0;
     std::cout << " (" << (T/1.0e9) << " s)" << "\n\n";
     return games;
@@ -166,12 +169,21 @@ int main(int argc, char** argv){
         if(!std::strcmp(argv[i], "-d")){ dst_file = argv[++i]; }
     }
 
-    std::cout << "Reading games " << start << " to " << stop
-              << " from " << src_file << " and saving to " << dst_file << '\n';
+    if(pfreq > stop-start){ pfreq = 1; }
+
+    auto trim = [](std::string x){ return x.size() <= 20 ? x : x.substr(0,17) + "..."; };
+
+    tbl::header("Read From", std::filesystem::path(src_file).filename().string());
+    tbl::header("Write To", std::filesystem::path(dst_file).filename().string());
+    tbl::header("From Game No.", start);
+    tbl::header("To Game No.", stop);
+
+    std::cout << "\n";
 
     if(create(src_file, dst_file, start, stop)){ load(dst_file); }
 
     std::system((std::string("del ") + dst_file).data());
+
     hdr::print("Done");
 
     return 0;

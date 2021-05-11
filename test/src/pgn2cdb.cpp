@@ -2,9 +2,8 @@
 
 #include "devutil.hpp"
 
-const int NCOLS = 5;
-
-typedef table<20> tbl;
+typedef table<4, 20, true> tbl;
+typedef table<5, 20, false> tab;
 
 int main(int argc, char** argv){
     std::string src_file = "/Users/jkorg/Desktop/chess/data/otb/OTB.pgn",
@@ -26,8 +25,7 @@ int main(int argc, char** argv){
     std::vector<game> batch_games;
     batch_games.reserve(batch_size);
 
-    tbl::row("Batch No.", "Batch Size", "Time", "Avg/Game", "Cumulative");
-    tbl::sep(NCOLS);
+    tbl::header("Batch Size", "Time", "Avg/Game", "Cumulative");
 
     int batch = 0, N = 0;
     unsigned long long Tf, Ti = Tempus::time(), T0=Tempus::time();
@@ -41,28 +39,29 @@ int main(int argc, char** argv){
             for(int j=0; j<batch_size; ++j){ cstr.insert(batch_games[j]); }
             Tf = Tempus::time();
             N += batch_size;
-            tbl::row(++batch, batch_size, Tempus::strtime(Tf-Ti), Tempus::strtime((Tf-Ti) / batch_size), Tempus::strtime(Tf-T0));
+            tbl::row(batch_size, Tempus::strtime(Tf-Ti), Tempus::strtime((Tf-Ti) / batch_size), Tempus::strtime(Tf-T0));
             batch_games.clear();
             batch_games.reserve(batch_size);
             Ti = Tempus::time();
+            ++batch;
         }
     }
     if(batch_games.size()){
         for(int j=0; j<batch_games.size(); ++j){ cstr.insert(batch_games[j]); }
         Tf = Tempus::time();
         N += batch_games.size();
-        tbl::row(++batch, batch_games.size(), Tempus::strtime(Tf-Ti), Tempus::strtime((Tf-Ti) / batch_games.size()), Tempus::strtime(Tf-T0));
+        tbl::row(batch_games.size(), Tempus::strtime(Tf-Ti), Tempus::strtime((Tf-Ti) / batch_games.size()), Tempus::strtime(Tf-T0));
         batch_games.clear();
+        ++batch;
     }
 
-    tbl::sep(NCOLS);
-    std::cout << "\n\n";
+    tbl::sep();
+    std::cout << std::endl;
 
-    tbl::row("Num. Games", "Num. Batches", "Avg/Batch", "Avg/Game", "Total");
-    tbl::sep(NCOLS);
+    tab::header("Num. Games", "Num. Batches", "Avg/Batch", "Avg/Game", "Total");
     unsigned long long Ttot = Tf - T0;
-    tbl::row(N, batch, Tempus::strtime(Ttot/batch), Tempus::strtime(Ttot/N), Tempus::strtime(Ttot));
-    tbl::sep(NCOLS);
+    tab::row(N, batch, Tempus::strtime(Ttot/batch), Tempus::strtime(Ttot/N), Tempus::strtime(Ttot));
+    tab::sep();
 
     return 0;
 }

@@ -45,26 +45,45 @@ struct header{
 };
 
 template<int W>
+std::string header<W>::bar_unit = bar(W);
+
+template<int N, int W, bool idx=false>
 struct table{
     static std::string bar_unit;
+    static int index;
 
-    static void  row(){ std::cout << '|' << '\n'; }
-    static void rrow(){ std::cout << '|' << '\r'; }
+    static void _row(){ std::cout << "|\n"; }
+    static void rrow(){ std::cout << "|\r"; }
 
     template<typename T, typename... Ts>
     static void row(T val, Ts... args){
+        if(idx){ std::cout << '|' << std::setw(4) << std::left << table<N, W, idx>::index++; }
+        table<N, W>::_row(val, args...);
+    }
+
+    template<typename T, typename... Ts>
+    static void _row(T val, Ts... args){
         std::cout << '|' << std::setw(W) << std::left << val;
-        table<W>::row(args...);
+        table<N, W>::_row(args...);
+    }
+
+    template<typename T, typename... Ts>
+    static void header(T val, Ts... args){
+        table<N, W, idx>::sep();
+        if(idx){ std::cout << '|' << std::setw(4) << std::left << ""; }
+        table<N, W, idx>::_row(val, args...);
+        table<N, W, idx>::sep();
+        table<N, W, idx>::index = 0;
     }
 
     template<typename T, typename... Ts>
     static void rrow(T val, Ts... args){
         std::cout << '|' << std::setw(W) << std::left << val;
-        table<W>::rrow(args...);
+        table<N, W>::rrow(args...);
     }
 
     static void prow(const ply& p){
-        table<W>::row(
+        table<N, W>::row(
             color2s(p.c),
             ptype2s(p.type),
             ptype2s(p.promo),
@@ -78,7 +97,7 @@ struct table{
     }
 
     static void prrow(const ply& p){
-        table<W>::rrow(
+        table<N, W>::rrow(
             color2s(p.c),
             ptype2s(p.type),
             ptype2s(p.promo),
@@ -91,19 +110,26 @@ struct table{
         );
     }
 
+    static void sep(){
+        std::string tmp(1, '|');
+        for(int i=0; i<N; ++i){ tmp += table<N, W, idx>::bar_unit; }
+        tmp += bar(idx ? N+4 : N-1) + '|';
+        std::cout << tmp << '\n';
+    }
+
     static void sep(int n){
         std::string tmp(1, '|');
-        for(int i=0; i<n; ++i){ tmp += table<W>::bar_unit; }
-        tmp += bar(n-1) + '|';
+        for(int i=0; i<n; ++i){ tmp += table<N, W, idx>::bar_unit; }
+        tmp += bar(idx ? n+4 : n-1) + '|';
         std::cout << tmp << '\n';
     }
 };
 
-template<int W>
-std::string table<W>::bar_unit = bar(W);
+template<int N, int W, bool idx>
+std::string table<N, W, idx>::bar_unit = bar(W);
 
-template<int W>
-std::string header<W>::bar_unit = bar(W);
+template<int N, int W, bool idx>
+int table<N, W, idx>::index = 1;
 
 /*
     FUNCTION DEFINITIONS
@@ -135,7 +161,7 @@ void lprint(color c, const Board& board){ for(int j=pawn; j<=king; ++j){ lprint(
 void lprint(const Board& board){ for(int i=white; i>=black; i-=2){ lprint(static_cast<color>(i), board); } }
 
 void pprint(const ply& p, const Board& board){
-    table<10>::row(
+    table<10, 10>::row(
         board.ply2san(p),
         color2s(p.c),
         ptype2s(p.type),
