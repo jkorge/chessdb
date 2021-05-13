@@ -241,9 +241,13 @@ namespace decode{
 **************************************************/
 
 template<typename CharT, typename Traits>
-PGN<CharT, Traits>::PGN(const string& f) : ParseBuf<CharT,Traits>(f, "rb"){
+PGN<CharT, Traits>::~PGN() = default;
+
+template<typename CharT, typename Traits>
+PGN<CharT, Traits>::PGN(const string& filename) : ParseBuf<CharT,Traits>(filename, "rb"){
+    ptype pt;
     for(int i=pawn; i<=king; ++i){
-        ptype pt = static_cast<ptype>(i);
+        pt = static_cast<ptype>(i);
         switch(pt){
             case pawn:   this->ply_map[pt].reserve(psz); break;
             case knight: this->ply_map[pt].reserve(nsz); break;
@@ -257,7 +261,7 @@ PGN<CharT, Traits>::PGN(const string& f) : ParseBuf<CharT,Traits>(f, "rb"){
                             PAWNS
     **************************************************/
 
-    ptype pt = pawn;
+    pt = pawn;
     for(square dst=0; dst<64; ++dst){
 
         int f = dst%8;
@@ -396,19 +400,19 @@ void PGN<CharT, Traits>::brp(U64 src, U64 dst, ptype pt, bool cap, bool chk, boo
     this->san_map[str + dsts] = &this->ply_map[pt].back();
 
     // Further entries in the map for disambiguated SAN strings
-    std::array<bool, 8> ranks = {false},
-                        files = {false};
+    std::array<bool, 8> rs = {false},
+                        fs = {false};
     std::array<bool, 64> both = {false};
     while(src){
         square tst = lsbpop(src);
         int r = tst/8, f = tst%8;
 
-        if(ranks[r] && files[f] && both[tst]){ continue; }
-        if(!ranks[r]){
+        if(rs[r] && fs[f] && both[tst]){ continue; }
+        if(!rs[r]){
             this->ply_map[pt].emplace_back(rank(tst), dst, pt, pawn, white, 0, cap, chk, mte);
             this->san_map[str + rank2c(r) + dsts] = &this->ply_map[pt].back();
         }
-        if(!files[f]){
+        if(!fs[f]){
             this->ply_map[pt].emplace_back(file(tst), dst, pt, pawn, white, 0, cap, chk, mte);
             this->san_map[str + file2c(f) + dsts] = &this->ply_map[pt].back();
         }
@@ -417,8 +421,8 @@ void PGN<CharT, Traits>::brp(U64 src, U64 dst, ptype pt, bool cap, bool chk, boo
             this->san_map[str + file2c(f) + rank2c(r) + dsts] = &this->ply_map[pt].back();
         }
 
-        ranks[tst/8] = true;
-        files[tst%8] = true;
+        rs[tst/8] = true;
+        fs[tst%8] = true;
         both[tst] = true;
     }
 }
@@ -466,7 +470,7 @@ void PGN<CharT, Traits>::tags(){
         string keytok = tbuf.substr(0, pos);
 
         if(s2tag.find(keytok) != s2tag.end()){
-            this->_tags[s2tag[keytok]] = tbuf.substr(pos+2, tbuf.size()-1);
+            this->_tags[s2tag[keytok]] = tbuf.substr(pos+2, tbuf.size()-(pos+3));
         }
     }
 }
@@ -480,7 +484,7 @@ void PGN<CharT, Traits>::movetext(){
     bool black_starts = std::regex_search(mbuf.substr(0,6), elided);
 
     // Concatenate lines
-    int_type idx;
+    typename std::allocator<CharT>::size_type idx;
     while((idx = mbuf.find('\n')) != string::npos){
         // All \n must be preceded by '.' or ' '
         if(mbuf[idx-1] != '.' && mbuf[idx-1] != ' '){ mbuf.insert(idx++, 1, ' '); }
@@ -497,107 +501,53 @@ void PGN<CharT, Traits>::movetext(){
         this->_tokens.emplace_back(mbuf);
     }
 
-    // Parse ply tokens
-    this->pplies(black_starts ? black : white);
-}
-
-template<typename CharT, typename Traits>
-void PGN<CharT, Traits>::pplies(color c){
-
-    this->board.reset();
+    // Reset board
     this->_plies.clear();
+    this->board.reset();
+    if(!this->_tags[fenstr].empty()){ fen::parse(this->_tags[fenstr], this->board);    }
+    else                            { this->board.next = black_starts ? black : white; }
 
-    if(!this->_tags[fenstr].empty()){ fen::parse(this->_tags[fenstr], this->board); }
-    else{ this->board.next = c; }
-
+    // Parse ply tokens
+    ply p;
     for(typename std::vector<string>::iterator it=this->_tokens.begin(); it!=this->_tokens.end(); ++it){
         
-        if(it->empty()){ this->_plies.emplace_back(); }
+        if(it->empty()){
+            // Default constructed ply == Missing
+            this->_plies.emplace_back();
+            board.next = !board.next;
+        }
         else
-        if(
-            (*it ==       "*") ||
-            (*it ==     "1-0") ||
-            (*it ==     "0-1") ||
-            (*it == "1/2-1/2")
-        ){ break; }
+        if((*it == "*") || (*it == "1-0") || (*it == "0-1") || (*it == "1/2-1/2")){
+            // End-of-game token
+            break;
+        }
         else{
-            ply p = this->pply(*it, c);
-            board.update(p);
+
+            // Lookup pre-constructed ply for this token
+            p = *this->san_map[*it];
+            p.c = board.next;
+
+            if(p.castle && p.c<0){
+                // Adjust castle plies for black
+                p.src = black_king;
+                p.dst <<= 56;
+            }
+            else
+            if(p.type == king){
+                // King is never ambiguous
+                p.src = this->board.board(king, p.c);
+            }
+            else
+            if(popcnt(p.src) != 1){
+                // Disambiguate
+                p.src = disamb::pgn(p.src, p.dst, p.type, p.c, this->board, p.capture);
+            }
+
+            // Update board and save ply
+            this->board.update(p);
             this->_plies.emplace_back(p);
         }
-        c = !c;
     }
-}
-
-// template<typename CharT, typename Traits>
-// ply PGN<CharT, Traits>::pply(PGN<CharT, Traits>::string p, color c){
-//     // Parse and remove flags
-//     bool check = p.back() == '+',
-//          mate = p.back() == '#';
-//     if(check || mate){ p.erase(p.size()-1, 1); }
-
-//     bool kingside{!p.compare("O-O")},
-//          queenside{!p.compare("O-O-O")};
-
-//     // Shortcut for castles
-//     if(kingside | queenside){ return this->pcastle(queenside, c, check, mate); }
-//     else                    { return this->prest(p, c, check, mate); }
-// }
-
-template<typename CharT, typename Traits>
-ply PGN<CharT, Traits>::pply(PGN<CharT, Traits>::string s, color c){
-    ply p = *this->san_map[s];
-    p.c = c;
-    if(p.castle && p.c<0){
-        p.src = black_king;
-        p.dst <<= 56;
-    }
-    else
-    if(p.type == king){ p.src = this->board.board(king, p.c); }
-    else
-    if(popcnt(p.src) != 1){ p.src = disamb::pgn(p.src, p.dst, p.type, p.c, board, p.capture); }
-    return p;
-}
-
-template<typename CharT, typename Traits>
-ply PGN<CharT, Traits>::pcastle(bool qs, color c, bool check, bool mate){
-    U64 src = this->board.board(king, c),
-        dst = qs ? (src >> 2) : (src << 2);
-    return {src, dst, king, pawn, c, qs ? -1 : 1, false, check, mate};
-}
-
-template<typename CharT, typename Traits>
-ply PGN<CharT, Traits>::prest(const PGN<CharT, Traits>::string p, color c, bool check, bool mate){
-    int_type f = 0, r = 0;
-    square srcsq = 0, dstsq = 0;
-    bool capture = false;
-    ptype pt = pawn, promo = pawn;
-
-    for(typename string::const_reverse_iterator it=p.rbegin(); it!=p.rend(); ++it){
-        char_type ch = *it;
-        if(isfile(ch))      { (!f++ ? dstsq : srcsq) += c2file(ch);     }
-        else
-        if(std::isdigit(ch)){ (!r++ ? dstsq : srcsq) += c2rank(ch) * 8; }
-        else
-        if(ispiece(ch))     { pt = c2ptype(ch); }
-        else
-        if(ch == 'x')       { capture = true; }
-        else
-        if(ch == '=')       { promo = pt; pt = pawn; }
-    }
-    
-    U64 dst = mask(dstsq),
-        src = 0;
-    if(r==2 && f==2) { src = mask(srcsq);  }
-    else{
-        if(r==2)     { src = rank(srcsq); }
-        else
-        if(f==2)     { src = file(srcsq); }
-
-        src = disamb::pgn(src, dst, pt, c, this->board, capture);
-    }
-
-    return {src, dst, pt, promo, c, 0, capture, check, mate};
 }
 
 /**************************************************
@@ -634,7 +584,6 @@ game PGNStream<CharT, Traits>::next(){
     return {this->_pbuf._tags, this->_pbuf._plies};
 }
 
-
 template<typename CharT, typename Traits>
 void PGNStream<CharT, Traits>::close(){ this->_pbuf.close(); }
 
@@ -643,8 +592,7 @@ void PGNStream<CharT, Traits>::close(){ this->_pbuf.close(); }
                       CHESSDB
 **************************************************/
 template<typename CharT, typename Traits>
-ChessDB<CharT, Traits>::ChessDB(const string& file, bool exists) : ParseBuf<CharT,Traits>(file, exists ? "rb+" : "wb+")
-{
+ChessDB<CharT, Traits>::ChessDB(const string& file, bool exists) : ParseBuf<CharT,Traits>(file, exists ? "rb+" : "wb+"){
     if(exists){ this->load(); }
     else      { this->create(); }
 }
@@ -719,10 +667,9 @@ ChessDB<CharT, Traits>::encode_game(){
 
     // Num plies
     uint16_t nplies = g.plies.size();
-    this->_buf.append((char_type*)&nplies, sizeof(nplies));
+    this->_buf.append((char_type*)&nplies, NPYSZ);
 
     // Plies
-    // std::vector<eply> eplies = this->enc.encode_game(g);
     std::vector<eply> eplies = encode::Game(g);
     for(int i=0; i<nplies; ++i){ this->_buf.append((char_type*)&eplies[i], EPYSZ); }
 
@@ -765,7 +712,7 @@ void ChessDB<CharT, Traits>::write_index(){
     this->sync();
 
     for(unsigned int i=0; i<this->index.size(); ++i){
-        this->_buf.append((char_type*)&this->index[i].first, sizeof(int32_t));
+        this->_buf.append((char_type*)&this->index[i].first, FBTSZ);
         this->_buf.append((char_type*)&this->index[i].second, NPYSZ);
     }
 
@@ -784,7 +731,7 @@ void ChessDB<CharT, Traits>::write_header(){
     this->_buf.append((char_type*)&tme, TMESZ);
     this->_buf.append((char_type*)&this->NGAMES, TAGSZ);
     this->_buf.append((char_type*)&this->NTAGS, TAGSZ);
-    this->_buf.append((char_type*)&this->IDXPOS, TAGSZ);
+    this->_buf.append((char_type*)&this->IDXPOS, FBTSZ);
 
 
     this->write();
@@ -824,7 +771,6 @@ ChessDB<CharT, Traits>::rparse(){
         loc += EPYSZ;
     }
 
-    // this->rg.plies = this->dec.decode_game(eplies, this->rg.tags[fenstr]);
     this->rg.plies = decode::Game(eplies, this->rg.tags[fenstr]);
 
     return this->rg.plies.size();
@@ -843,7 +789,7 @@ void ChessDB<CharT, Traits>::load_header(){
 
     this->NGAMES = *(uint32_t*)(this->_buf.data() + TMESZ);
     this->NTAGS = *(uint32_t*)(this->_buf.data() + TMESZ + TAGSZ);
-    this->IDXPOS = *(uint32_t*)(this->_buf.data() + TMESZ + 2*TAGSZ);
+    this->IDXPOS = *(uint64_t*)(this->_buf.data() + TMESZ + 2*TAGSZ);
 
 
     this->sync();
@@ -856,9 +802,9 @@ void ChessDB<CharT, Traits>::load_tag_enum(){
     this->sync();
 
     // Read tags (from current position to EOF)
-    int32_t loc = this->_fdev.tell();
+    uint64_t loc = this->_fdev.tell();
     this->_fdev.seek(0, SEEK_END);
-    int32_t end = this->_fdev.tell();
+    uint64_t end = this->_fdev.tell();
     this->_fdev.seek(loc, SEEK_SET);
     this->_fdev.xsgetn(this->_buf, end-loc);
 
@@ -880,14 +826,14 @@ void ChessDB<CharT, Traits>::load_index(){
     this->seek_index();
     this->sync();
 
-    std::size_t sz = this->NGAMES * IDXSZ;
+    std::streamsize sz = this->NGAMES * IDXSZ;
     this->_fdev.xsgetn(this->_buf, sz);
 
     this->index.reserve(this->NGAMES);
     for(unsigned int i=0; i<this->NGAMES; ++i){
-        int loc = i*IDXSZ;
-        int32_t pos = *(int32_t*)(this->_buf.data() + loc);
-        uint16_t npl = *(uint16_t*)(this->_buf.data() + loc + sizeof(int32_t));
+        uint64_t loc = i * IDXSZ;
+        uint64_t pos = *(uint64_t*)(this->_buf.data() + loc);
+        uint16_t npl = *(uint16_t*)(this->_buf.data() + loc + FBTSZ);
         index.emplace(i, std::make_pair(pos, npl));
     }
     this->sync();
@@ -925,19 +871,25 @@ void ChessDBStream<CharT, Traits>::insert(const game& g){
 template<typename CharT, typename Traits>
 game ChessDBStream<CharT, Traits>::select(int i){
     this->_pbuf.seek_game(i);
-    game res;
-    *this >> res;
-    return res;
+    this->read(nullptr, 0);
+    return this->_pbuf.rg;
 }
+
+template<typename CharT, typename Traits>
+int ChessDBStream<CharT, Traits>::nplies(int i){ return this->_pbuf.index[i].second; }
 
 template<typename CharT, typename Traits>
 int ChessDBStream<CharT, Traits>::size(){ return this->_pbuf.NGAMES; }
 
 
-
 template class PGN<char>;
 // template class PGN<wchar_t>;
+
 template class PGNStream<char>;
 // template class PGNStream<wchar_t>;
+
 template class ChessDB<char>;
+// template class ChessDB<wchar_t>;
+
 template class ChessDBStream<char>;
+// template class ChessDBStream<wchar_t>;

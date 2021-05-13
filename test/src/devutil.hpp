@@ -182,6 +182,7 @@ ply pply(std::string p, color c, const Board& board){
     bool check = p.back() == '+',
          mate = p.back() == '#';
     if(check || mate){ p.erase(p.size()-1, 1); }
+    if(mate){ check = true; }
 
     bool kingside{!p.compare("O-O")},
          queenside{!p.compare("O-O-O")};

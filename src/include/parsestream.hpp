@@ -32,8 +32,8 @@ public:
     void open();
     void close();
     bool eof();
-    int seek(int32_t, int=SEEK_SET);
-    int32_t tell();
+    int seek(uint64_t, int=SEEK_SET);
+    uint64_t tell();
 
     void xsgetn(string&, std::streamsize);
     void xsgetn(string&, std::streamsize, const char_type);
@@ -87,14 +87,6 @@ public:
     IOStream subclass which uses a ParseBuf as its buffer
 */
 
-namespace {
-    std::string _get_mode(const std::string& file){ return std::filesystem::exists(file) ? "rb+" : "wb+"; }
-    std::wstring _get_mode(const std::wstring& file){ return std::filesystem::exists(file) ? L"rb+" : L"wb+"; }
-
-    template<typename CharT>
-    std::basic_string<CharT> get_mode(const std::basic_string<CharT>& file){ return _get_mode(file); }
-}
-
 template<typename CharT, typename Traits=std::char_traits<CharT> >
 class ParseStream : public std::basic_iostream<CharT, Traits>{
 
@@ -107,8 +99,9 @@ class ParseStream : public std::basic_iostream<CharT, Traits>{
 
 public:
 
-    ParseStream() : std::basic_iostream<CharT, Traits>() {}
-    ParseStream(const std::basic_string<CharT>& file) : std::basic_iostream<CharT, Traits>(&_pbuf), _pbuf(file, get_mode(file)) {}
+    ParseStream();
+    ParseStream(const std::basic_string<CharT>&);
+    ~ParseStream();
 
     ParseStream<CharT, Traits>& read(char_type*, std::streamsize);
     ParseStream<CharT, Traits>& write(const char_type*, std::streamsize);

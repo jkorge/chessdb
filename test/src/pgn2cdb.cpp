@@ -28,7 +28,7 @@ int main(int argc, char** argv){
     tbl::header("Batch Size", "Time", "Avg/Game", "Cumulative");
 
     int batch = 0, N = 0;
-    unsigned long long Tf, Ti = Tempus::time(), T0=Tempus::time();
+    unsigned long long Tf, Ti = Tempus::time(), T0 = Tempus::time();
 
     while(pstr){
         // Load game

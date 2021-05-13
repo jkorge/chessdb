@@ -15,12 +15,15 @@ constexpr BYTE CAPTURE_   = 1<<5,
 
 constexpr std::size_t PLYSZ{sizeof(ply)},                     // ply struct
                       EPYSZ{sizeof(eply)},                    // eply typedef
-                      TAGSZ{sizeof(uint32_t)},                // Tag enumeration value
+
                       NPYSZ{sizeof(uint16_t)},                // nplies record
-                      ATGSZ{16 * TAGSZ},                      // Tags in each game
+                      TAGSZ{sizeof(uint32_t)},                // Tag enumerations
                       TMESZ{sizeof(uint64_t)},                // Time (nsec since epoch)
-                      HDRSZ{TMESZ + 3*TAGSZ},                 // File header (Timestamp + number of games + number of enumerated tags + starting byte of index)
-                      IDXSZ{sizeof(int32_t) + NPYSZ};         // Size of each entry in index
+                      FBTSZ{sizeof(uint64_t)},                // Size of file position indicator (ie. byte number)
+
+                      ATGSZ{16 * TAGSZ},                      // Tags in each game
+                      HDRSZ{2*TMESZ + 2*TAGSZ},               // File header
+                      IDXSZ{FBTSZ + NPYSZ};                   // Size of each entry in index
 
 constexpr char tag_delims[]{"[]"},
                key_delim = ' ',
@@ -118,12 +121,10 @@ private:
     void tags();
     void movetext();
     void pplies(color=white);
-    ply pply(string, color);
-    ply pcastle(bool, color, bool, bool);
-    ply prest(const string, color, bool, bool);
 
 public:
     PGN(const string&);
+    ~PGN();
 };
 
 
@@ -167,20 +168,18 @@ class ChessDB : virtual public ParseBuf<CharT, Traits>{
     template<typename CharT_, typename Traits_>
     friend class ChessDBStream;
 
-    // Encoder enc;
-    // Decoder dec;
 public:
     std::unordered_map<string, uint32_t> tag_enumerations{{"", 0}};
     std::vector<string> tags{""};
 
     // Map game index to starting byte and num plies
-    std::unordered_map<int32_t, std::pair<int32_t, uint16_t> > index;
+    std::unordered_map<int32_t, std::pair<uint64_t, uint16_t> > index;
 
 protected:
     game rg;
     uint32_t NTAGS{1},
-             NGAMES{0},
-             IDXPOS{HDRSZ};
+             NGAMES{0};
+    uint64_t IDXPOS{HDRSZ};
 
     bool encode{false};
 
@@ -238,6 +237,7 @@ public:
 
     void insert(const game&);
     game select(int);
+    int nplies(int i);
 
     int size();
 };

@@ -180,10 +180,10 @@ namespace {
     template<square s1, square s2>
     struct _axis{
         const static U64 value = (battack[s1] & ONE_ << s2)
-                               ? (battack[s1] & battack[s2] | (ONE_ << s1) | (ONE_ << s2))
+                               ? ((battack[s1] & battack[s2]) | (ONE_ << s1) | (ONE_ << s2))
                                : (
                                     (rattack[s1] & ONE_ << s2)
-                                  ? (rattack[s1] & rattack[s2] | (ONE_ << s1) | (ONE_ << s2))
+                                  ? ((rattack[s1] & rattack[s2]) | (ONE_ << s1) | (ONE_ << s2))
                                   : ZERO_
                                  );
     };
@@ -1434,7 +1434,7 @@ const std::array<std::array<std::array<U64, 8>, 64>, 3> rays = {
 
 namespace {
     // Flip least and most significant 1-bits
-    U64 exflip(U64 x){ return (x & x-1) & (x ^ mask(bitscanr(x))); }
+    U64 exflip(U64 x){ return (x & (x-1)) & (x ^ mask(bitscanr(x))); }
 
     U64 batkm(square sq){ return ~(ONE_ << sq) & (exflip(dmasks[sq]) | exflip(amasks[sq])); }
 
@@ -1568,10 +1568,14 @@ std::uniform_int_distribution<U64> dist;
                 FUNCTION DEFINITIONS
 **************************************************/
 
+// Define here to prevent compilier from attempting to inline
+game::~game() = default;
+
 bool ispiece(char c){ return pieces.find(c) != std::string::npos; }
 
 bool isfile(char c){ return files.find(c) != std::string::npos; }
 
+// Convert to string
 std::string ptype2s(ptype pt){
     switch(pt){
         case pawn:   return "pawn";
@@ -1594,6 +1598,8 @@ std::string color2s(color c){
 
 std::string coord2s(square x){ return std::string(1, file2c(x%8)) + rank2c(x/8); }
 
+std::string coord2s(U64 src){ return coord2s(bitscan(src)); }
+
 std::string pgndict2s(const pgndict& pd){
     std::string res;
     for(pgndict::const_iterator it=pd.begin(); it!=pd.end(); ++it){
@@ -1613,12 +1619,13 @@ std::string bb2s(U64 bb, char c){
     return viz;
 }
 
-U64 random_magic(){
-    U64 res = ALL_;
-    for(int i=0; i<3; ++i){ res &= dist(gen); }
+U64 line(const square src, const square dst, bool endp){
+    U64 res = lines[src][dst];
+    if(endp){ res |= (1ULL << src) | (1ULL << dst); }
     return res;
 }
 
+// Empty board patterns
 U64 slide_atk(const square src, const ptype pt, const U64 occ){
     U64 res = 0ULL;
     for(int i=0; i<8; ++i){
@@ -1634,7 +1641,6 @@ U64 slide_atk(const square src, const ptype pt, const U64 occ){
     return res;
 }
 
-// Empty board patterns
 U64 attack(const square src, const ptype pt, const color c){
     switch(pt){
         case pawn:
@@ -1651,12 +1657,6 @@ U64 attack(const square src, const ptype pt, const color c){
     }
 }
 
-U64 line(const square src, const square dst, bool endp){
-    U64 res = lines[src][dst];
-    if(endp){ res |= (1ULL << src) | (1ULL << dst); }
-    return res;
-}
-
 // Sliding attack masks (exludes edge squares)
 U64 attackm(square src, ptype pt){
     switch(pt){
@@ -1666,10 +1666,17 @@ U64 attackm(square src, ptype pt){
     }
 }
 
+// RNG for magic bitboard initialization
+U64 random_magic(){
+    U64 res = ALL_;
+    for(int i=0; i<3; ++i){ res &= dist(gen); }
+    return res;
+}
+
 // Intialize magic bitboards
 void magic_init(const ptype pt, U64* table, Magic* magics){
 
-    U64 occupancy[4096], reference[4096], edges, b;
+    U64 occupancy[4096], reference[4096], b;
     int epoch[4096] = {}, cnt = 0, size = 0;
 
     for(square sq=0; sq<64; ++sq){
@@ -1761,9 +1768,16 @@ void Board::remove(const U64 src, const ptype pt, const color c){
     this->board()      &= ~src;
 }
 
-void Board::remove(const U64 src){ for(int i=0; i<15; ++i){ this->board[i] &= ~src; } }
+void Board::remove(const U64 src){
+    for(int i=0; i<15; ++i){
+        this->board[i] &= ~src;
+    }
+}
 
-void Board::remove(){ this->board.fill(0ULL); }
+void Board::remove(){
+
+    this->board.fill(0ULL);
+}
 
 void Board::place(const U64 dst, const ptype pt, const color c){
     this->board(pt, c) |= dst;
@@ -1868,8 +1882,7 @@ void Board::search_pins(){
 
     for(int i=white; i>=black; i-=2){
         color c = static_cast<color>(i);
-
-        const square ksq = bitscan(this->board(king, !c));
+        square ksq = bitscan(this->board(king, !c));
 
         for(int j=bishop; j<=queen; ++j){
             ptype pt = static_cast<ptype>(j);
@@ -1959,16 +1972,16 @@ U64 Board::legal(const square src, const ptype pt, const color c, const bool kin
         }
 
         case bishop: {
-            res |= BMagics[src].attacks[BMagics[src].index(occ)];
+            res |= BMagics[src].value(occ);
             break;
         }
         case rook: {
-            res |= RMagics[src].attacks[RMagics[src].index(occ)];
+            res |= RMagics[src].value(occ);
             break;
         }
         case queen: {
-            res |= BMagics[src].attacks[BMagics[src].index(occ)];
-            res |= RMagics[src].attacks[RMagics[src].index(occ)];
+            res |= BMagics[src].value(occ);
+            res |= RMagics[src].value(occ);
             break;
         }
 
@@ -2024,28 +2037,28 @@ U64 Board::legal(const square src, const ptype pt, const color c, const bool kin
 }
 
 std::vector<ply> Board::legal_plies() const{
-    std::vector<ply> plies;
+    std::vector<ply> plies, _p;
     for(int i=white; i>=black; i-=2){
-        std::vector<ply> _p = this->legal_plies(static_cast<color>(i));
+        _p = this->legal_plies(static_cast<color>(i));
         plies.insert(plies.end(), _p.begin(), _p.end());
     }
     return plies;
 }
 
 std::vector<ply> Board::legal_plies(const color c) const{
-    std::vector<ply> plies;
+    std::vector<ply> plies, _p;
     for(int j=pawn; j<=king; ++j){
-        std::vector<ply> _p = this->legal_plies(static_cast<ptype>(j), c);
+        _p = this->legal_plies(static_cast<ptype>(j), c);
         plies.insert(plies.end(), _p.begin(), _p.end());
     }
     return plies;
 }
 
 std::vector<ply> Board::legal_plies(ptype pt, color c) const{
-    std::vector<ply> plies;
+    std::vector<ply> plies, _p;
     U64 bb = this->board(pt, c);
     while(bb){
-        std::vector<ply> _p = this->legal_plies(lsbpop(bb), pt, c);
+        _p = this->legal_plies(lsbpop(bb), pt, c);
         plies.insert(plies.end(), _p.begin(), _p.end());
     }
     return plies;
@@ -2056,6 +2069,7 @@ std::vector<ply> Board::legal_plies(square src, ptype pt, color c) const{
     U64 moves = this->legal(src, pt, c);
     int cas = 0;
     bool cap = false, chk = false, mte = false, pmo = false;
+    Board b;
 
     while(moves){
         U64 dst = mask(lsbpop(moves));
@@ -2065,9 +2079,9 @@ std::vector<ply> Board::legal_plies(square src, ptype pt, color c) const{
 
         // Castle
         if(pt == king){
-            if(dst == (1ULL << src+2)){ cas =  1; }
+            if(dst == (1ULL << (src+2))){ cas =  1; }
             else
-            if(dst == (1ULL << src-2)){ cas = -1; }
+            if(dst == (1ULL << (src-2))){ cas = -1; }
             else                      { cas =  0; }
         }
         else{ cas = 0; }
@@ -2080,7 +2094,7 @@ std::vector<ply> Board::legal_plies(square src, ptype pt, color c) const{
             
             plies.emplace_back(mask(src), dst, pt, static_cast<ptype>(i), c, cas, cap, false, false);
 
-            Board b = *this;
+            b = *this;
             b.update(plies.back());
             b.search_checks(c);
 
@@ -2170,63 +2184,63 @@ std::string Board::to_string(){
 **************************************************/
 
 namespace disamb{
-    bool moveable_pin(const square pros, const square dst, const square kloc){
-        // Pins can only move along the line connecting the king and the pinning piece
-        return (line(pros, kloc, true) & line(dst, kloc, true)) & ~mask(kloc);
-    }
-
-    void ppins(U64 candidates, const U64 dst, const color c, const Board& board){
-        // Seek pinned pawns
-        U64 pinned = candidates & board.pins;
-        if(pinned){
-            // Remove from candidates and add back in only if `moveable_pin` returns `true`
-            candidates &= ~pinned;
-            square kloc = bitscan(board.board(king, c)),
-                   dsq = bitscan(dst);
-
-            while(pinned){
-                U64 pros = mask(lsbpop(pinned));
-                if(moveable_pin(bitscan(pros), dsq, kloc)){ candidates |= pros; }
-            }
-        }
-    }
-
-    U64 dpawn(const U64 src, const U64 dst, ptype pt, color c, const Board& board, bool capture){
-        U64 candidates = board.board(pt, c);
-        ppins(candidates, dst, c, board);
-        if(capture){ return candidates & attack(bitscan(dst), pt, !c) & src; }
-        else{
-            U64 b = c == white ? (dst >> 8) : (dst << 8);
-            return (candidates & b) ? b : (c == white ? (dst >> 16) : (dst << 16));
-        }
-    }
-
-    U64 dpiece(const U64 src, const U64 dst, ptype pt, color c, const Board& board){
-        U64 candidates = board.board(pt, c),
-            grid = board.board();
-        square kloc = bitscan(board.board(king, c)),
-               dsq = bitscan(dst);
-
-        while(candidates){
-            U64 pros = mask(lsbpop(candidates));
-            if(pros & board.pins){
-                if(not moveable_pin(bitscan(pros), dsq, kloc)){ continue; }
-            }
-            if(
-                (!src || pros & src) &&
-                (dst & attack(bitscan(pros), pt, c)) &&
-                (pt == knight || !(grid & line(bitscan(pros), dsq)))
-            ){ return pros; }
-        }
-        return 0;
-    }
 
     U64 pgn(const U64 src, const U64 dst, ptype pt, color c, const Board& board, bool capture){
+        /*
+            cand:   Candidate pieces (intersect with `src` if src is non-zero)
+            pins:   Candidate pieces which are also pinned
+            kloc:   Bitboard of same-color king
+            dkln:     Line between `dst` and `kloc`, not including kloc
+            occ:    Occupancy of the entire board
+            res:    Result placeholder
+        */
+        U64 cand = board.board(pt, c) & (src ? src : ALL_),
+            pins = cand & board.pins,
+            kloc = board.board(king, c),
+            dkln = line(bitscan(dst), bitscan(kloc), true) & ~kloc,
+            occ  = board.board(),
+            res;
+
         switch(pt){
-            case king: return board.board(pt,c);
-            case pawn: return dpawn(src, dst, pt, c, board, capture);
-            default:   return dpiece(src, dst, pt, c, board);
+            // Pawn movements
+            case pawn: {
+                while(pins){
+                    // Remove immovable pins
+                    square p = lsbpop(pins);
+                    if(!(line(p, bitscan(kloc), true) & dkln)){ cand &= ~mask(p); }
+                }
+                // Find first pawn that can reach target square
+                if(capture && (res = cand & attack(bitscan(dst), pt, !c))){ return res; }
+                else
+                if(cand & (res = c>0 ? dst >>  8 : dst <<  8))            { return res; }
+                else
+                if(cand & (res = c>0 ? dst >> 16 : dst << 16))            { return res; }
+                break;
+            }
+
+            // Back-row piece movements
+            default: {
+                while(cand){
+                    square prosq = lsbpop(cand);
+                    U64 pros = mask(prosq);
+                    /*
+                        1. Piece can move to target square
+                        2. Piece has clear line of sight to target square OR does not need it (ie. is a knight)
+                        3. Piece must match any partial disambiguation in `src`
+                        4. Piece is not pinned OR `dst` is colinear with both king and prospective piece
+                    */
+                    if(
+                        (dst & attack(prosq, pt, c)) &&
+                        (pt == knight || !(occ & line(prosq, bitscan(dst)))) &&
+                        (!src || pros & src) &&
+                        (!(pros & board.pins) || line(prosq, bitscan(board.board(king, c)), true) & dkln)
+                    ){ return pros; }
+                }
+            }
         }
+
+        // Disambiguation failed = return empty bitboard
+        return 0ULL;
     }
 }
 
@@ -2255,6 +2269,7 @@ namespace fen{
         }
     }
 
+    // Arrange pieces on board according to FEN string
     void arrange(std::string fs, Board& board){
 
         int rank = 7, file =0;
@@ -2262,6 +2277,7 @@ namespace fen{
 
         while(boardtok != std::regex_token_iterator<std::string::iterator>()){
             std::string rs = *boardtok++;
+
             for(std::string::iterator it=rs.begin(); it!=rs.end(); ++it){
                 if(std::isdigit(*it)){ file += (*it - '0'); }
                 else{
@@ -2279,12 +2295,11 @@ namespace fen{
         }
     }
 
-    // Arrange pieces on board according to FEN string. Return color indicating which player moves next
+    // Configure board members to match FEN string
     void parse(std::string fs, Board& board){
 
-        color c;
-        // FEN matches setup for new game - no processing needed
         if(!fs.compare(new_game)){
+            // FEN matches setup for new game - no processing needed
             board.reset();
         }
         else{
@@ -2308,7 +2323,8 @@ namespace fen{
 
             // En Passant
             std::string enpas = *fentok++;
-            board.enpas = mask(8*c2rank(enpas[0]) + c2file(enpas[1]));
+            if(enpas != "-"){ board.enpas = mask(8*c2rank(enpas[0]) + c2file(enpas[1])); }
+            else            { board.enpas = 0ULL; }
 
             // Move counters
             // board.half = std::stoi(*fentok++);

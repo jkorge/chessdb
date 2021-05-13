@@ -25,7 +25,7 @@ typedef int square;
 
 typedef enum color{ white = 1, black = -1, NOCOLOR = 0 } color;
 
-typedef enum ptype {pawn = 0, knight, bishop, rook, queen, king, NOTYPE = -1} ptype;
+typedef enum ptype { pawn = 0, knight, bishop, rook, queen, king, NOTYPE = -1 } ptype;
 
 typedef struct ply{
 
@@ -91,7 +91,7 @@ typedef struct ply{
           mate(other.mate) {}
 
     // Comparison operators
-    bool operator==(const ply& other) const{
+    constexpr bool operator==(const ply& other) const{
         return (this->src == other.src) &&
                (this->dst == other.dst) &&
                (this->c == other.c) &&
@@ -103,22 +103,25 @@ typedef struct ply{
                (this->mate == other.mate);
     }
 
-    bool operator!=(const ply& other) const{ return not (*this == other); }
+    constexpr bool operator!=(const ply& other) const{ return not (*this == other); }
+
+    // Assignment (implicit assign is deprecated)
+    constexpr ply& operator=(const ply& other) = default;
 } ply;
 
 typedef uint16_t eply;
 
 typedef struct bitboard : std::array<U64, 15>{
     inline const U64& operator()(ptype pt, color c) const{ return this->operator[](pt + 6*(c<0)); }
-    inline U64& operator()(ptype pt, color c){ return this->operator[](pt + 6*(c<0)); }
+    inline       U64& operator()(ptype pt, color c)      { return this->operator[](pt + 6*(c<0)); }
 
-    inline const U64& operator()(color c) const{ return this->operator[](12 + (c<0)); }
-    inline U64& operator()(color c){ return this->operator[](12 + (c<0)); }
+    inline const U64& operator()(color c)           const{ return this->operator[](12 + (c<0)); }
+    inline       U64& operator()(color c)                { return this->operator[](12 + (c<0)); }
 
-    inline U64 operator()(ptype pt){ return this->operator[](pt) | this->operator[](pt+6); }
+    inline       U64  operator()(ptype pt)               { return this->operator[](pt) | this->operator[](pt+6); }
 
-    inline const U64& operator()() const{ return this->operator[](14); }
-    inline U64& operator()(){ return this->operator[](14); }
+    inline const U64& operator()()                  const{ return this->operator[](14); }
+    inline       U64& operator()()                       { return this->operator[](14); }
 } bitboard;
 
 typedef struct coords : std::array<int, 2>{
@@ -130,12 +133,6 @@ typedef struct coords : std::array<int, 2>{
 } coords;
 
 typedef enum pgntag{
-/*
-    This is NOT an enum of all PGN tags
-    Only those deemed most useful in analyzing games are included here
-    See https://www.chessclub.com/help/PGN-spec for more info on PGN specifications
-*/
-
     // Seven Tag Roster
     event,
     site,
@@ -157,7 +154,6 @@ typedef enum pgntag{
     black_elo,
     white_uscf,
     black_uscf
-
 } pgntag;
 
 struct pgndict : std::map<pgntag, std::string>{
@@ -186,21 +182,13 @@ struct pgndict : std::map<pgntag, std::string>{
 struct game{
     pgndict tags;
     std::vector<ply> plies;
+
     game () {}
     game (pgndict _tags, std::vector<ply> _plies) : tags{_tags}, plies{_plies} {}
     game (std::vector<ply> _plies, pgndict _tags) : tags{_tags}, plies{_plies} {}
+    ~game ();
     bool operator==(const game& other) const{ return (this->tags == other.tags) && (this->plies == other.plies); }
     bool operator!=(const game& other) const{ return not (*this == other); }
-};
-
-struct egame{
-    std::vector<uint32_t> tags;
-    std::vector<eply> plies;
-    egame () {}
-    egame (std::vector<uint32_t> _tags, std::vector<eply> _plies) : tags{_tags}, plies{_plies} {}
-    egame (std::vector<eply> _plies, std::vector<uint32_t> _tags) : tags{_tags}, plies{_plies} {}
-    bool operator==(const egame& other) const{ return (this->tags == other.tags) && (this->plies == other.plies); }
-    bool operator!=(const egame& other) const{ return not (*this == other); }
 };
 
 struct Magic{
@@ -209,6 +197,8 @@ struct Magic{
     uint32_t shift;
 
     int index(U64 occ) const{ return ((occ & this->mask) * this->magic) >> this->shift; }
+
+    U64 value(U64 occ) const{ return this->attacks[this->index(occ)]; }
 };
 
 /**************************************************
@@ -217,15 +207,18 @@ struct Magic{
 
 constexpr std::array<U64, 4> rook_castle{0x0000000000000080LL, 0x0000000000000001LL, 0x8000000000000000LL, 0x0100000000000000LL};
 
+// Board axes
 constexpr U64 MAINDIAG_     = 0x8040201008040201,
               ANTIDIAG_     = 0x0102040810204080,
               RANK_         = 0xff,
               FILE_         = 0x0101010101010101,
 
+// A1, H8, All squares
               ONE_          = 0x01,
               ZERO_         = 0x00,
               ALL_          = 0xffffffffffffffff,
 
+// White starting coordinates
               white_pawns   = 0x000000000000ff00,
               white_knights = 0x0000000000000042,
               white_bishops = 0x0000000000000024,
@@ -233,6 +226,7 @@ constexpr U64 MAINDIAG_     = 0x8040201008040201,
               white_queen   = 0x0000000000000008,
               white_king    = 0x0000000000000010,
 
+// Black starting coordinates
               black_pawns   = white_pawns   << 40,
               black_knights = white_knights << 56,
               black_bishops = white_bishops << 56,
@@ -240,10 +234,12 @@ constexpr U64 MAINDIAG_     = 0x8040201008040201,
               black_queen   = white_queen   << 56,
               black_king    = white_king    << 56,
 
+// Occupancies
               white_mat = white_pawns | white_knights | white_bishops | white_rooks | white_queen | white_king,
               black_mat = black_pawns | black_knights | black_bishops | black_rooks | black_queen | black_king,
-              occupancy = white_mat | black_mat;
+              occupancy =   white_mat | black_mat;
 
+// Collect start coords and occupancies for newgame bitboard
 constexpr bitboard newgame = {white_pawns, white_knights, white_bishops, white_rooks, white_queen, white_king,
                               black_pawns, black_knights, black_bishops, black_rooks, black_queen, black_king,
                               white_mat, black_mat, occupancy};
@@ -306,6 +302,7 @@ extern std::map<pgntag, std::string> tag2s;
 // invert color (NOCOLOR => NOCOLOR)
 constexpr color operator!(const color& c){ return static_cast<color>(black * c); }
 
+// Convert to/from character representations
 constexpr int c2file(char f){
     switch(f){
         case 'a': return 0;
@@ -442,27 +439,32 @@ bool ispiece(char);
 
 bool isfile(char);
 
+// Convert to string
 std::string ptype2s(ptype);
 
 std::string color2s(color);
 
 std::string coord2s(square);
 
+std::string coord2s(U64);
+
 std::string pgndict2s(const pgndict&);
 
 std::string bb2s(U64, char='1');
 
-U64 random_magic();
-
-U64 slide_atk(const square, const ptype, const U64);
+// Line between two squares (optionally inclusive)
+U64 line(const square, const square, bool=false);
 
 // Empty board patterns
-U64 attack(const square, const ptype, const color=NOCOLOR);
+U64 slide_atk(const square, const ptype, const U64);
 
-U64 line(const square, const square, bool=false);
+U64 attack(const square, const ptype, const color=NOCOLOR);
 
 // Sliding attack masks (exludes edge squares)
 U64 attackm(const square, const ptype);
+
+// RNG for magic bitboard initialization
+U64 random_magic();
 
 // Intialize magic bitboards
 void magic_init(const ptype, U64*, Magic*);
@@ -516,15 +518,7 @@ public:
     std::vector<ply> legal_plies(ptype, color) const;
     std::vector<ply> legal_plies(square, ptype, color) const;
 
-    // std::vector<ply> legal_plies() const;
-    // std::vector<ply> legal_plies(const color c) const;
-    // std::vector<ply> legal_plies(const ptype pt, const color c) const;
-    // std::vector<ply> legal_plies(const square src, const ptype pt, const color c) const;
-    // ply plygen(const square src, const square dst, const ptype pt, const color c) const;
-    // std::vector<ply> plygen(const square src, const square dst, const color c) const;
-
     std::string ply2san(const ply) const;
-
     std::string to_string();
 };
 
@@ -533,14 +527,6 @@ public:
 **************************************************/
 
 namespace disamb{
-    bool moveable_pin(const U64, const U64, const U64);
-
-    void ppins(U64, const U64, const color, const Board&);
-
-    U64 dpawn(const U64, const U64, ptype, color, const Board&, bool);
-
-    U64 dpiece(const U64, const U64, ptype, color, const Board&);
-
     U64 pgn(const U64, const U64, ptype, color, const Board&, bool);
 }
 
