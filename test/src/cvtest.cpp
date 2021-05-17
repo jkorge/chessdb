@@ -17,18 +17,16 @@ std::vector<game> load_pgn(std::string file, int start, int stop=-1){
 
     // Containers
     std::vector<game> games;
-    game g;
     double T;
     unsigned long long t0 = Tempus::time();
 
-    for(int i=0; i<start; ++i){ pstr >> g; }
+    for(int i=0; i<start; ++i){ pstr.next(); }
 
     if(stop>0){
         float N = stop - start;
         int p = N / pfreq;
         for(int i=start; i<stop; ++i){
-            pstr >> g;
-            games.emplace_back(g);
+            pstr >> games;
             if(i && not (i%p)){ prog(i+1 - start, N, '\r'); }
             if(pstr.eof()){ break; }
         }
@@ -38,8 +36,7 @@ std::vector<game> load_pgn(std::string file, int start, int stop=-1){
         // Read to end of file
         int i = 0;
         while(!pstr.eof()){
-            pstr >> g;
-            games.emplace_back(g);
+            pstr >> games;
             std::cout << ++i << '\r';
         }
         prog(1.0, 1.0);

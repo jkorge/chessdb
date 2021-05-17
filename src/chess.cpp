@@ -29,8 +29,8 @@ namespace {
 }
 
 const std::array<U64, 64> rmasks = {
-    rmask<0>::value, rmask<1>::value, rmask<2>::value, rmask<3>::value, rmask<4>::value, rmask<5>::value, rmask<6>::value, rmask<7>::value,
-    rmask<8>::value, rmask<9>::value, rmask<10>::value, rmask<11>::value, rmask<12>::value, rmask<13>::value, rmask<14>::value, rmask<15>::value,
+    rmask< 0>::value, rmask< 1>::value, rmask< 2>::value, rmask< 3>::value, rmask< 4>::value, rmask< 5>::value, rmask< 6>::value, rmask< 7>::value,
+    rmask< 8>::value, rmask< 9>::value, rmask<10>::value, rmask<11>::value, rmask<12>::value, rmask<13>::value, rmask<14>::value, rmask<15>::value,
     rmask<16>::value, rmask<17>::value, rmask<18>::value, rmask<19>::value, rmask<20>::value, rmask<21>::value, rmask<22>::value, rmask<23>::value,
     rmask<24>::value, rmask<25>::value, rmask<26>::value, rmask<27>::value, rmask<28>::value, rmask<29>::value, rmask<30>::value, rmask<31>::value,
     rmask<32>::value, rmask<33>::value, rmask<34>::value, rmask<35>::value, rmask<36>::value, rmask<37>::value, rmask<38>::value, rmask<39>::value,
@@ -40,8 +40,8 @@ const std::array<U64, 64> rmasks = {
 };
 
 const std::array<U64, 64> fmasks = {
-    fmask<0>::value, fmask<1>::value, fmask<2>::value, fmask<3>::value, fmask<4>::value, fmask<5>::value, fmask<6>::value, fmask<7>::value,
-    fmask<8>::value, fmask<9>::value, fmask<10>::value, fmask<11>::value, fmask<12>::value, fmask<13>::value, fmask<14>::value, fmask<15>::value,
+    fmask< 0>::value, fmask< 1>::value, fmask< 2>::value, fmask< 3>::value, fmask< 4>::value, fmask< 5>::value, fmask< 6>::value, fmask< 7>::value,
+    fmask< 8>::value, fmask< 9>::value, fmask<10>::value, fmask<11>::value, fmask<12>::value, fmask<13>::value, fmask<14>::value, fmask<15>::value,
     fmask<16>::value, fmask<17>::value, fmask<18>::value, fmask<19>::value, fmask<20>::value, fmask<21>::value, fmask<22>::value, fmask<23>::value,
     fmask<24>::value, fmask<25>::value, fmask<26>::value, fmask<27>::value, fmask<28>::value, fmask<29>::value, fmask<30>::value, fmask<31>::value,
     fmask<32>::value, fmask<33>::value, fmask<34>::value, fmask<35>::value, fmask<36>::value, fmask<37>::value, fmask<38>::value, fmask<39>::value,
@@ -51,8 +51,8 @@ const std::array<U64, 64> fmasks = {
 };
 
 const std::array<U64, 64> dmasks = {
-    dmask<0>::value, dmask<1>::value, dmask<2>::value, dmask<3>::value, dmask<4>::value, dmask<5>::value, dmask<6>::value, dmask<7>::value,
-    dmask<8>::value, dmask<9>::value, dmask<10>::value, dmask<11>::value, dmask<12>::value, dmask<13>::value, dmask<14>::value, dmask<15>::value,
+    dmask< 0>::value, dmask< 1>::value, dmask< 2>::value, dmask< 3>::value, dmask< 4>::value, dmask< 5>::value, dmask< 6>::value, dmask< 7>::value,
+    dmask< 8>::value, dmask< 9>::value, dmask<10>::value, dmask<11>::value, dmask<12>::value, dmask<13>::value, dmask<14>::value, dmask<15>::value,
     dmask<16>::value, dmask<17>::value, dmask<18>::value, dmask<19>::value, dmask<20>::value, dmask<21>::value, dmask<22>::value, dmask<23>::value,
     dmask<24>::value, dmask<25>::value, dmask<26>::value, dmask<27>::value, dmask<28>::value, dmask<29>::value, dmask<30>::value, dmask<31>::value,
     dmask<32>::value, dmask<33>::value, dmask<34>::value, dmask<35>::value, dmask<36>::value, dmask<37>::value, dmask<38>::value, dmask<39>::value,
@@ -62,8 +62,8 @@ const std::array<U64, 64> dmasks = {
 };
 
 const std::array<U64, 64> amasks = {
-    amask<0>::value, amask<1>::value, amask<2>::value, amask<3>::value, amask<4>::value, amask<5>::value, amask<6>::value, amask<7>::value,
-    amask<8>::value, amask<9>::value, amask<10>::value, amask<11>::value, amask<12>::value, amask<13>::value, amask<14>::value, amask<15>::value,
+    amask< 0>::value, amask< 1>::value, amask< 2>::value, amask< 3>::value, amask< 4>::value, amask< 5>::value, amask< 6>::value, amask< 7>::value,
+    amask< 8>::value, amask< 9>::value, amask<10>::value, amask<11>::value, amask<12>::value, amask<13>::value, amask<14>::value, amask<15>::value,
     amask<16>::value, amask<17>::value, amask<18>::value, amask<19>::value, amask<20>::value, amask<21>::value, amask<22>::value, amask<23>::value,
     amask<24>::value, amask<25>::value, amask<26>::value, amask<27>::value, amask<28>::value, amask<29>::value, amask<30>::value, amask<31>::value,
     amask<32>::value, amask<33>::value, amask<34>::value, amask<35>::value, amask<36>::value, amask<37>::value, amask<38>::value, amask<39>::value,
@@ -99,8 +99,8 @@ namespace {
 }
 
 const std::array<U64, 64> wpattack = {
-    wpatk<0>::value, wpatk<1>::value, wpatk<2>::value, wpatk<3>::value, wpatk<4>::value, wpatk<5>::value, wpatk<6>::value, wpatk<7>::value,
-    wpatk<8>::value, wpatk<9>::value, wpatk<10>::value, wpatk<11>::value, wpatk<12>::value, wpatk<13>::value, wpatk<14>::value, wpatk<15>::value,
+    wpatk< 0>::value, wpatk< 1>::value, wpatk< 2>::value, wpatk< 3>::value, wpatk< 4>::value, wpatk< 5>::value, wpatk< 6>::value, wpatk< 7>::value,
+    wpatk< 8>::value, wpatk< 9>::value, wpatk<10>::value, wpatk<11>::value, wpatk<12>::value, wpatk<13>::value, wpatk<14>::value, wpatk<15>::value,
     wpatk<16>::value, wpatk<17>::value, wpatk<18>::value, wpatk<19>::value, wpatk<20>::value, wpatk<21>::value, wpatk<22>::value, wpatk<23>::value,
     wpatk<24>::value, wpatk<25>::value, wpatk<26>::value, wpatk<27>::value, wpatk<28>::value, wpatk<29>::value, wpatk<30>::value, wpatk<31>::value,
     wpatk<32>::value, wpatk<33>::value, wpatk<34>::value, wpatk<35>::value, wpatk<36>::value, wpatk<37>::value, wpatk<38>::value, wpatk<39>::value,
@@ -110,8 +110,8 @@ const std::array<U64, 64> wpattack = {
 };
 
 const std::array<U64, 64> bpattack = {
-    bpatk<0>::value, bpatk<1>::value, bpatk<2>::value, bpatk<3>::value, bpatk<4>::value, bpatk<5>::value, bpatk<6>::value, bpatk<7>::value,
-    bpatk<8>::value, bpatk<9>::value, bpatk<10>::value, bpatk<11>::value, bpatk<12>::value, bpatk<13>::value, bpatk<14>::value, bpatk<15>::value,
+    bpatk< 0>::value, bpatk< 1>::value, bpatk< 2>::value, bpatk< 3>::value, bpatk< 4>::value, bpatk< 5>::value, bpatk< 6>::value, bpatk< 7>::value,
+    bpatk< 8>::value, bpatk< 9>::value, bpatk<10>::value, bpatk<11>::value, bpatk<12>::value, bpatk<13>::value, bpatk<14>::value, bpatk<15>::value,
     bpatk<16>::value, bpatk<17>::value, bpatk<18>::value, bpatk<19>::value, bpatk<20>::value, bpatk<21>::value, bpatk<22>::value, bpatk<23>::value,
     bpatk<24>::value, bpatk<25>::value, bpatk<26>::value, bpatk<27>::value, bpatk<28>::value, bpatk<29>::value, bpatk<30>::value, bpatk<31>::value,
     bpatk<32>::value, bpatk<33>::value, bpatk<34>::value, bpatk<35>::value, bpatk<36>::value, bpatk<37>::value, bpatk<38>::value, bpatk<39>::value,
@@ -121,8 +121,8 @@ const std::array<U64, 64> bpattack = {
 };
 
 const std::array<U64, 64> nattack = {
-    natk<0>::value, natk<1>::value, natk<2>::value, natk<3>::value, natk<4>::value, natk<5>::value, natk<6>::value, natk<7>::value,
-    natk<8>::value, natk<9>::value, natk<10>::value, natk<11>::value, natk<12>::value, natk<13>::value, natk<14>::value, natk<15>::value,
+    natk< 0>::value, natk< 1>::value, natk< 2>::value, natk< 3>::value, natk< 4>::value, natk< 5>::value, natk< 6>::value, natk< 7>::value,
+    natk< 8>::value, natk< 9>::value, natk<10>::value, natk<11>::value, natk<12>::value, natk<13>::value, natk<14>::value, natk<15>::value,
     natk<16>::value, natk<17>::value, natk<18>::value, natk<19>::value, natk<20>::value, natk<21>::value, natk<22>::value, natk<23>::value,
     natk<24>::value, natk<25>::value, natk<26>::value, natk<27>::value, natk<28>::value, natk<29>::value, natk<30>::value, natk<31>::value,
     natk<32>::value, natk<33>::value, natk<34>::value, natk<35>::value, natk<36>::value, natk<37>::value, natk<38>::value, natk<39>::value,
@@ -132,8 +132,8 @@ const std::array<U64, 64> nattack = {
 };
 
 const std::array<U64, 64> battack = {
-    batk<0>::value, batk<1>::value, batk<2>::value, batk<3>::value, batk<4>::value, batk<5>::value, batk<6>::value, batk<7>::value,
-    batk<8>::value, batk<9>::value, batk<10>::value, batk<11>::value, batk<12>::value, batk<13>::value, batk<14>::value, batk<15>::value,
+    batk< 0>::value, batk< 1>::value, batk< 2>::value, batk< 3>::value, batk< 4>::value, batk< 5>::value, batk< 6>::value, batk< 7>::value,
+    batk< 8>::value, batk< 9>::value, batk<10>::value, batk<11>::value, batk<12>::value, batk<13>::value, batk<14>::value, batk<15>::value,
     batk<16>::value, batk<17>::value, batk<18>::value, batk<19>::value, batk<20>::value, batk<21>::value, batk<22>::value, batk<23>::value,
     batk<24>::value, batk<25>::value, batk<26>::value, batk<27>::value, batk<28>::value, batk<29>::value, batk<30>::value, batk<31>::value,
     batk<32>::value, batk<33>::value, batk<34>::value, batk<35>::value, batk<36>::value, batk<37>::value, batk<38>::value, batk<39>::value,
@@ -143,8 +143,8 @@ const std::array<U64, 64> battack = {
 };
 
 const std::array<U64, 64> rattack = {
-    ratk<0>::value, ratk<1>::value, ratk<2>::value, ratk<3>::value, ratk<4>::value, ratk<5>::value, ratk<6>::value, ratk<7>::value,
-    ratk<8>::value, ratk<9>::value, ratk<10>::value, ratk<11>::value, ratk<12>::value, ratk<13>::value, ratk<14>::value, ratk<15>::value,
+    ratk< 0>::value, ratk< 1>::value, ratk< 2>::value, ratk< 3>::value, ratk< 4>::value, ratk< 5>::value, ratk< 6>::value, ratk< 7>::value,
+    ratk< 8>::value, ratk< 9>::value, ratk<10>::value, ratk<11>::value, ratk<12>::value, ratk<13>::value, ratk<14>::value, ratk<15>::value,
     ratk<16>::value, ratk<17>::value, ratk<18>::value, ratk<19>::value, ratk<20>::value, ratk<21>::value, ratk<22>::value, ratk<23>::value,
     ratk<24>::value, ratk<25>::value, ratk<26>::value, ratk<27>::value, ratk<28>::value, ratk<29>::value, ratk<30>::value, ratk<31>::value,
     ratk<32>::value, ratk<33>::value, ratk<34>::value, ratk<35>::value, ratk<36>::value, ratk<37>::value, ratk<38>::value, ratk<39>::value,
@@ -154,8 +154,8 @@ const std::array<U64, 64> rattack = {
 };
 
 const std::array<U64, 64> qattack = {
-    qatk<0>::value, qatk<1>::value, qatk<2>::value, qatk<3>::value, qatk<4>::value, qatk<5>::value, qatk<6>::value, qatk<7>::value,
-    qatk<8>::value, qatk<9>::value, qatk<10>::value, qatk<11>::value, qatk<12>::value, qatk<13>::value, qatk<14>::value, qatk<15>::value,
+    qatk< 0>::value, qatk< 1>::value, qatk< 2>::value, qatk< 3>::value, qatk< 4>::value, qatk< 5>::value, qatk< 6>::value, qatk< 7>::value,
+    qatk< 8>::value, qatk< 9>::value, qatk<10>::value, qatk<11>::value, qatk<12>::value, qatk<13>::value, qatk<14>::value, qatk<15>::value,
     qatk<16>::value, qatk<17>::value, qatk<18>::value, qatk<19>::value, qatk<20>::value, qatk<21>::value, qatk<22>::value, qatk<23>::value,
     qatk<24>::value, qatk<25>::value, qatk<26>::value, qatk<27>::value, qatk<28>::value, qatk<29>::value, qatk<30>::value, qatk<31>::value,
     qatk<32>::value, qatk<33>::value, qatk<34>::value, qatk<35>::value, qatk<36>::value, qatk<37>::value, qatk<38>::value, qatk<39>::value,
@@ -165,8 +165,8 @@ const std::array<U64, 64> qattack = {
 };
 
 const std::array<U64, 64> kattack = {
-    katk<0>::value, katk<1>::value, katk<2>::value, katk<3>::value, katk<4>::value, katk<5>::value, katk<6>::value, katk<7>::value,
-    katk<8>::value, katk<9>::value, katk<10>::value, katk<11>::value, katk<12>::value, katk<13>::value, katk<14>::value, katk<15>::value,
+    katk< 0>::value, katk< 1>::value, katk< 2>::value, katk< 3>::value, katk< 4>::value, katk< 5>::value, katk< 6>::value, katk< 7>::value,
+    katk< 8>::value, katk< 9>::value, katk<10>::value, katk<11>::value, katk<12>::value, katk<13>::value, katk<14>::value, katk<15>::value,
     katk<16>::value, katk<17>::value, katk<18>::value, katk<19>::value, katk<20>::value, katk<21>::value, katk<22>::value, katk<23>::value,
     katk<24>::value, katk<25>::value, katk<26>::value, katk<27>::value, katk<28>::value, katk<29>::value, katk<30>::value, katk<31>::value,
     katk<32>::value, katk<33>::value, katk<34>::value, katk<35>::value, katk<36>::value, katk<37>::value, katk<38>::value, katk<39>::value,

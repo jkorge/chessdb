@@ -91,7 +91,7 @@ class PGN : virtual public ParseBuf<CharT, Traits>{
 
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
-    typedef typename std::basic_string<char_type> string;
+    typedef typename std::basic_string<CharT> string;
 
     template<typename CharT_, typename Traits_>
     friend class PGNStream;
@@ -137,14 +137,14 @@ class PGNStream : public ParseStream<CharT, Traits>{
 
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
-    typedef typename std::basic_string<char_type> string;
+    typedef typename std::basic_string<CharT> string;
 
     // Underlying buffer
     PGN<CharT, Traits> _pbuf;
 
 public:
 
-    PGNStream(const std::basic_string<CharT>&);
+    PGNStream(const string&);
     PGNStream(const CharT*);
 
     PGNStream<CharT, Traits>& operator>>(game&);
@@ -163,7 +163,7 @@ class ChessDB : virtual public ParseBuf<CharT, Traits>{
     
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
-    typedef typename std::basic_string<char_type> string;
+    typedef typename std::basic_string<CharT> string;
 
     template<typename CharT_, typename Traits_>
     friend class ChessDBStream;
@@ -173,7 +173,7 @@ public:
     std::vector<string> tags{""};
 
     // Map game index to starting byte and num plies
-    std::unordered_map<int32_t, std::pair<uint64_t, uint16_t> > index;
+    std::unordered_map<uint32_t, std::pair<uint64_t, uint16_t> > index;
 
 protected:
     game rg;
@@ -223,14 +223,15 @@ class ChessDBStream : public ParseStream<CharT, Traits>{
 
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
-    typedef typename std::basic_string<char_type> string;
+    typedef typename std::basic_string<CharT> string;
 
     // Underlying buffer
     ChessDB<CharT, Traits> _pbuf;
 
 public:
     
-    ChessDBStream(const std::basic_string<CharT>&);
+    ChessDBStream(const string&);
+    ChessDBStream(const CharT*);
 
     ChessDBStream<CharT, Traits>& operator<<(const game&);
     ChessDBStream<CharT, Traits>& operator>>(game&);

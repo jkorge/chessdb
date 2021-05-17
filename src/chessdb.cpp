@@ -555,13 +555,12 @@ void PGN<CharT, Traits>::movetext(){
 **************************************************/
 
 template<typename CharT, typename Traits>
-PGNStream<CharT, Traits>::PGNStream(const std::basic_string<CharT>& file)
+PGNStream<CharT, Traits>::PGNStream(const string& file)
     : ParseStream<CharT, Traits>(),
     _pbuf(file) { this->rdbuf(&this->_pbuf); }
 
 template<typename CharT, typename Traits>
-PGNStream<CharT, Traits>::PGNStream(const CharT* file)
-    : PGNStream(std::string(file)) {}
+PGNStream<CharT, Traits>::PGNStream(const CharT* file) : PGNStream(string(file)) {}
 
 template<typename CharT, typename Traits>
 PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(game& g){
@@ -844,9 +843,12 @@ void ChessDB<CharT, Traits>::load_index(){
 **************************************************/
 
 template<typename CharT, typename Traits>
-ChessDBStream<CharT, Traits>::ChessDBStream(const std::basic_string<CharT>& file)
+ChessDBStream<CharT, Traits>::ChessDBStream(const string& file)
     : ParseStream<CharT, Traits>(),
       _pbuf(file, std::filesystem::exists(file)) { this->rdbuf(&this->_pbuf); }
+
+template<typename CharT, typename Traits>
+ChessDBStream<CharT, Traits>::ChessDBStream(const CharT* file) : ChessDBStream(string(file)) {};
 
 template<typename CharT, typename Traits>
 ChessDBStream<CharT, Traits>& ChessDBStream<CharT, Traits>::operator<<(const game& g){

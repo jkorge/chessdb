@@ -4,6 +4,15 @@
                       FILEBASE
 **************************************************/
 
+template<typename CharT, typename Traits>
+FileBase<CharT, Traits>::FileBase() {}
+
+template<typename CharT, typename Traits>
+FileBase<CharT, Traits>::FileBase(const string& fname, const string& mode) : _fname(fname), _mode(mode){ this->open(); }
+
+template<typename CharT, typename Traits>
+FileBase<CharT, Traits>::~FileBase(){ this->close(); }
+
 std::string wtomb(const wchar_t* wide){
     std::mbstate_t state = std::mbstate_t();
     std::size_t sz = std::wcsrtombs(nullptr, &wide, 0, &state);
@@ -172,6 +181,16 @@ void FileBase<CharT, Traits>::xsputn(
 **************************************************/
 
 template<typename CharT, typename Traits>
+ParseBuf<CharT, Traits>::ParseBuf() : std::basic_streambuf<CharT, Traits>() {}
+
+template<typename CharT, typename Traits>
+ParseBuf<CharT, Traits>::ParseBuf(const string& file, const string& mode) : std::basic_streambuf<CharT, Traits>(), _fdev(file, mode) {}
+
+template<typename CharT, typename Traits>
+ParseBuf<CharT, Traits>::~ParseBuf() { this->close(); }
+
+
+template<typename CharT, typename Traits>
 void ParseBuf<CharT, Traits>::close(){ this->_fdev.close(); }
 
 template<typename CharT, typename Traits>
@@ -263,7 +282,7 @@ template<typename CharT, typename Traits>
 ParseStream<CharT, Traits>::ParseStream() : std::basic_iostream<CharT, Traits>() {}
 
 template<typename CharT, typename Traits>
-ParseStream<CharT, Traits>::ParseStream(const std::basic_string<CharT>& file) : std::basic_iostream<CharT, Traits>(&_pbuf), _pbuf(file, get_mode(file)) {}
+ParseStream<CharT, Traits>::ParseStream(const string& file) : std::basic_iostream<CharT, Traits>(&_pbuf), _pbuf(file, get_mode(file)) {}
 
 template<typename CharT, typename Traits>
 ParseStream<CharT, Traits>::~ParseStream() = default;

@@ -3,6 +3,7 @@
 
 #include <cstdio>
 
+#include <algorithm>
 #include <filesystem>
 #include <string>
 #include <streambuf>
@@ -18,16 +19,16 @@ class FileBase{
 
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
-    typedef typename std::basic_string<char_type> string;
+    typedef typename std::basic_string<CharT> string;
 
 public:
 
     string _fname, _mode;
     std::FILE* _M_file {NULL};
 
-    FileBase() {}
-    FileBase(const string& fname, const string& mode) : _fname(fname), _mode(mode){ this->open(); }
-    ~FileBase(){ this->close(); }
+    FileBase();
+    FileBase(const string&, const string&);
+    ~FileBase();
 
     void open();
     void close();
@@ -54,7 +55,7 @@ class ParseBuf : virtual public std::basic_streambuf<CharT, Traits> {
 
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
-    typedef typename std::basic_string<char_type> string;
+    typedef typename std::basic_string<CharT> string;
 
     template<typename _CharT, typename _Traits>
     friend class ParseStream;
@@ -77,9 +78,9 @@ protected:
     int_type overflow(int_type=Traits::eof());
     
 public:
-    ParseBuf() : std::basic_streambuf<CharT, Traits>() {}
-    ParseBuf(const string& file, const string& mode) : std::basic_streambuf<CharT, Traits>(), _fdev(file, mode) {}
-    ~ParseBuf() { this->close(); }
+    ParseBuf();
+    ParseBuf(const string&, const string&);
+    ~ParseBuf();
 
 };
 
@@ -92,7 +93,7 @@ class ParseStream : public std::basic_iostream<CharT, Traits>{
 
     typedef typename Traits::int_type int_type;
     typedef typename Traits::char_type char_type;
-    typedef typename std::basic_string<char_type> string;
+    typedef typename std::basic_string<CharT> string;
 
     // Underlying buffer
     ParseBuf<CharT, Traits> _pbuf;
@@ -100,7 +101,7 @@ class ParseStream : public std::basic_iostream<CharT, Traits>{
 public:
 
     ParseStream();
-    ParseStream(const std::basic_string<CharT>&);
+    ParseStream(const string&);
     ~ParseStream();
 
     ParseStream<CharT, Traits>& read(char_type*, std::streamsize);
