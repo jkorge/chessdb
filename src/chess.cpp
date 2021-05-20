@@ -1733,6 +1733,8 @@ void Board::reset(){
     this->checkers.clear();
     this->next = white;
     this->check = NOCOLOR;
+    this->half = 0;
+    this->full = 1;
     this->cancas = 0b00001111;
 }
 
@@ -1743,16 +1745,18 @@ void Board::clear(){
     this->checkers.clear();
     this->next = NOCOLOR;
     this->check = NOCOLOR;
+    this->half = 0;
+    this->full = 0;
     this->cancas = 0b00000000;
 }
 
-color Board::lookupc(const U64 src){
+color Board::lookupc(const U64 src) const{
     if     (this->board(white) & src){ return white;   }
     else if(this->board(black) & src){ return black;   }
     else                             { return NOCOLOR; }
 }
 
-ptype Board::lookupt(const U64 src){
+ptype Board::lookupt(const U64 src) const{
     if     (this->board(pawn)   & src){ return pawn;   }
     else if(this->board(knight) & src){ return knight; }
     else if(this->board(bishop) & src){ return bishop; }
@@ -1867,7 +1871,12 @@ void Board::update(const ply p){
 
     // Update map of pieces giving check
     if(p.check){ this->check = this->next; this->search_checks(p.c); }
-    else       { this->checkers.clear();   this->check = NOCOLOR; }
+    else       { this->checkers.clear();   this->check = NOCOLOR;    }
+
+    // Move counters
+    if(!cc){ ++this->full; }
+    if(p.type != pawn && !p.capture){ ++this->half;   }
+    else                            { this->half = 0; }
 }
 
 void Board::search_pins(){
@@ -2253,7 +2262,7 @@ namespace fen{
 
     const std::string new_game("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
-    ptype c2type(char p){
+    ptype c2ptype(char p){
         switch(p){
             case 'p':
             case 'P': return pawn;
@@ -2266,6 +2275,17 @@ namespace fen{
             case 'q':
             case 'Q': return queen;
             default:  return king;
+        }
+    }
+
+    char ptype2c(ptype pt, color c){
+        switch(pt){
+            case pawn:      return c<0 ? 'p' : 'P';
+            case knight:    return c<0 ? 'n' : 'N';
+            case bishop:    return c<0 ? 'b' : 'B';
+            case rook:      return c<0 ? 'r' : 'R';
+            case queen:     return c<0 ? 'q' : 'Q';
+            default:        return c<0 ? 'k' : 'K';
         }
     }
 
@@ -2282,7 +2302,7 @@ namespace fen{
                 if(std::isdigit(*it)){ file += (*it - '0'); }
                 else{
                     color c = std::islower(*it) ? black : white;
-                    ptype pt = c2type(*it);
+                    ptype pt = c2ptype(*it);
                     U64 loc = mask(8*rank + file);
 
                     board.place(loc, pt, c);
@@ -2327,8 +2347,8 @@ namespace fen{
             else            { board.enpas = 0ULL; }
 
             // Move counters
-            // board.half = std::stoi(*fentok++);
-            // board.full = std::stoi(*fentok++);
+            board.half = std::stoi(*fentok++);
+            board.full = std::stoi(*fentok++);
 
             // Check for pins
             board.search_pins();
@@ -2338,5 +2358,54 @@ namespace fen{
             if(board.checkers.size()){ board.check = board.next; }
 
         }
+    }
+
+    std::string from_board(const Board& board){
+        std::string fstr;
+
+        // First token - arrangement of material
+        U64 occ = board.board();
+        for(int r=7; r>=0; --r){
+            int empty = 0;
+            for(int f=0; f<8; ++f){
+                U64 loc = mask(8*r + f);
+                if(!(loc & occ)){ ++empty; }
+                else{
+                    if(empty){ fstr += std::to_string(empty); empty = 0; }
+                    fstr += ptype2c(board.lookupt(loc), board.lookupc(loc));;
+                }
+            }
+            if(empty){ fstr += std::to_string(empty); }
+            if(r){ fstr += '/'; }
+        }
+        fstr += ' ';
+
+        // Next to move
+        fstr += color2c(board.next);
+        fstr += ' ';
+
+        // Castling availability
+        if(!board.cancas){ fstr += '-'; }
+        else{
+            std::bitset<4> cancas(board.cancas);
+            if(cancas.test(3)){ fstr += 'K'; }
+            if(cancas.test(2)){ fstr += 'Q'; }
+            if(cancas.test(1)){ fstr += 'k'; }
+            if(cancas.test(0)){ fstr += 'q'; }
+        }
+        fstr += ' ';
+
+        // En passant availability
+        fstr += board.enpas ? coord2s(board.enpas) : std::string(1, '-');
+        fstr += ' ';
+
+        // Half-move counter
+        fstr += std::to_string(board.half);
+        fstr += ' ';
+
+        // Full-move counter
+        fstr += std::to_string(board.full);
+
+        return fstr;        
     }
 }

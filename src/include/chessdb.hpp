@@ -104,7 +104,6 @@ class PGN : virtual public ParseBuf<CharT, Traits>{
 protected:
     std::vector<ply> _plies;
     pgndict _tags;
-public:
     std::map<ptype, std::vector<ply> > ply_map;
     std::map<std::string, ply*> san_map;
 

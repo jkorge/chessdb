@@ -118,7 +118,7 @@ typedef struct bitboard : std::array<U64, 15>{
     inline const U64& operator()(color c)           const{ return this->operator[](12 + (c<0)); }
     inline       U64& operator()(color c)                { return this->operator[](12 + (c<0)); }
 
-    inline       U64  operator()(ptype pt)               { return this->operator[](pt) | this->operator[](pt+6); }
+    inline       U64  operator()(ptype pt)          const{ return this->operator[](pt) | this->operator[](pt+6); }
 
     inline const U64& operator()()                  const{ return this->operator[](14); }
     inline       U64& operator()()                       { return this->operator[](14); }
@@ -482,6 +482,8 @@ public:
     std::unordered_map<U64, ptype> checkers;
     color next = white,
           check = NOCOLOR;
+    short half{0},
+          full{1};
     BYTE cancas = 0b00001111;
 
     Board();
@@ -489,8 +491,8 @@ public:
     void reset();
     void clear();
 
-    color lookupc(const U64);
-    ptype lookupt(const U64);
+    color lookupc(const U64) const;
+    ptype lookupt(const U64) const;
 
     void remove();
     void remove(const U64);
@@ -546,6 +548,8 @@ namespace fen{
     void arrange(std::string, Board&);
 
     void parse(std::string, Board&);
+
+    std::string from_board(const Board&);
 }
 
 #endif
