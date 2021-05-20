@@ -144,9 +144,12 @@ void perft(Board root){
     std::vector<stats> fulfilled(N);
 
     // Create threads
-    for(int i=0; i<N; ++i){
+    RESULTS[4] = Tempus::time();
+    for(int i=0, j=0; i<N; ++i){
         std::promise<stats> prms;
         futures[i] = prms.get_future();
+
+        if(i >= std::thread::hardware_concurrency()){ futures[j++].wait(); }
 
         // Construct in-place at back of vector
         threads.emplace_back([prms=std::move(prms)](Board root) mutable{
@@ -155,13 +158,12 @@ void perft(Board root){
             res[4] = Tempus::time() - t0;
             prms.set_value(res);
         }, successors[i]);
+        threads.back().detach();
     }
 
     // Await results from futures
-    for(int i=0; i<N; ++i){
-        fulfilled[i] = futures[i].get();
-        threads[i].join();
-    }
+    for(int i=0; i<N; ++i){ fulfilled[i] = futures[i].get(); }
+    RESULTS[4] = Tempus::time() - RESULTS[4];
 
     // Print results to console
     print_header();
@@ -172,7 +174,6 @@ void perft(Board root){
             RESULTS[1] += fulfilled[i][1];
             RESULTS[2] += fulfilled[i][2];
             RESULTS[3] += fulfilled[i][3];
-            RESULTS[4]  = std::max(RESULTS[4], fulfilled[i][4]);
 
             // Print
             tbl::row(root.ply2san(plies[i]), fulfilled[i][0], fulfilled[i][1], fulfilled[i][2], fulfilled[i][3], Tempus::strtime(fulfilled[i][4]));
@@ -180,7 +181,6 @@ void perft(Board root){
         else{
             // Accumulate results
             RESULTS[0] += fulfilled[i][0];
-            RESULTS[4]  = std::max(RESULTS[4], fulfilled[i][4]);
 
             // Print
             tab::row(root.ply2san(plies[i]), fulfilled[i][0], Tempus::strtime(fulfilled[i][4]));

@@ -10,6 +10,7 @@ test/src/*
 !test/src/pgn2cdb.cpp
 !test/src/devutil.hpp
 !test/src/cvtest.cpp
+!test/src/engine.cpp
 
 **/logs
 **/deprecated
