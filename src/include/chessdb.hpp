@@ -1,7 +1,10 @@
-#ifndef ENCODE_H
-#define ENCODE_H
+#ifndef CHESSDB_H
+#define CHESSDB_H
 
 #include <filesystem>
+#include <string>
+#include <set>
+#include <unordered_set>
 
 #include "tempus.hpp"
 #include "parsestream.hpp"
@@ -169,10 +172,11 @@ class ChessDB : virtual public ParseBuf<CharT, Traits>{
 
 public:
     std::unordered_map<string, uint32_t> tag_enumerations{{"", 0}};
-    std::vector<string> tags{""};
+    std::vector<const string*> tags{&this->tag_enumerations.begin()->first};
 
     // Map game index to starting byte and num plies
     std::unordered_map<uint32_t, std::pair<uint64_t, uint16_t> > index;
+
 
 protected:
     game rg;
@@ -238,6 +242,8 @@ public:
     void insert(const game&);
     game select(int);
     int nplies(int i);
+    std::unordered_set<string> select(pgntag);
+    std::set<game> select(pgntag, string);
 
     int size();
 };

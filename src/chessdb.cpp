@@ -488,6 +488,8 @@ void PGN<CharT, Traits>::movetext(){
     while((idx = mbuf.find('\n')) != string::npos){
         // All \n must be preceded by '.' or ' '
         if(mbuf[idx-1] != '.' && mbuf[idx-1] != ' '){ mbuf.insert(idx++, 1, ' '); }
+        else
+        if(mbuf[idx+1] == ' '){ mbuf.erase(idx+1, 1); }
         mbuf.erase(idx, 1);
     }
 
@@ -564,7 +566,7 @@ PGNStream<CharT, Traits>::PGNStream(const CharT* file) : PGNStream(string(file))
 
 template<typename CharT, typename Traits>
 PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(game& g){
-    this->read(nullptr, 0);
+    this->read();
     g.tags = this->_pbuf._tags;
     g.plies = this->_pbuf._plies;
     return *this;
@@ -572,14 +574,14 @@ PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(game& g){
 
 template<typename CharT, typename Traits>
 PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(std::vector<game>& games){
-    this->read(nullptr, 0);
+    this->read();
     games.emplace_back(this->_pbuf._tags, this->_pbuf._plies);
     return *this;
 }
 
 template<typename CharT, typename Traits>
 game PGNStream<CharT, Traits>::next(){
-    this->read(nullptr, 0);
+    this->read();
     return {this->_pbuf._tags, this->_pbuf._plies};
 }
 
@@ -685,7 +687,7 @@ template<typename CharT, typename Traits>
 uint32_t ChessDB<CharT, Traits>::enum_extend(const ChessDB<CharT, Traits>::string& tag){
     if(this->tag_enumerations.find(tag) == this->tag_enumerations.end()){
         this->tag_enumerations.emplace(tag, ++this->NTAGS - 1);
-        this->tags.emplace_back(tag);
+        this->tags.emplace_back(&this->tag_enumerations.find(tag)->first);
     }
     return this->tag_enumerations[tag];
 }
@@ -696,9 +698,9 @@ void ChessDB<CharT, Traits>::write_tag_enum(){
     this->seek_tags();
     this->sync();
 
-    std::stringstream bufstr;
-    std::copy(this->tags.begin(), this->tags.end(), std::ostream_iterator<std::string>(bufstr, "\n"));
-    this->_buf = std::move(*bufstr.rdbuf()).str();
+    this->_buf.clear();
+    this->_buf.reserve(this->NTAGS);
+    for(int i=0; i<this->tags.size(); ++i){ this->_buf.append(*this->tags[i] + '\n'); }
 
     this->write();
     this->sync();
@@ -760,7 +762,7 @@ ChessDB<CharT, Traits>::rparse(){
         N = this->_buf.size();
 
     for(pgndict::iterator it=this->rg.tags.begin(); it!=this->rg.tags.end(); ++it){
-        it->second = this->tags[*(uint32_t*)(this->_buf.data() + loc)];
+        it->second = *this->tags[*(uint32_t*)(this->_buf.data() + loc)];
         loc += TAGSZ;
     }
 
@@ -790,7 +792,6 @@ void ChessDB<CharT, Traits>::load_header(){
     this->NTAGS = *(uint32_t*)(this->_buf.data() + TMESZ + TAGSZ);
     this->IDXPOS = *(uint64_t*)(this->_buf.data() + TMESZ + 2*TAGSZ);
 
-
     this->sync();
 }
 
@@ -811,9 +812,11 @@ void ChessDB<CharT, Traits>::load_tag_enum(){
     std::stringstream bufstr;
     bufstr.str(std::move(this->_buf));
     this->tags.resize(this->NTAGS);
+    string _tag;
     for(unsigned int i=0; i<this->NTAGS; ++i){
-        std::getline(bufstr, this->tags[i], '\n');
-        this->tag_enumerations[this->tags[i]] = i;
+        std::getline(bufstr, _tag, '\n');
+        this->tag_enumerations[_tag] = i;
+        this->tags[i] = &this->tag_enumerations.find(_tag)->first;
     }
 
     this->sync();
@@ -859,7 +862,7 @@ ChessDBStream<CharT, Traits>& ChessDBStream<CharT, Traits>::operator<<(const gam
 
 template<typename CharT, typename Traits>
 ChessDBStream<CharT, Traits>& ChessDBStream<CharT, Traits>::operator>>(game& g){
-    this->read(nullptr, 0);
+    this->read();
     g = this->_pbuf.rg;
     return *this;
 }
@@ -872,16 +875,65 @@ void ChessDBStream<CharT, Traits>::insert(const game& g){
 
 template<typename CharT, typename Traits>
 game ChessDBStream<CharT, Traits>::select(int i){
+    if(std::abs(i) >= this->size()){ return {}; }
+    else
+    if(i < 0){ i += this->size(); }
+
     this->_pbuf.seek_game(i);
-    this->read(nullptr, 0);
+    this->read();
     return this->_pbuf.rg;
 }
 
 template<typename CharT, typename Traits>
-int ChessDBStream<CharT, Traits>::nplies(int i){ return this->_pbuf.index[i].second; }
+int ChessDBStream<CharT, Traits>::nplies(int i){
+    if(std::abs(i) >= this->size()){ return 0; }
+    else
+    if(i < 0){ i = this->size() + i; }
+    return this->_pbuf.index[i].second;
+}
 
 template<typename CharT, typename Traits>
 int ChessDBStream<CharT, Traits>::size(){ return this->_pbuf.NGAMES; }
+
+template<typename CharT, typename Traits>
+std::unordered_set<typename ChessDBStream<CharT, Traits>::string>
+ChessDBStream<CharT, Traits>::select(pgntag t){
+    std::unordered_set<string> res;
+    string tag_enum;
+    int tag_number = 0;
+    for(pgndict::iterator it=this->_pbuf.rg.tags.begin(); it!=this->_pbuf.rg.tags.end(); ++it, ++tag_number){
+        if(it->first == t){ break; }
+    }
+    for(std::unordered_map<uint32_t, std::pair<uint64_t, uint16_t> >::iterator it=this->_pbuf.index.begin(); it!=this->_pbuf.index.end(); ++it){
+        this->_pbuf._fdev.seek(it->second.first + TAGSZ * tag_number);
+        this->_pbuf._fdev.xsgetn(tag_enum, TAGSZ);
+        res.emplace(*this->_pbuf.tags[*(uint32_t*)(tag_enum.data())]);
+        tag_enum.clear();
+    }
+    return res;
+}
+
+template<typename CharT, typename Traits>
+std::set<game>
+ChessDBStream<CharT, Traits>::select(pgntag t, string val){
+    std::set<game> res;
+    string buffer;
+    uint32_t tag_enum = this->_pbuf.tag_enumerations[val];
+    int tag_number = 0;
+    for(pgndict::iterator it=this->_pbuf.rg.tags.begin(); it!=this->_pbuf.rg.tags.end(); ++it, ++tag_number){ if(it->first == t){ break; } }
+
+    for(std::unordered_map<uint32_t, std::pair<uint64_t, uint16_t> >::iterator it=this->_pbuf.index.begin(); it!=this->_pbuf.index.end(); ++it){
+        this->_pbuf._fdev.seek(it->second.first + TAGSZ * tag_number);
+        this->_pbuf._fdev.xsgetn(buffer, TAGSZ);
+        if(tag_enum == *(uint32_t*)buffer.data()){
+            this->_pbuf._fdev.seek(it->second.first);
+            this->read();
+            res.emplace(this->_pbuf.rg);
+        }
+        buffer.clear();
+    }
+    return res;
+}
 
 
 template class PGN<char>;
