@@ -13,33 +13,10 @@ FileBase<CharT, Traits>::FileBase(const string& fname, const string& mode) : _fn
 template<typename CharT, typename Traits>
 FileBase<CharT, Traits>::~FileBase(){ this->close(); }
 
-std::string wtomb(const wchar_t* wide){
-    std::mbstate_t state = std::mbstate_t();
-    std::size_t sz = std::wcsrtombs(nullptr, &wide, 0, &state);
-    std::string mb;
-    std::wcsrtombs(&mb[0], &wide, sz+1, &state);
-    return mb;
-}
-
 template<>
 void FileBase<char>::open(){
     if(this->_M_file == 0){
         this->_M_file = fopen64(this->_fname.data(), this->_mode.data());
-        std::setvbuf(this->_M_file, NULL, _IONBF, 0);
-    }
-}
-
-template<>
-void FileBase<wchar_t>::open(){
-
-    // Wide filename/mode => Narrow (multi-byte) filename/mode
-    const wchar_t *_fname_loc = this->_fname.data(),
-                  *_mode_loc = this->_mode.data();
-    std::string _mbfname = wtomb(_fname_loc),
-                _mbmode = wtomb(_mode_loc);
-
-    if(this->_M_file == 0){
-        this->_M_file = fopen64(_mbfname.data(), _mbmode.data());
         std::setvbuf(this->_M_file, NULL, _IONBF, 0);
     }
 }
@@ -78,15 +55,7 @@ void FileBase<CharT, Traits>::xsgetn(
     typename FileBase<CharT, Traits>::string& buf,
     std::streamsize n,
     const typename FileBase<CharT, Traits>::char_type delim
-){
-    int_type c;
-    for(int i=0; i<n; ++i){
-        if((c = std::fgetc(this->_M_file)) == Traits::eof()){ break; }
-        else if(c == delim){ break; }
-        else if(c == '\r'){ continue; }
-        else{ buf.push_back(Traits::to_char_type(c)); }
-    }
-}
+){ this->xsgetn(buf, n, string{delim}); }
 
 // Reads up to n bytes, EOF, or delim (whichever comes first)
 // delim is a multi-char string
@@ -106,7 +75,7 @@ void FileBase<CharT, Traits>::xsgetn(
         Read
     */
     string tmp(n, ' ');
-    if(!std::fread(tmp.data(), sizeof(char), n, this->_M_file)){ return; }
+    if(!std::fread(tmp.data(), sizeof(char_type), n, this->_M_file)){ return; }
 
     /*
         Remove CR
@@ -122,7 +91,7 @@ void FileBase<CharT, Traits>::xsgetn(
     if(n){
         // Count CR removed from tmp and increase delim counter by 1 for each LF
         n = 0;
-        for(typename std::allocator<CharT>::size_type j=0; j<tmp.size(); ++j){ if(tmp[j] == '\n'){ ++n; } }
+        for(typename std::allocator<CharT>::size_type j=0; j<  tmp.size(); ++j){ if(tmp[j]   == '\n'){ ++n; } }
         for(typename std::allocator<CharT>::size_type i=0; i<delim.size(); ++i){ if(delim[i] == '\n'){ ++d; } }
     }
 
@@ -306,7 +275,9 @@ ParseStream<CharT, Traits>& ParseStream<CharT, Traits>::write(const ParseStream<
 
 template class ParseStream<char>;
 // template class ParseStream<wchar_t>;
+
 template class ParseBuf<char>;
 // template class ParseBuf<wchar_t>;
+
 template class FileBase<char>;
 // template class FileBase<wchar_t>;

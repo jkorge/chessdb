@@ -137,11 +137,7 @@ int table<N, W, idx>::index = 1;
 
 std::string bar(int length){ return std::string(length, '-'); }
 
-void bbprint(const U64& bb, std::string txt, char c){
-    std::cout << txt
-              << bb2s(bb, c)
-              << '\n';
-}
+void bbprint(const U64& bb, std::string txt, char c){ std::cout << txt << bb2s(bb, c) << '\n'; }
 
 void bprint(Board& board){ std::cout << board.to_string() << '\n'; }
 

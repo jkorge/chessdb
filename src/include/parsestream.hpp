@@ -104,7 +104,7 @@ public:
     ParseStream(const string&);
     ~ParseStream();
 
-    ParseStream<CharT, Traits>& read(char_type*, std::streamsize);
+    ParseStream<CharT, Traits>& read(char_type* = nullptr, std::streamsize=0);
     ParseStream<CharT, Traits>& write(const char_type*, std::streamsize);
 
 };

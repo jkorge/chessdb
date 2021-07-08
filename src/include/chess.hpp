@@ -105,7 +105,7 @@ typedef struct ply{
 
     constexpr bool operator!=(const ply& other) const{ return not (*this == other); }
 
-    // Assignment (implicit assign is deprecated)
+    // Assignment (implicit assign is deprecated in c++17)
     constexpr ply& operator=(const ply& other) = default;
 } ply;
 
@@ -189,6 +189,7 @@ struct game{
     ~game ();
     bool operator==(const game& other) const{ return (this->tags == other.tags) && (this->plies == other.plies); }
     bool operator!=(const game& other) const{ return not (*this == other); }
+    bool operator<(const game& other) const{ return this->tags.at(date) < other.tags.at(date); }
 };
 
 struct Magic{
@@ -391,7 +392,7 @@ constexpr char color2c(color c){
 constexpr void lsbflip(U64& x){ x &= x-1; }
 
 // Square number => U64
-constexpr U64 mask(const square x){ return 1LL << x; }
+constexpr U64 mask(const square x){ return 1ULL << x; }
 
 // Printing utils
 constexpr int bvizidx(square sq){ return 36 + 35*(7 - sq/8) + 4*(sq%8); }

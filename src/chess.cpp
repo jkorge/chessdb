@@ -1625,7 +1625,6 @@ U64 line(const square src, const square dst, bool endp){
     return res;
 }
 
-// Empty board patterns
 U64 slide_atk(const square src, const ptype pt, const U64 occ){
     U64 res = 0ULL;
     for(int i=0; i<8; ++i){
@@ -2074,48 +2073,61 @@ std::vector<ply> Board::legal_plies(ptype pt, color c) const{
 }
 
 std::vector<ply> Board::legal_plies(square src, ptype pt, color c) const{
-    std::vector<ply> plies;
+
+    // Legal moves bitboard
     U64 moves = this->legal(src, pt, c);
-    int cas = 0;
-    bool cap = false, chk = false, mte = false, pmo = false;
+
+    // Allocate storage of ply vector (including extra space for promotions)
+    U64 promo_ops = moves & (c>0 ? rank(63) : rank(0));
+    std::vector<ply> plies(popcnt(moves) + (!pt ? 4*popcnt(promo_ops) : 0));
+    int idx = 0;
+
+    // Create ply object to be updated/copied for each legal move
+    ply p = {mask(src), U64(0), pt, pawn, c, 0, false, false, false};
+
+    // Board for 1-ply lookahead to determine check/checkmate
     Board b;
 
     while(moves){
-        U64 dst = mask(lsbpop(moves));
+        p.dst = mask(lsbpop(moves));
 
         // Capture
-        cap = (pt != pawn ? this->board() : (this->board() | this->enpas)) & dst;
+        p.capture = (pt != pawn ? this->board() : (this->board() | this->enpas)) & p.dst;
 
         // Castle
         if(pt == king){
-            if(dst == (1ULL << (src+2))){ cas =  1; }
+            if(p.dst == mask(src+2)){ p.castle =  1; }
             else
-            if(dst == (1ULL << (src-2))){ cas = -1; }
-            else                      { cas =  0; }
+            if(p.dst == mask(src-2)){ p.castle = -1; }
+            else                    { p.castle =  0; }
         }
-        else{ cas = 0; }
+        else{ p.castle = 0; }
 
         // Promotion
-        pmo = !pt && (c>0 ? dst & rank(56) : dst & rank(7));
+        bool pmo = !pt && (c>0 ? p.dst & rank(56) : p.dst & rank(7));
+        ptype start = pmo ? knight : pawn,
+              stop = pmo ? king : knight;
 
         // Construct plies
-        for(int i=(pmo ? knight : pawn); i<(pmo ? king : knight); ++i){
-            
-            plies.emplace_back(mask(src), dst, pt, static_cast<ptype>(i), c, cas, cap, false, false);
+        for(int i=start; i<stop; ++i){
+
+            p.promo = static_cast<ptype>(i);
 
             b = *this;
-            b.update(plies.back());
+            b.update(p);
             b.search_checks(c);
 
-            chk = b.checkers.size() > 0;
+            bool chk = b.checkers.size() > 0,
+                 mte;
             if(chk){
                 b.check = b.next;
                 mte = !b.legal(b.next);
             }
             else{ mte = false; }
 
-            plies.back().check = chk;
-            plies.back().mate = mte;
+            p.check = chk;
+            p.mate = mte;
+            plies[idx++] = p;
         }
     }
     return plies;
@@ -2199,7 +2211,7 @@ namespace disamb{
             cand:   Candidate pieces (intersect with `src` if src is non-zero)
             pins:   Candidate pieces which are also pinned
             kloc:   Bitboard of same-color king
-            dkln:     Line between `dst` and `kloc`, not including kloc
+            dkln:   Line between `dst` and `kloc`, not including kloc
             occ:    Occupancy of the entire board
             res:    Result placeholder
         */
@@ -2235,14 +2247,12 @@ namespace disamb{
                     /*
                         1. Piece can move to target square
                         2. Piece has clear line of sight to target square OR does not need it (ie. is a knight)
-                        3. Piece must match any partial disambiguation in `src`
-                        4. Piece is not pinned OR `dst` is colinear with both king and prospective piece
+                        3. Piece is not pinned OR `dst` is colinear with both king and prospective piece
                     */
                     if(
                         (dst & attack(prosq, pt, c)) &&
                         (pt == knight || !(occ & line(prosq, bitscan(dst)))) &&
-                        (!src || pros & src) &&
-                        (!(pros & board.pins) || line(prosq, bitscan(board.board(king, c)), true) & dkln)
+                        (!(pros & board.pins) || line(prosq, bitscan(kloc), true) & dkln)
                     ){ return pros; }
                 }
             }

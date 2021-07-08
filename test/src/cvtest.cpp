@@ -12,14 +12,12 @@ void prog(float i, float N, char end='\0'){ std::cout << int(100 * (i/N)) << '%'
 std::vector<game> load_pgn(std::string file, int start, int stop=-1){
     hdr::print("Loading PGN");
 
-    // Processors
     PGNStream pstr(file);
-
-    // Containers
     std::vector<game> games;
     double T;
     unsigned long long t0 = Tempus::time();
 
+    // Skip first `start` number of games
     for(int i=0; i<start; ++i){ pstr.next(); }
 
     if(stop>0){
@@ -27,7 +25,7 @@ std::vector<game> load_pgn(std::string file, int start, int stop=-1){
         int p = N / pfreq;
         for(int i=start; i<stop; ++i){
             pstr >> games;
-            if(i && not (i%p)){ prog(i+1 - start, N, '\r'); }
+            if(!(i%p)){ prog(i+1 - start, N, '\r'); }
             if(pstr.eof()){ break; }
         }
         prog(N, N);
@@ -58,7 +56,7 @@ void write_game_data(std::string file, const std::vector<game>& games){
 
     for(std::vector<game>::const_iterator it=games.begin(); it!=games.end(); ++it){
         cstr.insert(*it);
-        if(++i && not (i%p)){ prog(i, N, '\r'); }
+        if(!(++i%p)){ prog(i, N, '\r'); }
     }
     prog(N, N);
     T = Tempus::time() - t0;
@@ -76,7 +74,7 @@ std::vector<game> load_db(std::string& file){
 
     for(int i=0; i<N; ++i){
         games.emplace_back(cstr.select(i));
-        if(i && not (i%p)){ prog(i+1, N, '\r'); }
+        if(!(i%p)){ prog(i+1, N, '\r'); }
     }
     prog(N, N);
     T = Tempus::time() - t0;
@@ -94,7 +92,7 @@ bool error_check(const std::vector<game>& games, const std::vector<game>& lgames
             L = lgames.size();
         if(N != L){
             if(N > L){ std::cout << "DB File Contained " << L << "/" << N << " games\n"; }
-            else     { std::cout << "Found " << L << "games in DB file. Expected " << N << '\n'; }
+            else     { std::cout << "Found " << L << " games in DB file. Expected " << N << '\n'; }
         }
         else{
             for(int i=0; i<lgames.size(); ++i){
@@ -142,7 +140,29 @@ bool create(std::string& src_file, std::string& dst_file, int start, int stop){
     return error_check(games, lgames);
 }
 
-void load(std::string& dst_file){ std::vector<game> lgames = load_db(dst_file); }
+void add(std::string& src_file, std::string& dst_file){
+    hdr::print("Adding Games");
+
+    PGNStream pstr(src_file);
+    std::vector<game> games;
+    double T;
+    unsigned long long t0 = Tempus::time();
+
+    for(int i=0; i<10; ++i){ pstr >> games; }
+
+    ChessDBStream cstr(dst_file);
+    int init_sz = cstr.size();
+    for(std::vector<game>::iterator it=games.begin(); it!=games.end(); ++it){ cstr.insert(*it); }
+    prog(1,1);
+    
+    T = Tempus::time() - t0;
+    std::cout << " (" << (T/1.0e9) << " s)" << "\n\n";
+
+    std::vector<game> lgames;
+    for(int i=init_sz; i<init_sz + games.size(); ++i){ lgames.emplace_back(cstr.select(i)); }
+
+    error_check(games, lgames);
+}
 
 int main(int argc, char** argv){
 
@@ -168,8 +188,6 @@ int main(int argc, char** argv){
 
     if(pfreq > stop-start){ pfreq = 1; }
 
-    auto trim = [](std::string x){ return x.size() <= 20 ? x : x.substr(0,17) + "..."; };
-
     tbl::header("Read From", std::filesystem::path(src_file).filename().string());
     tbl::header("Write To", std::filesystem::path(dst_file).filename().string());
     tbl::header("From Game No.", start);
@@ -177,7 +195,9 @@ int main(int argc, char** argv){
 
     std::cout << "\n";
 
-    if(create(src_file, dst_file, start, stop)){ load(dst_file); }
+    if(create(src_file, dst_file, start, stop)){
+        add(src_file, dst_file);
+    }
 
     std::system((std::string("del ") + dst_file).data());
 

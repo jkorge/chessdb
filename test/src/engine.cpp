@@ -62,7 +62,6 @@ stats searchn(Board, int);
 void perft(Board, bool, bool);
 // void perftdiv(Board, bool);
 void perft1(Board, bool, bool);
-Board setup();
 void print_header(bool, bool=true);
 void print_footer(bool, bool=true);
 template<int N>
@@ -162,7 +161,7 @@ stats search(Board root, int lvl){
     return n;
 }
 
-// search_tree + track extra stats
+// search + track extra stats
 stats searchn(Board root, int lvl){
     if(_RFQ_){ return {0}; }
 
@@ -170,9 +169,9 @@ stats searchn(Board root, int lvl){
     if(lvl == MAX_DEPTH){
         stats ret = {(uint64_t)plies.size(), 0ULL, 0ULL, 0ULL, 0ULL};
         for(int i=0; i<plies.size(); ++i){
-            if(plies[i].capture){ ++ret[1]; }
-            if(plies[i].check)  { ++ret[2]; }
-            if(plies[i].mate)   { ++ret[3]; }
+            ret[1] += plies[i].capture;
+            ret[2] += plies[i].check;
+            ret[3] += plies[i].mate;
         }
         return ret;
     }
@@ -185,7 +184,6 @@ stats searchn(Board root, int lvl){
     }
     return res;
 }
-
 
 void perft(Board root, bool det, bool div){
     /*
@@ -471,10 +469,10 @@ void App::help(){
                  "           undo -1 (undo all moves)";
         }
         else
-        if(h == "perft" || h == "qperft"){
+        if(h == "perft" || h == "perftq"){
             h = "Searches the game tree from the current position out to N plies and reports stats for all possible outcomes\n"
-                 "Use qperft to suppress stats (except the total number of outcomes)"
-                 "N > 5 is not recommended\n"
+                 "Use perftq to suppress stats (except the total number of outcomes)"
+                 "N > 5 is NOT recommended\n"
                  "  Usage: <perft/qperft> <N>";
         }
         else
