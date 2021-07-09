@@ -449,6 +449,8 @@ std::string coord2s(square);
 
 std::string coord2s(U64);
 
+square s2coord(std::string);
+
 std::string pgndict2s(const pgndict&);
 
 std::string bb2s(U64, char='1');

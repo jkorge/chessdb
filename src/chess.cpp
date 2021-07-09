@@ -1600,6 +1600,8 @@ std::string coord2s(square x){ return std::string(1, file2c(x%8)) + rank2c(x/8);
 
 std::string coord2s(U64 src){ return coord2s(bitscan(src)); }
 
+square s2coord(std::string str){ return 8*c2rank(str[1]) + c2file(str[0]); }
+
 std::string pgndict2s(const pgndict& pd){
     std::string res;
     for(pgndict::const_iterator it=pd.begin(); it!=pd.end(); ++it){
