@@ -546,7 +546,9 @@ namespace fen{
 
     extern const std::string new_game;
 
-    ptype c2type(char);
+    ptype c2ptype(char);
+
+    char ptype2c(ptype, color);
 
     void arrange(std::string, Board&);
 
