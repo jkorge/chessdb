@@ -1796,7 +1796,7 @@ void Board::reset(){
     this->check = NOCOLOR;
     this->half = 0;
     this->full = 1;
-    this->cancas = castle<white> & castle<black>;
+    this->cancas = castle<white> | castle<black>;
 }
 
 void Board::clear(){
@@ -1919,7 +1919,7 @@ void Board::apply(const ply p){
 
     // Update bitboard of pieces giving check
     this->checkers = p.check ? search_checks(this->board, c) : 0ULL;
-    this->check = this->next;
+    this->check = p.check ? nc : NOCOLOR;
 
     // Move counters
     if(c<0){ ++this->full; }
