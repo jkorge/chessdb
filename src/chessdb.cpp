@@ -3,9 +3,44 @@
 namespace {
     ply missing;
     eply emissing{UINT16_MAX};
+
+    // pa => eply
+    inline eply makeply(BYTE p, BYTE a){ return static_cast<eply>(p << 8) | a; }
+
+    inline BYTE makepiece(ptype pt, color c, int i){ return static_cast<BYTE>(pt + 6*(c<0)) | (i << 4); }
+    inline BYTE makeqaxis(square src, square dst){ return (rankof(src) == rankof(dst) || fileof(src) == fileof(dst)) ? QAROOK_ : QABISHOP_; }
+
+    // eply => pa
+    inline BYTE getpiece(eply ep){ return ep >> 8; }
+    inline BYTE getaction(eply ep){ return ep & 255; }
+
+    // type
+    inline ptype gettype(BYTE p){ return static_cast<ptype>((p & 15) % 6); }
+
+    // color
+    constexpr color getcolor(BYTE p){ return (p & 15) >= 6 ? black : white; }
+
+    // queen axis
+    constexpr ptype getqaxis(BYTE p){ return (QAROOK_ & p) ? rook : bishop; }
+
+    // pid
+    inline int getpid(BYTE p){ return (p >> 4) & 7; }
+
+    // promo
+    inline ptype getpromo(BYTE a){ return static_cast<ptype>((a & 28) >> 2); }
+
+    // capture
+    inline bool iscapture(BYTE a){ return CAPTURE_ & a; }
+
+    // check
+    inline bool ischeck(BYTE a){ return CHECK_ & a; }
+
+    // mate
+    inline bool ismate(BYTE a){ return MATE_ & a; }
 }
 
 namespace encode{
+
     std::vector<eply> Game(const game& g){
         std::vector<eply> res;
         Board board;
@@ -20,44 +55,11 @@ namespace encode{
         return res;
     }
 
-    eply Ply(const ply p, Board& board){
-        if(p == missing){ return emissing; }
+    template<ptype pt>
+    BYTE action(const coords src, const coords dst, bool cap=false, ptype promo=pawn);
 
-        BYTE _piece = piece(p, board),
-             _action = action(p);
-
-        return (static_cast<uint16_t>(_piece) << 8) | _action;
-    }
-
-    BYTE piece(const ply p, Board& board){
-        U64 bb = board.board(p.type, p.c);
-        int cnt = 0, src = bitscan(p.src), dst = bitscan(p.dst);
-        while(bb){
-            if(lsbpop(bb) == src){ break; }
-            ++cnt;
-        }
-        BYTE _piece = static_cast<BYTE>(p.type + 6*(p.c<0)) | (cnt << 4);
-        if(p.type == queen){ _piece |= ((rank(src) == rank(dst)) || (file(src) == file(dst))) ? QAROOK_ : QABISHOP_; }
-        return _piece;
-    }
-
-    BYTE action(const ply p){
-        coords src = {p.src},
-               dst = {p.dst};
-
-        BYTE _action = (p.capture ? CAPTURE_ : 0) | (p.check ? CHECK_ : 0) | (p.mate ? MATE_ : 0 );
-        switch(p.type){
-            case pawn:   _action |= pawn_action(src, dst, p.capture, p.promo); break;
-            case knight: _action |= knight_action(src, dst);                   break;
-            case bishop: _action |= bishop_action(src, dst);                   break;
-            case rook:   _action |= rook_action(src, dst);                     break;
-            case queen:  _action |= queen_action(src, dst);                    break;
-            default:     _action |= king_action(src, dst);
-        }
-        return _action;
-    }
-
-    BYTE pawn_action(const coords src, const coords dst, bool cap, ptype promo){
+    template<>
+    BYTE action<pawn>(const coords src, const coords dst, bool cap, ptype promo){
         // 000ppp<rr/ff>
         BYTE res;
         if(cap)  { res = dst[1] > src[1] ? 2 : 1; }
@@ -66,7 +68,8 @@ namespace encode{
         return res;
     }
 
-    BYTE knight_action(const coords src, const coords dst){
+    template<>
+    BYTE action<knight>(const coords src, const coords dst, bool cap, ptype promo){
         // 00000aot
         bool f2 = abs(dst[1] - src[1]) == 2,
              rneg = dst[0] < src[0],
@@ -77,7 +80,8 @@ namespace encode{
                 1*((f2 & fneg) || (!f2 & rneg));
     }
 
-    BYTE bishop_action(const coords src, const coords dst){
+    template<>
+    BYTE action<bishop>(const coords src, const coords dst, bool cap, ptype promo){
         // 000admmm
         coords delta{dst[0] - src[0], dst[1] - src[1]};
 
@@ -86,7 +90,8 @@ namespace encode{
                 abs(delta[0]);
     }
 
-    BYTE rook_action(const coords src, const coords dst){
+    template<>
+    BYTE action<rook>(const coords src, const coords dst, bool cap, ptype promo){
         // 000admmm
         coords delta{dst[0] - src[0], dst[1] - src[1]};
 
@@ -95,19 +100,60 @@ namespace encode{
                 (abs(delta[0]) | abs(delta[1]));
     }
 
-    BYTE queen_action(const coords src, const coords dst){
+    template<>
+    BYTE action<queen>(const coords src, const coords dst, bool cap, ptype promo){
         // 000admmm
-        if((dst[0]==src[0]) | (dst[1]==src[1])){ return rook_action(src, dst); }
-        else                                   { return bishop_action(src, dst); }
+        if((dst[0]==src[0]) | (dst[1]==src[1])){ return action<rook  >(src, dst); }
+        else                                   { return action<bishop>(src, dst); }
     }
 
-    BYTE king_action(const coords src, const coords dst){
+    template<>
+    BYTE action<king>(const coords src, const coords dst, bool cap, ptype promo){
         // 000cffrr
         coords delta{dst[0] - src[0], dst[1] - src[1]};
 
         return  16*(abs(delta[1]) == 2) |
                 (delta[1] ? (delta[1] > 0 ? 4 : 8) : 0) |
                 (delta[0] ? (delta[0] > 0 ? 1 : 2) : 0);
+    }
+
+    BYTE action(const ply p){
+        coords s = {p.src}, d = {p.dst};
+        BYTE _action = (p.capture * CAPTURE_) | (p.check * CHECK_) | (p.mate * MATE_);
+        switch(p.type){
+            case pawn:   _action |= action<pawn  >(s, d, p.capture, p.promo); break;
+            case knight: _action |= action<knight>(s, d);                     break;
+            case bishop: _action |= action<bishop>(s, d);                     break;
+            case rook:   _action |= action<rook  >(s, d);                     break;
+            case queen:  _action |= action<queen >(s, d);                     break;
+            default:     _action |= action<king  >(s, d);
+        }
+        return _action;
+    }
+
+    BYTE piece(const ply p, Board& board){
+
+        U64 bb = board.board(p.type, p.c);
+
+        int cnt = 0;
+        square src = bitscan(p.src),
+               dst = bitscan(p.dst);
+
+        for(; bb; ++cnt){ if(lsbpop(bb) == src){ break; } }
+        BYTE _piece = makepiece(p.type, p.c, cnt);
+        _piece |= p.type == queen ? makeqaxis(src, dst) : 0;
+
+        return _piece;
+    }
+
+    eply Ply(const ply p, Board& board){
+
+        if(p == missing){ return emissing; }
+
+        BYTE _piece = piece(p, board),
+             _action = action(p);
+
+        return makeply(_piece, _action);
     }
 }
 
@@ -126,69 +172,23 @@ namespace decode{
         return res;
     }
 
-    ply Ply(eply e, Board& board){
+    template<ptype>
+    coords action(BYTE _action, int cx=0);
 
-        if(e == emissing){ return missing; }
-
-        ply p;
-        BYTE _piece  = e >> 8,
-             _action = e & 255;
-
-        // color, type, promo
-        p.c = (_piece & 15) >= 6 ? black : white;
-        p.type = static_cast<ptype>((_piece & 15) % 6);
-        p.promo = (p.type == pawn) ? static_cast<ptype>((_action & 28) >> 2) : pawn;
-
-        // capture, check, mate
-        p.capture = CAPTURE_ & _action;
-        p.check = CHECK_ & _action;
-        p.mate = MATE_ & _action;
-
-        // src coordinates
-        U64 bb = board.board(p.type, p.c);
-        int cnt = (_piece >> 4) & 7;
-        for(int i=0; i<cnt; ++i){ lsbflip(bb); }
-        coords src(bitscan(bb)),
-               dst, delta;
-
-        // dst coordinates
-        switch(p.type){
-            case pawn:   delta = pawn_action(_action, p.c);    break;
-            case knight: delta = knight_action(_action);       break;
-            case bishop: delta = bishop_action(_action);       break;
-            case rook:   delta = rook_action(_action);         break;
-            case queen:  delta = queen_action(_action, _piece); break;
-            default:     delta = king_action(_action);
-        }
-
-        dst = src + delta;
-        p.src = mask(8*src[0] + src[1]);
-        p.dst = mask(8*dst[0] + dst[1]);
-
-        // castle
-        if(p.type == king){
-            switch(delta[1]){
-                case  2: p.castle =  1; break;
-                case -2: p.castle = -1; break;
-                default: p.castle =  0;
-            }
-        }
-
-        return p;
-    }
-
-    coords pawn_action(BYTE _action, color c){
+    template<>
+    coords action<pawn>(BYTE _action, int cx){
         // 000ppp<rr/ff>
         bool cap = _action & 32,
              m = _action & 2;
 
-        int dr = c * (cap ? 1 : (m ? 2 : 1)),
+        int dr = cx * (cap ? 1 : (m ? 2 : 1)),
             df = cap ? (m ? 1 : -1) : 0;
 
         return {dr, df};
     }
 
-    coords knight_action(BYTE _action){
+    template<>
+    coords action<knight>(BYTE _action, int cx){
         // 00000aot
         int o = 1 - (2 * (bool)(_action & 2)),
             t = 2 - (4 * (bool)(_action & 1));
@@ -196,7 +196,8 @@ namespace decode{
         else           { return {t, o}; }
     }
 
-    coords bishop_action(BYTE _action){
+    template<>
+    coords action<bishop>(BYTE _action, int cx){
         // 000admmm
         bool d = _action & 8,
              a = _action & 16;
@@ -211,20 +212,23 @@ namespace decode{
         }
     }
 
-    coords rook_action(BYTE _action){
+    template<>
+    coords action<rook>(BYTE _action, int cx){
         // 000admmm
         int val = (1 - (2 * ((_action & 8) >> 3))) * (_action & 7);
         if(_action & 16){ return {val, 0}; }
         else            { return {0, val}; }
     }
 
-    coords queen_action(BYTE _action, BYTE _piece){
+    template<>
+    coords action<queen>(BYTE _action, int cx){
         // 000admmm
-        if(QAROOK_ & _piece){ return rook_action(_action); }
-        else                { return bishop_action(_action); }
+        if(QAROOK_ & cx){ return action<rook  >(_action); }
+        else            { return action<bishop>(_action); }
     }
 
-    coords king_action(BYTE _action){
+    template<>
+    coords action<king>(BYTE _action, int cx){
         // 000cffrr
         int dr = _action & 3,
             df = (_action & 12) >> 2;
@@ -233,6 +237,76 @@ namespace decode{
         if(df == 2){ df = -1; }
         if(_action & 16){ df *= 2; }
         return {dr, df};
+    }
+
+    coords action(eply ep){
+        BYTE p = getpiece(ep),
+             a = getaction(ep);
+        ptype pt = gettype(p);
+        switch(pt){
+            case pawn:   return action<pawn>(a, getcolor(p));
+            case knight: return action<knight>(a);
+            case bishop: return action<bishop>(a);
+            case rook:   return action<rook>(a);
+            case queen:  return action<queen>(a, p);
+            default:     return action<king>(a);
+        }
+    }
+
+    coords action(BYTE p, BYTE a){
+        ptype pt = gettype(p);
+        switch(pt){
+            case pawn:   return action<pawn>(a, getcolor(p));
+            case knight: return action<knight>(a);
+            case bishop: return action<bishop>(a);
+            case rook:   return action<rook>(a);
+            case queen:  return action<queen>(a, p);
+            default:     return action<king>(a);
+        }
+    }
+
+    ply Ply(eply ep, Board& board){
+
+        if(ep == emissing){ return missing; }
+
+        ply p;
+        BYTE _piece = getpiece(ep),
+             _action = getaction(ep);
+
+        // Parse ply details (color, ptype, etc.)
+        p.c       =   getcolor(_piece);
+        p.type    =    gettype(_piece);
+        p.promo   =  !p.type ? getpromo(_action) : pawn;
+        p.capture = iscapture(_action);
+        p.check   =   ischeck(_action);
+        p.mate    =    ismate(_action);
+
+        // Starting coords
+        U64 bb = board.board(p.type, p.c);
+        for(int i=0; i<getpid(_piece); ++i){ lsbflip(bb); }
+        coords src = {bitscan(bb)},
+               dst, delta;
+
+        // Parse action for change in coords
+        switch(p.type){
+            case pawn:   delta = action<pawn  >(_action, p.c   ); break;
+            case knight: delta = action<knight>(_action        ); break;
+            case bishop: delta = action<bishop>(_action        ); break;
+            case rook:   delta = action<rook  >(_action        ); break;
+            case queen:  delta = action<queen >(_action, _piece); break;
+            default:     delta = action<king  >(_action        );
+        }
+
+        // Target coords
+        dst = src + delta;
+        p.src = mask(8*src[0] + src[1]);
+        p.dst = mask(8*dst[0] + dst[1]);
+
+        // Castle
+        if(p.type == king){ p.castle = delta[1] / 2; }
+        else              { p.castle = 0;            }
+
+        return p;
     }
 }
 
@@ -285,29 +359,29 @@ PGN<CharT, Traits>::PGN(const string& filename) : ParseBuf<CharT,Traits>(filenam
             ptype promo = static_cast<ptype>(i);
             if(promo){ dsts += ptype2c(promo); }
 
-            this->ply_map[pt].emplace_back(file(dst), dmask, pawn, promo, c, 0, false, false, false);
+            this->ply_map[pt].emplace_back(fileof(dst), dmask, pawn, promo, c, 0, false, false, false);
             this->san_map[dsts] = &this->ply_map[pt].back();
-            this->ply_map[pt].emplace_back(file(dst), dmask, pawn, promo, c, 0, false, true, false);
+            this->ply_map[pt].emplace_back(fileof(dst), dmask, pawn, promo, c, 0, false, true, false);
             this->san_map[dsts + '+'] = &this->ply_map[pt].back();
-            this->ply_map[pt].emplace_back(file(dst), dmask, pawn, promo, c, 0, false, true, true);
+            this->ply_map[pt].emplace_back(fileof(dst), dmask, pawn, promo, c, 0, false, true, true);
             this->san_map[dsts + '#'] = &this->ply_map[pt].back();
 
             if(f>0){
                 std::string pref = std::string(1, file2c(f-1)) + 'x';
-                this->ply_map[pt].emplace_back(file(dst-1), dmask, pawn, promo, c, 0, true, false, false);
+                this->ply_map[pt].emplace_back(fileof(dst-1), dmask, pawn, promo, c, 0, true, false, false);
                 this->san_map[pref + dsts] = &this->ply_map[pt].back();
-                this->ply_map[pt].emplace_back(file(dst-1), dmask, pawn, promo, c, 0, true, true, false);
+                this->ply_map[pt].emplace_back(fileof(dst-1), dmask, pawn, promo, c, 0, true, true, false);
                 this->san_map[pref + dsts + '+'] = &this->ply_map[pt].back();
-                this->ply_map[pt].emplace_back(file(dst-1), dmask, pawn, promo, c, 0, true, true, true);
+                this->ply_map[pt].emplace_back(fileof(dst-1), dmask, pawn, promo, c, 0, true, true, true);
                 this->san_map[pref + dsts + '#'] = &this->ply_map[pt].back();
             }
             if(f<7){
                 std::string pref = std::string(1, file2c(f+1)) + 'x';
-                this->ply_map[pt].emplace_back(file(dst+1), dmask, pawn, promo, c, 0, true, false, false);
+                this->ply_map[pt].emplace_back(fileof(dst+1), dmask, pawn, promo, c, 0, true, false, false);
                 this->san_map[pref + dsts] = &this->ply_map[pt].back();
-                this->ply_map[pt].emplace_back(file(dst+1), dmask, pawn, promo, c, 0, true, true, false);
+                this->ply_map[pt].emplace_back(fileof(dst+1), dmask, pawn, promo, c, 0, true, true, false);
                 this->san_map[pref + dsts + '+'] = &this->ply_map[pt].back();
-                this->ply_map[pt].emplace_back(file(dst+1), dmask, pawn, promo, c, 0, true, true, true);
+                this->ply_map[pt].emplace_back(fileof(dst+1), dmask, pawn, promo, c, 0, true, true, true);
                 this->san_map[pref + dsts + '#'] = &this->ply_map[pt].back();
             }
 
@@ -409,11 +483,11 @@ void PGN<CharT, Traits>::brp(U64 src, U64 dst, ptype pt, bool cap, bool chk, boo
 
         if(rs[r] && fs[f] && both[tst]){ continue; }
         if(!rs[r]){
-            this->ply_map[pt].emplace_back(rank(tst), dst, pt, pawn, white, 0, cap, chk, mte);
+            this->ply_map[pt].emplace_back(rankof(tst), dst, pt, pawn, white, 0, cap, chk, mte);
             this->san_map[str + rank2c(r) + dsts] = &this->ply_map[pt].back();
         }
         if(!fs[f]){
-            this->ply_map[pt].emplace_back(file(tst), dst, pt, pawn, white, 0, cap, chk, mte);
+            this->ply_map[pt].emplace_back(fileof(tst), dst, pt, pawn, white, 0, cap, chk, mte);
             this->san_map[str + file2c(f) + dsts] = &this->ply_map[pt].back();
         }
         if(!both[tst]){

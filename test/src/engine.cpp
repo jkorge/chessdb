@@ -13,6 +13,8 @@
 
 static std::atomic<bool> _RFQ_{false};
 
+constexpr Tempus::Nanosecond zns{0};
+
 // cmd options
 std::string REPR{"/"},
             castles{"KQkq"},
@@ -209,7 +211,15 @@ void perft(Board root, bool det, bool div){
         std::promise<stats> prms;
         futures[i] = prms.get_future();
 
-        if(i >= std::thread::hardware_concurrency()){ futures[j++].wait(); }
+        if(i >= std::thread::hardware_concurrency()){
+            // Wait for a thread to finish
+            bool c = false;
+            int k = 0;
+            do{
+                c = std::future_status::ready == futures[k++].wait_for(zns);
+                k %= i;
+            } while(!c);
+        }
 
         // Construct in-place at back of vector
         threads.emplace_back([prms=std::move(prms), det=det](Board root) mutable{
@@ -366,13 +376,13 @@ void App::undo(){
         if(!this->sstr.eof()){ this->sstr >> rem; }
         if(rem < 0){
             // Undo all
-            this->board = this->boards.at(0);
+            // this->board = this->boards.at(0);
             this->clear();
         }
         else{
             if(rem > this->boards.size()){ rem = this->boards.size() - 1; }
             // Replace board with copy from history
-            this->board = *(this->boards.end() - rem);
+            // this->board = *(this->boards.end() - rem);
 
             // Remove historical records (no redo)
             for(; rem; --rem){
@@ -473,7 +483,7 @@ void App::help(){
             h = "Searches the game tree from the current position out to N plies and reports stats for all possible outcomes\n"
                  "Use perftq to suppress stats (except the total number of outcomes)"
                  "N > 5 is NOT recommended\n"
-                 "  Usage: <perft/qperft> <N>";
+                 "  Usage: <perft/perftq> <N>";
         }
         else
         if(h == "new"){

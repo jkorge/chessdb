@@ -27,6 +27,8 @@ typedef enum color{ white = 1, black = -1, NOCOLOR = 0 } color;
 
 typedef enum ptype { pawn = 0, knight, bishop, rook, queen, king, NOTYPE = -1 } ptype;
 
+typedef enum direction { east = 0, northeast, north, northwest, west, southwest, south, southeast, NODIR = -1} direction;
+
 typedef struct ply{
 
     U64 src,
@@ -206,7 +208,25 @@ struct Magic{
                 GLOBAL CONSTANTS
 **************************************************/
 
-constexpr std::array<U64, 4> rook_castle{0x0000000000000080LL, 0x0000000000000001LL, 0x8000000000000000LL, 0x0100000000000000LL};
+template<color c, int side=0>
+constexpr BYTE castle = c>0 ? (side>0 ? 0b1000 : side<0 ? 0b0100 : 0b1100)
+                            : (side>0 ? 0b0010 : side<0 ? 0b0001 : 0b0011);
+
+template<color c, int side>
+constexpr U64 rook_castle_src = c>0 ? (side>0 ? 0x0000000000000080ULL : 0x0000000000000001ULL)
+                                    : (side>0 ? 0x8000000000000000ULL : 0x0100000000000000ULL);
+
+template<color c, int side>
+constexpr U64 rook_castle_dst = side>0 ? (rook_castle_src<c, side> >> 2) : (rook_castle_src<c, side> << 3);
+
+template<color c>
+constexpr U64 ksl  = 0x60ULL << (c>0 ? 0 : 56);
+
+template<color c>
+constexpr U64 qslc = 0x0eULL << (c>0 ? 0 : 56);
+
+template<color c>
+constexpr U64 qsls = 0x0cULL << (c>0 ? 0 : 56);
 
 // Board axes
 constexpr U64 MAINDIAG_     = 0x8040201008040201,
@@ -214,10 +234,14 @@ constexpr U64 MAINDIAG_     = 0x8040201008040201,
               RANK_         = 0xff,
               FILE_         = 0x0101010101010101,
 
-// A1, H8, All squares
+// 0, 1, All squares
               ONE_          = 0x01,
               ZERO_         = 0x00,
               ALL_          = 0xffffffffffffffff,
+
+// Squares @ ends of BB
+              A1            = 0x01,
+              H8            = A1 << 63,
 
 // White starting coordinates
               white_pawns   = 0x000000000000ff00,
@@ -295,6 +319,11 @@ extern const std::string bbviz;
 extern std::map<std::string, pgntag> s2tag;
 
 extern std::map<pgntag, std::string> tag2s;
+
+// Arrays for magic numbers
+extern Magic BMagics[64];
+
+extern Magic RMagics[64];
 
 /**************************************************
                 CONSTEXPR FUNCTIONS
@@ -399,6 +428,27 @@ constexpr int bvizidx(square sq){ return 36 + 35*(7 - sq/8) + 4*(sq%8); }
 
 constexpr int bbvizidx(square sq){ return 2 + 25*(7 - sq/8) + 3*(sq%8); }
 
+constexpr U64 push(U64 src, color c){
+    switch(c){
+        case black: return src >> 8;
+        default:    return src << 8;
+    }
+}
+
+constexpr U64 double_push(U64 src, color c){
+    switch(c){
+        case black: return src >> 16;
+        default:    return src << 16;
+    }
+}
+
+constexpr U64 back_rank(color c){
+    switch(c){
+        case black: return RANK_;
+        default:    return RANK_ << 56;
+    }
+}
+
 /**************************************************
                 INLINE FUNCTIONS
 **************************************************/
@@ -422,11 +472,16 @@ inline square lsbpop(U64& x){ square s = bitscan(x); lsbflip(x); return s; }
 inline U64 ray(const square sq, const ptype pt, const int dir){ return rays[pt-2][sq][dir]; }
 
 // Board axes
+constexpr U64 rank(const int r){ return RANK_ << (8*r); }
+
+constexpr U64 file(const int f){ return FILE_ << f; }
+
+// Board axes of given square
 inline U64 axis(const square sq1, const square sq2){ return axes[sq1][sq2]; }
 
-inline U64 rank(const square sq){ return rmasks[sq]; }
+inline U64 rankof(const square sq){ return rmasks[sq]; }
 
-inline U64 file(const square sq){ return fmasks[sq]; }
+inline U64 fileof(const square sq){ return fmasks[sq]; }
 
 inline U64 diag(const square sq){ return dmasks[sq]; }
 
@@ -463,8 +518,14 @@ U64 slide_atk(const square, const ptype, const U64);
 
 U64 attack(const square, const ptype, const color=NOCOLOR);
 
-// Sliding attack masks (exludes edge squares)
+// Sliding attack masks (same as `attack` but exludes edge squares)
 U64 attackm(const square, const ptype);
+
+// Bitboard of pieces giving check
+U64 search_checks(const bitboard, const color);
+
+// Bitboard of pinned pieces
+U64 search_pins(const bitboard);
 
 // RNG for magic bitboard initialization
 U64 random_magic();
@@ -476,20 +537,72 @@ void magic_init(const ptype, U64*, Magic*);
                     BOARD CLASS
 **************************************************/
 
-class Board{
-public:
-    
+// State struct contains all Board's member vars
+// Makes lookahead easier (ie. copy state, apply update, replace state)
+struct State{
+
+    // Bitboard array
     bitboard board = {0};
+
+    // Bitboards for pinned material, en-passant capturable squares, and material giving check
     U64 pins = 0,
-        enpas = 0;
-    std::unordered_map<U64, ptype> checkers;
+        enpas = 0,
+        checkers = 0;
+
+    // Next to move and player in check
     color next = white,
           check = NOCOLOR;
+
+    // Move counters
     short half{0},
           full{1};
-    BYTE cancas = 0b00001111;
+
+    // Bitmap of castling availability (KQkq)
+    BYTE cancas = castle<white> | castle<black>;
+
+    State() {}
+    State(const State& other){ *this = other; }
+
+    State& operator=(const State& other){
+        this->board    = other.board;
+        this->pins     = other.pins;
+        this->enpas    = other.enpas;
+        this->checkers = other.checkers;
+        this->next     = other.next;
+        this->check    = other.check;
+        this->half     = other.half;
+        this->full     = other.full;
+        this->cancas   = other.cancas;
+        return *this;
+    }
+};
+
+class Board{
+public:
+
+    State state;
+
+    // References to state members; makes code less verbose
+    bitboard& board = state.board;
+
+    U64& pins       = state.pins;
+    U64& enpas      = state.enpas;
+    U64& checkers   = state.checkers;
+
+    color& next     = state.next;
+    color& check    = state.check;
+
+    short& half     = state.half;
+    short& full     = state.full;
+
+    BYTE& cancas    = state.cancas;
 
     Board();
+    Board(const Board& other){ this->state = other.state; }
+    Board& operator=(const Board& other){
+        this->state = other.state;
+        return *this;
+    }
 
     void reset();
     void clear();
@@ -507,23 +620,42 @@ public:
 
     bool clearbt(const square, const square) const;
 
+    template<color c>
+    void apply(const ply);
+
     void update(const ply);
 
-    void search_pins();
+    template<ptype pt, color c>
+    U64 pseudo(const square) const;
 
-    void search_checks(color);
+    template<ptype pt, color c>
+    U64 pseudo() const;
 
-    U64 legal(bool=false) const;
-    U64 legal(color, bool=false) const;
-    U64 legal(ptype, color, bool=false) const;
-    U64 legal(square, ptype, color, bool=false) const;
+    template<color c>
+    U64 pseudo() const;
 
-    std::vector<ply> legal_plies() const;
-    std::vector<ply> legal_plies(color) const;
-    std::vector<ply> legal_plies(ptype, color) const;
-    std::vector<ply> legal_plies(square, ptype, color) const;
+    template<color c>
+    U64 legal_pawn(const square, const U64, const square, const U64) const;
+
+    template<color c>
+    U64 legal_king(const square, const U64, const U64) const;
+
+    template<color c>
+    U64 check_filter(const ptype, const square) const;
+
+    template<color c>
+    U64 legal_bb(const square, const ptype) const;
+
+    U64 legal(const color) const;
+    U64 legal(const ptype, const color) const;
+    U64 legal(const square, const ptype, const color) const;
+
+    std::vector<ply> bb2vec(U64, U64, ptype, color) const;
+
+    std::vector<ply> legal_plies(const color);
 
     std::string ply2san(const ply) const;
+
     std::string to_string();
 };
 
@@ -532,7 +664,10 @@ public:
 **************************************************/
 
 namespace disamb{
+    
     U64 pgn(const U64, const U64, ptype, color, const Board&, bool);
+
+    ply uci(std::string, const Board&);
 }
 
 /**************************************************

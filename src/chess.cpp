@@ -1658,13 +1658,73 @@ U64 attack(const square src, const ptype pt, const color c){
     }
 }
 
-// Sliding attack masks (exludes edge squares)
+// Sliding attack masks (same as `attack` but exludes edge squares)
 U64 attackm(square src, ptype pt){
     switch(pt){
         case bishop: return battackm[src];
         case rook:   return rattackm[src];
         default:     return battackm[src] | rattackm[src];
     }
+}
+
+// Bitboard of pieces giving check
+U64 search_pins(const bitboard bb){
+    /*
+        A pin is found if the following are all true:
+            1. There exists an attack line between candidate piece and opposing king
+            2. There are no pieces with the same color as candidate on that line
+            3. There is only one piece with the same color as the opposing king on that line
+    */
+
+    U64 pins = 0ULL;
+
+    for(int i=white; i>=black; i-=2){
+        color c = static_cast<color>(i);
+        U64 kloc = bb(king, !c),
+            same = bb(c),
+            oppt = bb(!c);
+        square ksq = bitscan(kloc);
+
+        for(int j=bishop; j<=queen; ++j){
+            ptype pt = static_cast<ptype>(j);
+            U64 plocs = bb(pt, c);
+
+            while(plocs){
+                square x = lsbpop(plocs);
+                U64 atk = kloc & attack(x, pt),
+                    lbt = line(x, ksq);
+                if(atk && popcnt(lbt & oppt) == 1 && !popcnt(lbt & same)){ pins |= lbt & oppt; }
+            }
+        }
+    }
+    return pins;
+}
+
+// Bitboard of pinned pieces
+U64 search_checks(const bitboard bb, const color c){
+    // color c = color of player EXECUTING check
+
+    U64 checkers = 0ULL;
+    const U64 kloc = bb(king, !c);
+
+    for(int i=pawn; i<king; ++i){
+
+        ptype pt = static_cast<ptype>(i);
+        U64 plocs = bb(pt, c);
+
+        while(plocs){
+
+            square x = lsbpop(plocs);
+            U64 atk = 0ULL;
+            if(pt <= knight){ atk |= attack(x, pt, c); }
+            if(pt == bishop || pt == queen){ atk |= BMagics[x].attacks[BMagics[x].index(bb())]; }
+            if(pt == rook   || pt == queen){ atk |= RMagics[x].attacks[RMagics[x].index(bb())]; }
+
+            if(atk & kloc){ checkers |= mask(x); }
+        }
+    }
+
+    return checkers;
 }
 
 // RNG for magic bitboard initialization
@@ -1729,21 +1789,21 @@ Board::Board(){
 
 void Board::reset(){
     this->board = newgame;
-    this->pins = 0;
-    this->enpas = 0;
-    this->checkers.clear();
+    this->pins = 0ULL;
+    this->enpas = 0ULL;
+    this->checkers = 0ULL;
     this->next = white;
     this->check = NOCOLOR;
     this->half = 0;
     this->full = 1;
-    this->cancas = 0b00001111;
+    this->cancas = castle<white> & castle<black>;
 }
 
 void Board::clear(){
     this->remove();
-    this->pins = 0;
-    this->enpas = 0;
-    this->checkers.clear();
+    this->pins = 0ULL;
+    this->enpas = 0ULL;
+    this->checkers = 0ULL;
     this->next = NOCOLOR;
     this->check = NOCOLOR;
     this->half = 0;
@@ -1806,332 +1866,292 @@ bool Board::clearbt(const square sq1, const square sq2) const{
     }
 }
 
-void Board::update(const ply p){
+template<color c>
+void Board::apply(const ply p){
 
-    if(p == missing){ return; }
+    constexpr color nc = !c;
 
-    bool cc = p.c>0;
+    // Remove captured material
+    if(p.capture){
+        if(p.dst & this->enpas){ this->remove(push(p.dst, nc), pawn, nc); }
+        else                   { this->remove(p.dst); }
 
-    if(p.type == pawn){
-        if(p.capture){
-            // Check for e.p. capture
-            (p.dst & this->enpas) ? this->remove(cc ? (p.dst >> 8) : (p.dst << 8), pawn, !p.c) : this->remove(p.dst);
-            this->enpas = 0;
+        if(p.dst & this->board(rook, nc)){
+             // Rook capture => update castling availability
+            this->cancas &= (p.dst & rook_castle_src<nc, 1>) ? ~castle<nc, 1> : ~castle<nc, -1>;
         }
-        else
-        if(p.dst == (cc ? p.src << 16 : p.src >> 16)){
-            // Enable e.p. capture after double-push
-            this->enpas = cc ? (p.dst >> 8) : (p.dst << 8);
-        }
-        else{ this->enpas = 0; }
     }
-    else{
-        if(p.capture){ this->remove(p.dst); }
-        this->enpas = 0;
-    }
+
+    // set enpas to 0 unless p == pawn double push
+    if(p.type == pawn && p.dst == double_push(p.src, c)){ this->enpas = push(p.src, c); }
+    else{ this->enpas = 0; }
 
     // Move piece from src to dst
-    this->move(p.src, p.dst, p.type, p.c);
+    this->move(p.src, p.dst, p.type, c);
 
     if(p.castle){
         // Move rook if castling
-        U64 src = rook_castle.at((p.castle < 0) + 2*(!cc)),
-            dst = (p.castle < 0) ? src << 3 : src >> 2;
-        this->move(src, dst, rook, p.c);
-        this->cancas &= cc ? 0b0011 : 0b1100;
+        (p.castle < 0) ? this->move(rook_castle_src<c, -1>, rook_castle_dst<c, -1>, rook, c)
+                       : this->move(rook_castle_src<c,  1>, rook_castle_dst<c,  1>, rook, c);
+        this->cancas &= ~castle<c>;
     }
 
     if(p.promo){
         // Promote pawn
-        this->remove(p.dst, pawn, p.c);
-        this->place(p.dst, p.promo, p.c);
+        this->remove(p.dst, pawn, c);
+        this->place(p.dst, p.promo, c);
     }
 
     // Update castling availability
-    if(this->cancas & (cc ? 0b1100 : 0b0011)){
-        if(p.type == king){ this->cancas &= ~(cc ? 0b1100 : 0b0011); }
+    if(this->cancas & castle<c>){
+        if(p.type == king){ this->cancas &= ~castle<c>; }
         else
         if(p.type == rook){
-            int idx = 2 * !cc;
-            if(p.src == rook_castle.at(idx  )){ this->cancas &= ~(0b0010 << (cc ? 2 : 0)); }
+            if(p.src == rook_castle_src<c,  1>){ this->cancas &= ~castle<c,  1>; }
             else
-            if(p.src == rook_castle.at(idx+1)){ this->cancas &= ~(0b0001 << (cc ? 2 : 0)); }
+            if(p.src == rook_castle_src<c, -1>){ this->cancas &= ~castle<c, -1>; }
         }
-    }
-    if(p.capture && this->cancas & (cc ? 0b0011 : 0b1100)){
-        // Check if capturing a rook
-        int idx = 2 * cc;
-        if(p.dst == rook_castle.at(idx  )){ this->cancas &= ~(0b0010 << (!cc ? 2 : 0)); }
-        else
-        if(p.dst == rook_castle.at(idx+1)){ this->cancas &= ~(0b0001 << (!cc ? 2 : 0)); }
     }
 
     // Check for pins
-    this->search_pins();
-    this->next = !p.c;
+    this->pins = search_pins(this->board);
+    this->next = nc;
 
-    // Update map of pieces giving check
-    if(p.check){ this->check = this->next; this->search_checks(p.c); }
-    else       { this->checkers.clear();   this->check = NOCOLOR;    }
+    // Update bitboard of pieces giving check
+    this->checkers = p.check ? search_checks(this->board, c) : 0ULL;
+    this->check = this->next;
 
     // Move counters
-    if(!cc){ ++this->full; }
+    if(c<0){ ++this->full; }
     if(p.type != pawn && !p.capture){ ++this->half;   }
     else                            { this->half = 0; }
 }
 
-void Board::search_pins(){
-    /*
-        A pin is found if the following are all true:
-            1. There exists an attack line between candidate piece and opposing king
-            2. There are no pieces with the same color as candidate on that line
-            3. There is only one piece with the same color as the opposing king on that line
-    */
+void Board::update(const ply p){
+    if(p == missing){ return; }
+    p.c > 0 ? this->apply<white>(p) : this->apply<black>(p);
+}
 
-    this->pins = 0ULL;
-
-    for(int i=white; i>=black; i-=2){
-        color c = static_cast<color>(i);
-        square ksq = bitscan(this->board(king, !c));
-
-        for(int j=bishop; j<=queen; ++j){
-            ptype pt = static_cast<ptype>(j);
-            U64 plocs = this->board(pt, c);
-
-            while(plocs){
-                square x = lsbpop(plocs);
-                U64 atk = this->board(king, !c) & attack(x, pt),
-                    pin = line(x, ksq) & this->board(!c),
-                    block = line(x, ksq) & this->board(c);
-                if(atk && popcnt(pin) == 1 && !popcnt(block)){ this->pins |= pin; }
-            }
-        }
+template<ptype pt, color c>
+U64 Board::pseudo(const square sq) const{
+    switch(pt){
+        case king:
+        case pawn:
+        case knight: return attack(sq, pt, c);
+        case bishop: return BMagics[sq].value(this->board());
+        case rook:   return RMagics[sq].value(this->board());
+        default:     return BMagics[sq].value(this->board()) | RMagics[sq].value(this->board());
     }
 }
 
-void Board::search_checks(const color c){
-    // color c = color of player EXECUTING check
-    this->checkers.clear();
-    const U64 kloc = this->board(king, !c);
+template<ptype pt, color c>
+U64 Board::pseudo() const{
+    U64 bb = this->board(pt, c),
+        atk = 0;
+    while(bb){ atk |= this->pseudo<pt, c>(lsbpop(bb)); }
+    return atk;
+}
 
-    for(int i=pawn; i<king; ++i){
+template<color c>
+U64 Board::pseudo() const{
+    U64 atk = 0;
+    for(int i=pawn; i<=king; ++i){
         ptype pt = static_cast<ptype>(i);
-        U64 bb = this->board(pt, c);
-        while(bb){
-
-            square x = lsbpop(bb);
-            U64 atk = 0;
-
-            if(pt <= knight){ atk |= attack(x, pt, c); }
-            if(pt == bishop || pt == queen){ atk |= BMagics[x].attacks[BMagics[x].index(this->board())]; }
-            if(pt == rook   || pt == queen){ atk |= RMagics[x].attacks[RMagics[x].index(this->board())]; }
-
-            if(atk & kloc){ this->checkers[mask(x)] = pt; }
-        }
+        atk |= pt == pawn   ? this->pseudo<  pawn, c>()
+             : pt == knight ? this->pseudo<knight, c>()
+             : pt == bishop ? this->pseudo<bishop, c>()
+             : pt == rook   ? this->pseudo<  rook, c>()
+             : pt == queen  ? this->pseudo< queen, c>()
+             :                this->pseudo<  king, c>();
     }
+    return atk;
 }
 
-U64 Board::legal(const bool king_search) const{
+template<color c>
+U64 Board::legal_pawn(const square src, const U64 bsrc, const square kloc, const U64 occ) const{
+
+    constexpr color nc = !c;
+    constexpr U64 dpr = rank(c>0 ? 2 : 5);
     U64 res = 0;
-    for(int i=white; i>=black; i-=2){ res|= this->legal(static_cast<color>(i), king_search); }
+
+    // Push
+    res |= push(bsrc, c) & ~occ;
+    // Double Push
+    res |= push(res & dpr, c) & ~occ;
+    // Captures
+    res |= attack(src, pawn, c) & (this->board(nc) | (this->next == c ? this->enpas : 0));
+
+    if(res & this->enpas){
+        // Remove en passant discovered checks (king in check after executing ep capture)
+        U64 _o = (occ ^ bsrc ^ push(this->enpas, nc)) | this->enpas;
+        if(
+            RMagics[kloc].value(_o) & (this->board(rook,   nc) | this->board(queen, nc)) ||
+            BMagics[kloc].value(_o) & (this->board(bishop, nc) | this->board(queen, nc))
+        ){ res &= ~this->enpas; }
+    }
     return res;
 }
 
-U64 Board::legal(const color c, const bool king_search) const{
-    U64 res = 0;
-    for(int j=pawn; j<=king; ++j){ res |= this->legal(static_cast<ptype>(j), c, king_search); }
+template<color c>
+U64 Board::legal_king(const square src, const U64 bsrc, const U64 occ) const{
+
+    constexpr color nc = !c;
+
+    U64 res = attack(src, king),
+        atk;
+    if(!(res &= ~this->board(c))){ return 0; }
+
+    atk = this->pseudo<nc>();
+    res &= ~atk;
+
+    // Castles
+    if(res && this->check != c && this->cancas & castle<c>){
+        bool ks = this->cancas & castle<c,  1>,
+             qs = this->cancas & castle<c, -1>;
+        // Kingside - both sqaures clear and safe
+        if(ks && ksl<c> == (ksl<c> & ~occ & ~atk)){ res |= bsrc << 2; }
+        // Queenside - all 3 squares clear; 2 squares (traversed by king) safe
+        if(qs && qslc<c> == (qslc<c> & ~occ) && qsls<c> == (qsls<c> & ~atk)){ res |= bsrc >> 2; }
+    }
     return res;
 }
 
-U64 Board::legal(const ptype pt, const color c, const bool king_search) const{
-    U64 res = 0, bb = this->board[pt+6*(c<0)];
-    while(bb){ res |= this->legal(lsbpop(bb), pt, c, king_search); }
-    return res;
+template<color c>
+U64 Board::check_filter(const ptype pt, const square kloc) const{
+
+    U64 filter = 0,
+        chkrs = this->checkers;
+
+    int N = popcnt(chkrs);
+
+    while(chkrs){
+        square sq = lsbpop(chkrs);
+        if(pt != king && N == 1){
+            // Block or Capture
+            filter |= line(sq, kloc, true);
+            // En Passant capture
+            if(pt == pawn && this->enpas == push(mask(sq), c)){ filter |= this->enpas; }
+        }
+        else
+        if(pt == king && this->lookupt(mask(sq)) > knight){ filter |= axis(sq, kloc) & ~mask(sq); }
+    }
+    return filter;
 }
 
-U64 Board::legal(const square src, const ptype pt, const color c, const bool king_search) const{
-    bool cc = c>0;
+template<color c>
+U64 Board::legal_bb(const square src, const ptype pt) const{
+
     U64 res = 0;
     const U64 occ = this->board(), bsrc = mask(src);
     const square kloc = bitscan(this->board(king, c));
 
     switch(pt){
 
-        case pawn: {
-            // Single push
-            res |= (cc ? bsrc << 8 : bsrc >> 8) & ~occ;
-            // Double push
-            if(res && bsrc & (cc ? white_pawns : black_pawns)){ res |= (cc ? bsrc << 16 : bsrc >> 16) & ~occ; }
-            // Captures
-            res |= attack(src, pawn, c) & (this->next == c ? (this->board(!c) | this->enpas) : this->board(!c));
-            if(res & this->enpas){
-                // Remove en passant discovered checks
-                U64 krank = rank(kloc);
-                if(bsrc & krank){
-                    U64 rnp = krank & occ & ~(bsrc | (cc ? this->enpas >> 8 : this->enpas << 8)),
-                        ros = krank & (this->board(queen, !c) | this->board(rook, !c));
-                    while(ros){ if(not (line(kloc, lsbpop(ros)) & rnp)){ res &= ~this->enpas; break; } }
-                }
-            }
-            break;
-        }
+        case pawn:   res |= this->legal_pawn<c>(src, bsrc, kloc, occ); break;
 
-        case knight: {
-            res |= attack(src, pt);
-            break;
-        }
+        case knight: res |= attack(src, pt); break;
 
-        case bishop: {
-            res |= BMagics[src].value(occ);
-            break;
-        }
-        case rook: {
-            res |= RMagics[src].value(occ);
-            break;
-        }
-        case queen: {
-            res |= BMagics[src].value(occ);
-            res |= RMagics[src].value(occ);
-            break;
-        }
+        case bishop: res |= BMagics[src].value(occ); break;
 
-        default: {
-            // king
-            U64 atk = 0,
-                opwn = this->board(pawn, !c),
-                okloc = this->board(king, !c);
-            // Squares attacked by opponent's...
-            // ...pawns
-            while(opwn){ atk |= attack(lsbpop(opwn), pawn, !c); }
-            // ...pieces
-            for(int i=knight; i<king; ++i){ atk |= this->legal(static_cast<ptype>(i), !c, true); }
-            // ...king
-            if(okloc){ atk |= attack(bitscan(okloc), king); }
-            res |= attack(src, king) & ~atk;
-            // Castles
-            if(this->check != c && this->cancas & (cc ? 0b1100 : 0b0011)){
-                U64 ksl = 0x60ULL << (cc ? 0 : 56),
-                    qslc = 0x0eULL << (cc ? 0 : 56),
-                    qsls = 0x0cULL << (cc ? 0 : 56);
-                bool ks = this->cancas & (cc ? 0b1000 : 0b0010),
-                     qs = this->cancas & (cc ? 0b0100 : 0b0001);
-                if(ks && ksl == (ksl & ~occ & ~atk)){ res |= bsrc << 2; }
-                if(qs && qslc == (qslc & ~occ) && qsls == (qsls & ~atk)){ res |= bsrc >> 2; }
-            }
-        }
+        case rook:   res |= RMagics[src].value(occ); break;
+
+        case queen:  res |= (BMagics[src].value(occ) | RMagics[src].value(occ)); break;
+
+        default:     res |= this->legal_king<c>(src, bsrc, occ);
     }
 
     // Pins
-    if(!king_search && bsrc & this->pins){ res &= axis(src, kloc); }
+    if(bsrc & this->pins){ res &= axis(src, kloc); }
 
     // Check
     if(this->check == c){
-        U64 filter = 0;
-        for(std::unordered_map<U64, ptype>::const_iterator it=this->checkers.begin(); it!=this->checkers.end(); ++it){
-            if(pt != king && this->checkers.size() == 1){
-                // Block or Capture
-                filter |= line(bitscan(it->first), kloc, true);
-                // En Passant capture
-                if(pt == pawn && this->enpas == (cc ? (it->first << 8) : (it->first >> 8))){ filter |= this->enpas; }
-            }
-            else
-            if(pt == king && it->second > knight){ filter |= axis(bitscan(it->first), kloc) & ~it->first; }
-        }
+        U64 filter = this->check_filter<c>(pt, kloc);
         res &= pt == king ? ~filter : filter;
     }
 
     // Squares occupied by same color material
-    if(!king_search){ res &= ~this->board(c); }
+    res &= ~this->board(c);
 
     return res;
 }
 
-std::vector<ply> Board::legal_plies() const{
-    std::vector<ply> plies, _p;
-    for(int i=white; i>=black; i-=2){
-        _p = this->legal_plies(static_cast<color>(i));
-        plies.insert(plies.end(), _p.begin(), _p.end());
-    }
-    return plies;
+U64 Board::legal(const color c) const{
+    U64 res = 0;
+    for(int j=pawn; j<=king; ++j){ res |= this->legal(static_cast<ptype>(j), c); }
+    return res;
 }
 
-std::vector<ply> Board::legal_plies(const color c) const{
-    std::vector<ply> plies, _p;
-    for(int j=pawn; j<=king; ++j){
-        _p = this->legal_plies(static_cast<ptype>(j), c);
-        plies.insert(plies.end(), _p.begin(), _p.end());
-    }
-    return plies;
+U64 Board::legal(const ptype pt, const color c) const{
+    U64 res = 0, bb = this->board(pt, c);
+    while(bb){ res |= this->legal(lsbpop(bb), pt, c); }
+    return res;
 }
 
-std::vector<ply> Board::legal_plies(ptype pt, color c) const{
-    std::vector<ply> plies, _p;
-    U64 bb = this->board(pt, c);
-    while(bb){
-        _p = this->legal_plies(lsbpop(bb), pt, c);
-        plies.insert(plies.end(), _p.begin(), _p.end());
-    }
-    return plies;
+U64 Board::legal(const square src, const ptype pt, const color c) const{
+    return c>0 ? this->legal_bb<white>(src, pt)
+               : this->legal_bb<black>(src, pt);
 }
 
-std::vector<ply> Board::legal_plies(square src, ptype pt, color c) const{
+std::vector<ply> Board::legal_plies(const color c){
 
-    // Legal moves bitboard
-    U64 moves = this->legal(src, pt, c);
+    std::vector<ply> plies;
+    plies.reserve(256);
+    ply p;
+    p.c = c;
+    const State _bstate = this->state;
 
-    // Allocate storage of ply vector (including extra space for promotions)
-    U64 promo_ops = moves & (c>0 ? rank(63) : rank(0));
-    std::vector<ply> plies(popcnt(moves) + (!pt ? 4*popcnt(promo_ops) : 0));
-    int idx = 0;
+    for(int i=pawn; i<=king; ++i){
 
-    // Create ply object to be updated/copied for each legal move
-    ply p = {mask(src), U64(0), pt, pawn, c, 0, false, false, false};
+        // for each piece type...
+        p.type = static_cast<ptype>(i);
+        U64 bb = this->board(p.type, c), atk;
 
-    // Board for 1-ply lookahead to determine check/checkmate
-    Board b;
+        while(bb){
 
-    while(moves){
-        p.dst = mask(lsbpop(moves));
+            // origin square
+            square sq = lsbpop(bb);
+            p.src = mask(sq);
 
-        // Capture
-        p.capture = (pt != pawn ? this->board() : (this->board() | this->enpas)) & p.dst;
+            // legal move bitboard
+            atk = this->legal(sq, p.type, c);
 
-        // Castle
-        if(pt == king){
-            if(p.dst == mask(src+2)){ p.castle =  1; }
-            else
-            if(p.dst == mask(src-2)){ p.castle = -1; }
-            else                    { p.castle =  0; }
-        }
-        else{ p.castle = 0; }
+            // iterate over legal moves
+            while(atk){
 
-        // Promotion
-        bool pmo = !pt && (c>0 ? p.dst & rank(56) : p.dst & rank(7));
-        ptype start = pmo ? knight : pawn,
-              stop = pmo ? king : knight;
+                // target square
+                p.dst = mask(lsbpop(atk));
 
-        // Construct plies
-        for(int i=start; i<stop; ++i){
+                // capture
+                p.capture = p.dst & (!p.type ? (this->board(!c) | this->enpas) : this->board(!c));
 
-            p.promo = static_cast<ptype>(i);
+                // castle
+                if(p.type == king){ p.castle = (p.dst == p.src << 2) ? 1 : ((p.dst == p.src >> 2) ? -1 : 0); }
+                else{ p.castle = 0; }
 
-            b = *this;
-            b.update(p);
-            b.search_checks(c);
+                // promotions
+                bool pmo = !p.type && p.dst & back_rank(c);
+                ptype start = pmo ? knight: pawn,
+                      stop = pmo ? king : knight;
 
-            bool chk = b.checkers.size() > 0,
-                 mte;
-            if(chk){
-                b.check = b.next;
-                mte = !b.legal(b.next);
+                for(int i=start; i<stop; ++i){
+                    p.promo = static_cast<ptype>(i);
+
+                    // check/mate
+                    this->update(p);
+                    this->checkers = search_checks(this->board, c);
+                    if(this->checkers){
+                        this->check = this->next;
+                        p.check = true;
+                        p.mate = !this->legal(this->next);
+                    }
+                    else{ p.check = p.mate = false; }
+                    this->state = _bstate;
+                    plies.emplace_back(p);
+                }
             }
-            else{ mte = false; }
-
-            p.check = chk;
-            p.mate = mte;
-            plies[idx++] = p;
         }
     }
+
     return plies;
 }
 
@@ -2147,7 +2167,7 @@ std::string Board::ply2san(const ply p) const{
 
     // flags indicating need to disambiguate on rank and file, respectively
     bool dbr = false,
-         dbf = (p.type==pawn && p.capture) ? true : false;
+         dbf = p.type == pawn && p.capture;
 
     int srcf = bitscan(p.src)%8,
         srcr = bitscan(p.src)/8,
@@ -2202,6 +2222,50 @@ std::string Board::to_string(){
     return viz;
 }
 
+template U64 Board::legal_pawn<white>(const square, const U64, const square, const U64) const;
+template U64 Board::legal_pawn<black>(const square, const U64, const square, const U64) const;
+
+template U64 Board::legal_king<white>(const square, const U64, const U64) const;
+template U64 Board::legal_king<black>(const square, const U64, const U64) const;
+
+template U64 Board::check_filter<white>(const ptype, const square) const;
+template U64 Board::check_filter<black>(const ptype, const square) const;
+
+template U64 Board::legal_bb<white>(const square, const ptype) const;
+template U64 Board::legal_bb<black>(const square, const ptype) const;
+
+template U64 Board::pseudo<white>() const;
+template U64 Board::pseudo<black>() const;
+
+template U64 Board::pseudo<  pawn, white>() const;
+template U64 Board::pseudo<  pawn, black>() const;
+template U64 Board::pseudo<knight, white>() const;
+template U64 Board::pseudo<knight, black>() const;
+template U64 Board::pseudo<bishop, white>() const;
+template U64 Board::pseudo<bishop, black>() const;
+template U64 Board::pseudo<  rook, white>() const;
+template U64 Board::pseudo<  rook, black>() const;
+template U64 Board::pseudo< queen, white>() const;
+template U64 Board::pseudo< queen, black>() const;
+template U64 Board::pseudo<  king, white>() const;
+template U64 Board::pseudo<  king, black>() const;
+
+template U64 Board::pseudo<  pawn, white>(const square) const;
+template U64 Board::pseudo<  pawn, black>(const square) const;
+template U64 Board::pseudo<knight, white>(const square) const;
+template U64 Board::pseudo<knight, black>(const square) const;
+template U64 Board::pseudo<bishop, white>(const square) const;
+template U64 Board::pseudo<bishop, black>(const square) const;
+template U64 Board::pseudo<  rook, white>(const square) const;
+template U64 Board::pseudo<  rook, black>(const square) const;
+template U64 Board::pseudo< queen, white>(const square) const;
+template U64 Board::pseudo< queen, black>(const square) const;
+template U64 Board::pseudo<  king, white>(const square) const;
+template U64 Board::pseudo<  king, black>(const square) const;
+
+template void Board::apply<white>(const ply);
+template void Board::apply<black>(const ply);
+
 /**************************************************
             DISAMBIGUATION FUNCTIONS
 **************************************************/
@@ -2235,9 +2299,9 @@ namespace disamb{
                 // Find first pawn that can reach target square
                 if(capture && (res = cand & attack(bitscan(dst), pt, !c))){ return res; }
                 else
-                if(cand & (res = c>0 ? dst >>  8 : dst <<  8))            { return res; }
+                if(cand & (res = push(dst, !c)))                          { return res; }
                 else
-                if(cand & (res = c>0 ? dst >> 16 : dst << 16))            { return res; }
+                if(cand & (res = double_push(dst, !c)))                   { return res; }
                 break;
             }
 
@@ -2262,6 +2326,37 @@ namespace disamb{
 
         // Disambiguation failed = return empty bitboard
         return 0ULL;
+    }
+
+    ply uci(std::string move, Board& board){
+        // Separate src and dst
+        std::string src_str = move.substr(0,2),
+                    dst_str = move.substr(2);
+
+        // Square numbers and bitboards
+        square srcsq = s2coord(src_str),
+               dstsq = s2coord(dst_str);
+        U64 src = mask(srcsq), dst = mask(dstsq);
+
+        // Construct ply
+        ptype pt = board.lookupt(src),
+              pmo = (!pt && !std::isdigit(dst_str.back())) ? fen::c2ptype(dst_str.back()) : pawn;
+        int cas = (pt == king && std::abs(srcsq - dstsq) == 2) ? ((srcsq - dstsq) / 2) : 0;
+        bool cap = board.board() & dst;
+        ply p = {src, dst, pt, pmo, board.next, cas, cap, false, false};
+
+        // Copy state, update, seek check/checkmate, restore state
+        const State _bstate = board.state;
+        board.update(p);
+        board.checkers = search_checks(board.board, p.c);
+        if(board.checkers){
+            board.check = board.next;
+            p.check = true;
+            p.mate = !board.legal(board.next);
+        }
+        board.state = _bstate;
+
+        return p;
     }
 }
 
@@ -2363,11 +2458,11 @@ namespace fen{
             board.full = std::stoi(*fentok++);
 
             // Check for pins
-            board.search_pins();
+            board.pins = search_pins(board.board);
 
             // Check for...check
-            board.search_checks(!board.next);
-            if(board.checkers.size()){ board.check = board.next; }
+            board.checkers = search_checks(board.board, !board.next);
+            if(board.checkers){ board.check = board.next; }
 
         }
     }

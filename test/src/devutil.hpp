@@ -14,14 +14,12 @@
 std::string bar(int);
 void bbprint(const U64&, std::string="", char='1');
 void bprint(Board&);
-void lprint(ptype, color, const Board&);
-void lprint(color c, const Board& board);
-void lprint(const Board& board);
 void pprint(const ply&, const Board&);
 void println(unsigned int=__builtin_LINE());
 ply pply(std::string p, color c, const Board& board);
 ply pcastle(bool qs, color c, bool check, bool mate, const Board& board);
 ply prest(const std::string p, color c, bool check, bool mate, const Board& board);
+
 
 /*
     STRUCTS, TYPEDEFS, ETC.
@@ -141,29 +139,14 @@ void bbprint(const U64& bb, std::string txt, char c){ std::cout << txt << bb2s(b
 
 void bprint(Board& board){ std::cout << board.to_string() << '\n'; }
 
-void lprint(ptype pt, color c, const Board& board){
-    U64 res = board.legal(pt, c);
-    if(res){
-        bbprint(
-            res,
-            color2s(c) + " " + ptype2s(pt),
-            ptype2c(pt)
-        );
-    }
-}
-
-void lprint(color c, const Board& board){ for(int j=pawn; j<=king; ++j){ lprint(static_cast<ptype>(j), c, board); } }
-
-void lprint(const Board& board){ for(int i=white; i>=black; i-=2){ lprint(static_cast<color>(i), board); } }
-
 void pprint(const ply& p, const Board& board){
     table<10, 10>::row(
         board.ply2san(p),
         color2s(p.c),
         ptype2s(p.type),
         ptype2s(p.promo),
-        coord2s(bitscan(p.src)),
-        coord2s(bitscan(p.dst)),
+        coord2s(p.src),
+        coord2s(p.dst),
         (p.castle ? (p.castle>0 ? "ks" : "qs") : "__"),
         p.capture,
         p.check,
@@ -218,9 +201,9 @@ ply prest(const std::string p, color c, bool check, bool mate, const Board& boar
         src = 0;
     if(r==2 && f==2) { src = mask(srcsq);  }
     else{
-        if(r==2)     { src = rank(srcsq); }
+        if(r==2)     { src = rankof(srcsq); }
         else
-        if(f==2)     { src = file(srcsq); }
+        if(f==2)     { src = fileof(srcsq); }
 
         src = disamb::pgn(src, dst, pt, c, board, capture);
     }
