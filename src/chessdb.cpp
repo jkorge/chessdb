@@ -202,22 +202,16 @@ namespace decode{
         bool d = _action & 8,
              a = _action & 16;
         int  m = _action & 7;
-        if(d ^ a){
-            if(d){ return {-m, -m}; }
-            else { return { m, -m}; }
-        }
-        else{
-            if(d){ return {-m, m}; }
-            else { return { m, m}; }
-        }
+        return {d ? -m : m, (d ^ a) ? -m : m};
     }
 
     template<>
     coords action<rook>(BYTE _action, int cx){
         // 000admmm
-        int val = (1 - (2 * ((_action & 8) >> 3))) * (_action & 7);
-        if(_action & 16){ return {val, 0}; }
-        else            { return {0, val}; }
+        bool d = _action & 8,
+             a = _action & 16;
+        int  m = (1 - 2*d) * (_action & 7);
+        return {a ? m : 0, a ? 0 : m};
     }
 
     template<>
@@ -399,11 +393,11 @@ PGN<CharT, Traits>::PGN(const string& filename) : ParseBuf<CharT,Traits>(filenam
             U64 dmask = mask(dst),
                 src = attack(dst, pt);
             brp(src, dmask, pt, false, false, false);
-            brp(src, dmask, pt, true, false, false);
-            brp(src, dmask, pt, false, true, false);
-            brp(src, dmask, pt, false, true, true);
-            brp(src, dmask, pt, true, true, false);
-            brp(src, dmask, pt, true, true, true);
+            brp(src, dmask, pt, true,  false, false);
+            brp(src, dmask, pt, false, true,  false);
+            brp(src, dmask, pt, false, true,  true);
+            brp(src, dmask, pt, true,  true,  false);
+            brp(src, dmask, pt, true,  true,  true);
         }
     }
 
@@ -774,7 +768,7 @@ void ChessDB<CharT, Traits>::write_tag_enum(){
 
     this->_buf.clear();
     this->_buf.reserve(this->NTAGS);
-    for(int i=0; i<this->tags.size(); ++i){ this->_buf.append(*this->tags[i] + '\n'); }
+    for(unsigned int i=0; i<this->tags.size(); ++i){ this->_buf.append(*this->tags[i] + '\n'); }
 
     this->write();
     this->sync();
@@ -925,7 +919,7 @@ ChessDBStream<CharT, Traits>::ChessDBStream(const string& file)
       _pbuf(file, std::filesystem::exists(file)) { this->rdbuf(&this->_pbuf); }
 
 template<typename CharT, typename Traits>
-ChessDBStream<CharT, Traits>::ChessDBStream(const CharT* file) : ChessDBStream(string(file)) {};
+ChessDBStream<CharT, Traits>::ChessDBStream(const CharT* file) : ChessDBStream(string(file)) {}
 
 template<typename CharT, typename Traits>
 ChessDBStream<CharT, Traits>& ChessDBStream<CharT, Traits>::operator<<(const game& g){

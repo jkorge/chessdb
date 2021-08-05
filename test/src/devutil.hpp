@@ -35,7 +35,8 @@ struct header{
 
     template<typename T>
     static void print(T val){
-        std::cout << header<W>::bar_unit << '\n'
+        std::cout << '\n'
+                  << header<W>::bar_unit << '\n'
                   << std::setw(W) << std::left
                   << val << '\n'
                   << header<W>::bar_unit << '\n';
@@ -199,6 +200,8 @@ ply prest(const std::string p, color c, bool check, bool mate, const Board& boar
     
     U64 dst = mask(dstsq),
         src = 0;
+    if(pt == king)   { src = board.board(king ,c); }
+    else
     if(r==2 && f==2) { src = mask(srcsq);  }
     else{
         if(r==2)     { src = rankof(srcsq); }

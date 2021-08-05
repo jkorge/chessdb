@@ -17,122 +17,27 @@
                     TYPEDEFS
 **************************************************/
 
+/*
+    INTEGRAL TYPES
+*/
+
 typedef unsigned char BYTE;
 
 typedef uint64_t U64;
 
 typedef int square;
 
-typedef enum color{ white = 1, black = -1, NOCOLOR = 0 } color;
-
-typedef enum ptype { pawn = 0, knight, bishop, rook, queen, king, NOTYPE = -1 } ptype;
-
-typedef enum direction { east = 0, northeast, north, northwest, west, southwest, south, southeast, NODIR = -1} direction;
-
-typedef struct ply{
-
-    U64 src,
-        dst;
-    color c;
-    ptype type,
-          promo;
-    int castle;             // 0 => No castle; 1 => kingside; -1 => queenside
-    bool capture,
-         check,
-         mate;
-
-    /*
-        CONSTRUCTORS
-    */
-
-    // Intialize nothing
-    ply ()
-        : src(0),
-          dst(0),
-          c(NOCOLOR),
-          type(pawn),
-          promo(pawn),
-          castle(0),
-          capture(false),
-          check(false),
-          mate(false) {}
-
-    // Initialize everything
-    ply (U64 s, U64 d, ptype pt, ptype po, color col, int cas, bool cap, bool ch, bool m)
-        : src(s),
-          dst(d),
-          c(col),
-          type(pt),
-          promo(po),
-          castle(cas),
-          capture(cap),
-          check(ch),
-          mate(m) {}
-
-    ply (square s, square d, ptype pt, ptype po, color col, int cas, bool cap, bool ch, bool m)
-        : src(1ULL << s),
-          dst(1ULL << d),
-          c(col),
-          type(pt),
-          promo(po),
-          castle(cas),
-          capture(cap),
-          check(ch),
-          mate(m) {}
-
-    // Copy constructor
-    ply (const ply& other)
-        : src(other.src),
-          dst(other.dst),
-          c(other.c),
-          type(other.type),
-          promo(other.promo),
-          castle(other.castle),
-          capture(other.capture),
-          check(other.check),
-          mate(other.mate) {}
-
-    // Comparison operators
-    constexpr bool operator==(const ply& other) const{
-        return (this->src == other.src) &&
-               (this->dst == other.dst) &&
-               (this->c == other.c) &&
-               (this->type == other.type) &&
-               (this->promo == other.promo) &&
-               (this->castle == other.castle) &&
-               (this->capture == other.capture) &&
-               (this->check == other.check) &&
-               (this->mate == other.mate);
-    }
-
-    constexpr bool operator!=(const ply& other) const{ return not (*this == other); }
-
-    // Assignment (implicit assign is deprecated in c++17)
-    constexpr ply& operator=(const ply& other) = default;
-} ply;
-
 typedef uint16_t eply;
 
-typedef struct bitboard : std::array<U64, 15>{
-    inline const U64& operator()(ptype pt, color c) const{ return this->operator[](pt + 6*(c<0)); }
-    inline       U64& operator()(ptype pt, color c)      { return this->operator[](pt + 6*(c<0)); }
+/*
+    ENUMS
+*/
 
-    inline const U64& operator()(color c)           const{ return this->operator[](12 + (c<0)); }
-    inline       U64& operator()(color c)                { return this->operator[](12 + (c<0)); }
+typedef enum color{ white = 1, black = -1, NOCOLOR = 0 } color;
 
-    inline       U64  operator()(ptype pt)          const{ return this->operator[](pt) | this->operator[](pt+6); }
+typedef enum ptype{ pawn = 0, knight, bishop, rook, queen, king, NOTYPE = -1 } ptype;
 
-    inline const U64& operator()()                  const{ return this->operator[](14); }
-    inline       U64& operator()()                       { return this->operator[](14); }
-} bitboard;
-
-typedef struct coords : std::array<int, 2>{
-    coords() : std::array<int, 2>{0} {}
-    coords(const square x) : std::array<int, 2>{x/8, x%8} {}
-    coords(const U64 src); // defined below under `INLINE FUNCTIONS`
-    coords(const int r, const int f) : std::array<int, 2>{r, f} {}
-    coords operator+(const coords& other) const{ return {this->at(0) + other.at(0), this->at(1) + other.at(1)}; }
-} coords;
+typedef enum direction{ east = 0, northeast, north, northwest, west, southwest, south, southeast, NODIR = -1} direction;
 
 typedef enum pgntag{
     // Seven Tag Roster
@@ -158,30 +63,106 @@ typedef enum pgntag{
     black_uscf
 } pgntag;
 
-struct pgndict : std::map<pgntag, std::string>{
+/*
+    STRUCTS
+*/
+
+typedef struct ply{
+
+    U64 src,
+        dst;
+    color c;
+    ptype type,
+          promo;
+    int castle;             // 0 => No castle; 1 => kingside; -1 => queenside
+    bool capture,
+         check,
+         mate;
+
+    /*
+        CONSTRUCTORS
+    */
+
+    // Zero Initialize
+    ply(): src(0), dst(0), c(NOCOLOR), type(pawn), promo(pawn), castle(0), capture(false), check(false), mate(false) {}
+
+    // Initialize everything
+    ply(U64 s, U64 d, ptype pt, ptype po, color col, int cas, bool cap, bool ch, bool m)
+        : src(s), dst(d), c(col), type(pt), promo(po), castle(cas), capture(cap), check(ch), mate(m) {}
+
+    ply(square s, square d, ptype pt, ptype po, color col, int cas, bool cap, bool ch, bool m)
+        : src(1ULL << s), dst(1ULL << d), c(col), type(pt), promo(po), castle(cas), capture(cap), check(ch), mate(m) {}
+
+    // Copy constructor
+    ply(const ply& other){ *this = other; }
+
+    /*
+        COMPARISONS
+    */
+    constexpr bool operator==(const ply& other) const{
+        return (this->src     == other.src)     &&
+               (this->dst     == other.dst)     &&
+               (this->c       == other.c)       &&
+               (this->type    == other.type)    &&
+               (this->promo   == other.promo)   &&
+               (this->castle  == other.castle)  &&
+               (this->capture == other.capture) &&
+               (this->check   == other.check)   &&
+               (this->mate    == other.mate);
+    }
+    constexpr bool operator!=(const ply& other) const{ return not (*this == other); }
+
+    /*
+        ASSIGNMENT
+    */
+    constexpr ply& operator=(const ply& other){ std::memcpy(this, &other, sizeof(other)); return *this; }
+} ply;
+
+typedef struct bitboard : std::array<U64, 15>{
+    inline const U64& operator()(ptype pt, color c) const{ return this->operator[](pt + 6*(c<0)); }
+    inline       U64& operator()(ptype pt, color c)      { return this->operator[](pt + 6*(c<0)); }
+
+    inline const U64& operator()(color c)           const{ return this->operator[](12 + (c<0)); }
+    inline       U64& operator()(color c)                { return this->operator[](12 + (c<0)); }
+
+    inline       U64  operator()(ptype pt)          const{ return this->operator[](pt) | this->operator[](pt+6); }
+
+    inline const U64& operator()()                  const{ return this->operator[](14); }
+    inline       U64& operator()()                       { return this->operator[](14); }
+} bitboard;
+
+typedef struct coords : std::array<int, 2>{
+    coords() : std::array<int, 2>{0} {}
+    coords(const square x) : std::array<int, 2>{x/8, x%8} {}
+    coords(const U64 src); // defined below under `INLINE FUNCTIONS`
+    coords(const int r, const int f) : std::array<int, 2>{r, f} {}
+    coords operator+(const coords& other) const{ return {this->at(0) + other.at(0), this->at(1) + other.at(1)}; }
+} coords;
+
+typedef struct pgndict : std::map<pgntag, std::string>{
     pgndict () : std::map<pgntag, std::string>{
-        {event, std::string()},
-        {site, std::string()},
-        {date, std::string()},
-        {roundn, std::string()},
-        {playerw, std::string()},
-        {playerb, std::string()},
-        {result, std::string()},
-        {eco, std::string()},
-        {fenstr, std::string()},
-        {mode, std::string()},
+        {event,        std::string()},
+        {site,         std::string()},
+        {date,         std::string()},
+        {roundn,       std::string()},
+        {playerw,      std::string()},
+        {playerb,      std::string()},
+        {result,       std::string()},
+        {eco,          std::string()},
+        {fenstr,       std::string()},
+        {mode,         std::string()},
         {time_control, std::string()},
-        {termination, std::string()},
-        {white_elo, std::string()},
-        {white_uscf, std::string()},
-        {black_elo, std::string()},
-        {black_uscf, std::string()}
+        {termination,  std::string()},
+        {white_elo,    std::string()},
+        {white_uscf,   std::string()},
+        {black_elo,    std::string()},
+        {black_uscf,   std::string()}
     } {}
 
     void reset(){ for(std::map<pgntag, std::string>::iterator it=this->begin(); it!=this->end(); ++it){ it->second.clear(); } }
-};
+} pgndict;
 
-struct game{
+typedef struct game{
     pgndict tags;
     std::vector<ply> plies;
 
@@ -191,10 +172,10 @@ struct game{
     ~game ();
     bool operator==(const game& other) const{ return (this->tags == other.tags) && (this->plies == other.plies); }
     bool operator!=(const game& other) const{ return not (*this == other); }
-    bool operator<(const game& other) const{ return this->tags.at(date) < other.tags.at(date); }
-};
+    bool operator< (const game& other) const{ return this->tags.at(date) < other.tags.at(date); }
+} game;
 
-struct Magic{
+typedef struct Magic{
     U64 mask, magic;
     U64* attacks;
     uint32_t shift;
@@ -202,7 +183,7 @@ struct Magic{
     int index(U64 occ) const{ return ((occ & this->mask) * this->magic) >> this->shift; }
 
     U64 value(U64 occ) const{ return this->attacks[this->index(occ)]; }
-};
+} Magic;
 
 /**************************************************
                 GLOBAL CONSTANTS
@@ -259,7 +240,7 @@ constexpr U64 MAINDIAG_     = 0x8040201008040201,
               black_queen   = white_queen   << 56,
               black_king    = white_king    << 56,
 
-// Occupancies
+// Starting occupancies
               white_mat = white_pawns | white_knights | white_bishops | white_rooks | white_queen | white_king,
               black_mat = black_pawns | black_knights | black_bishops | black_rooks | black_queen | black_king,
               occupancy =   white_mat | black_mat;
@@ -322,7 +303,6 @@ extern std::map<pgntag, std::string> tag2s;
 
 // Arrays for magic numbers
 extern Magic BMagics[64];
-
 extern Magic RMagics[64];
 
 /**************************************************
@@ -417,17 +397,23 @@ constexpr char color2c(color c){
     }
 }
 
-// Flip LS1B
+// Flip the least significant 1-bit (LS1B)
 constexpr void lsbflip(U64& x){ x &= x-1; }
 
 // Square number => U64
 constexpr U64 mask(const square x){ return 1ULL << x; }
+
+// Board axes
+constexpr U64 rank(const int r){ return RANK_ << (8*r); }
+
+constexpr U64 file(const int f){ return FILE_ << f; }
 
 // Printing utils
 constexpr int bvizidx(square sq){ return 36 + 35*(7 - sq/8) + 4*(sq%8); }
 
 constexpr int bbvizidx(square sq){ return 2 + 25*(7 - sq/8) + 3*(sq%8); }
 
+// Square for pushing pawns
 constexpr U64 push(U64 src, color c){
     switch(c){
         case black: return src >> 8;
@@ -442,6 +428,7 @@ constexpr U64 double_push(U64 src, color c){
     }
 }
 
+// Rank at "back" of board, relative to given player's color
 constexpr U64 back_rank(color c){
     switch(c){
         case black: return RANK_;
@@ -468,29 +455,26 @@ inline coords::coords(const U64 src) : coords::coords(bitscan(src)) {}
 // Bitscan, flip ls1b, return bitscan result
 inline square lsbpop(U64& x){ square s = bitscan(x); lsbflip(x); return s; }
 
-// Empty board patterns for sliding pieces
+// Empty board movement patterns for sliding pieces
 inline U64 ray(const square sq, const ptype pt, const int dir){ return rays[pt-2][sq][dir]; }
 
-// Board axes
-constexpr U64 rank(const int r){ return RANK_ << (8*r); }
-
-constexpr U64 file(const int f){ return FILE_ << f; }
-
-// Board axes of given square
+// Rank/File/Diagonal/Antidiagonal shared by two squares (0 if none)
 inline U64 axis(const square sq1, const square sq2){ return axes[sq1][sq2]; }
 
+// Board axes of the given square
 inline U64 rankof(const square sq){ return rmasks[sq]; }
 
 inline U64 fileof(const square sq){ return fmasks[sq]; }
 
-inline U64 diag(const square sq){ return dmasks[sq]; }
+inline U64 diagof(const square sq){ return dmasks[sq]; }
 
-inline U64 adag(const square sq){ return amasks[sq]; }
+inline U64 adagof(const square sq){ return amasks[sq]; }
 
 /**************************************************
                 FUNCTION DECLARATIONS
 **************************************************/
 
+// Return true if given char identifies material/file (in SAN)
 bool ispiece(char);
 
 bool isfile(char);
@@ -513,12 +497,13 @@ std::string bb2s(U64, char='1');
 // Line between two squares (optionally inclusive)
 U64 line(const square, const square, bool=false);
 
-// Empty board patterns
+// Sliding piece movements corresponding to the given occupancy
 U64 slide_atk(const square, const ptype, const U64);
 
+// Empty board attack patterns
 U64 attack(const square, const ptype, const color=NOCOLOR);
 
-// Sliding attack masks (same as `attack` but exludes edge squares)
+// Sliding attack masks (same as `attack` for sliding pieces but exludes edge squares)
 U64 attackm(const square, const ptype);
 
 // Bitboard of pieces giving check
@@ -560,19 +545,11 @@ struct State{
     // Bitmap of castling availability (KQkq)
     BYTE cancas = castle<white> | castle<black>;
 
-    State() {}
+    State() = default;
     State(const State& other){ *this = other; }
 
-    State& operator=(const State& other){
-        this->board    = other.board;
-        this->pins     = other.pins;
-        this->enpas    = other.enpas;
-        this->checkers = other.checkers;
-        this->next     = other.next;
-        this->check    = other.check;
-        this->half     = other.half;
-        this->full     = other.full;
-        this->cancas   = other.cancas;
+    constexpr State& operator=(const State& other){
+        std::memcpy(this, &other, sizeof(other));
         return *this;
     }
 };
@@ -581,6 +558,7 @@ class Board{
 public:
 
     State state;
+    State _prev;
 
     // References to state members; makes code less verbose
     bitboard& board = state.board;
@@ -597,33 +575,55 @@ public:
 
     BYTE& cancas    = state.cancas;
 
+    // Constructors
     Board();
-    Board(const Board& other){ this->state = other.state; }
-    Board& operator=(const Board& other){
-        this->state = other.state;
-        return *this;
-    }
+    Board(const Board&);
 
+    // Assignment
+    Board& operator=(const Board&);
+
+    // Newgame/empty board
     void reset();
     void clear();
 
+    // Get color/type info for given square
     color lookupc(const U64) const;
     ptype lookupt(const U64) const;
+    // Line b/t squares is empty
+    bool clearbt(const square, const square) const;
 
+    // Remove material from board
     void remove();
     void remove(const U64);
     void remove(const U64, const ptype, const color);
-
+    // Place material on board
     void place(const U64, const ptype, const color);
-
+    // Move material from src to dst
     void move(const U64, const U64, const ptype, const color);
+    // Update board state with ply
+    void update(const ply);
+    // Undo most recent update
+    void undo();
 
-    bool clearbt(const square, const square) const;
+    // Generate bitboard of legal moves
+    U64 legal(const color) const;
+    U64 legal(const ptype, const color) const;
+    U64 legal(const square, const ptype, const color) const;
+    // Generate vector of legal plies
+    std::vector<ply> legal_plies(const color);
+
+    // Write ply in Standard Algebraic Notation
+    std::string ply2san(const ply) const;
+    // String visualization of board
+    std::string to_string() const;
+
+    // Determine if ply gives check/mate
+    ply lookahead(ply p);
+
+private:
 
     template<color c>
     void apply(const ply);
-
-    void update(const ply);
 
     template<ptype pt, color c>
     U64 pseudo(const square) const;
@@ -645,18 +645,6 @@ public:
 
     template<color c>
     U64 legal_bb(const square, const ptype) const;
-
-    U64 legal(const color) const;
-    U64 legal(const ptype, const color) const;
-    U64 legal(const square, const ptype, const color) const;
-
-    std::vector<ply> bb2vec(U64, U64, ptype, color) const;
-
-    std::vector<ply> legal_plies(const color);
-
-    std::string ply2san(const ply) const;
-
-    std::string to_string();
 };
 
 /**************************************************

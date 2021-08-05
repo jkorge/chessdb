@@ -1302,6 +1302,7 @@ const std::array<std::array<std::array<U64, 8>, 64>, 3> rays = {
     _ray<bishop,61, 0>::value, _ray<bishop,61,1>::value, _ray<bishop,61, 2>::value, _ray<bishop,61,3>::value, _ray<bishop,61,4>::value, _ray<bishop,61,5>::value, _ray<bishop,61, 6>::value, _ray<bishop,61,7>::value,
     _ray<bishop,62, 0>::value, _ray<bishop,62,1>::value, _ray<bishop,62, 2>::value, _ray<bishop,62,3>::value, _ray<bishop,62,4>::value, _ray<bishop,62,5>::value, _ray<bishop,62, 6>::value, _ray<bishop,62,7>::value,
     _ray<bishop,63, 0>::value, _ray<bishop,63,1>::value, _ray<bishop,63, 2>::value, _ray<bishop,63,3>::value, _ray<bishop,63,4>::value, _ray<bishop,63,5>::value, _ray<bishop,63, 6>::value, _ray<bishop,63,7>::value,
+
     _ray<  rook, 0, 0>::value, _ray<  rook, 0,1>::value, _ray<  rook, 0, 2>::value, _ray<  rook, 0,3>::value, _ray<  rook, 0,4>::value, _ray<  rook, 0,5>::value, _ray<  rook, 0, 6>::value, _ray<  rook, 0,7>::value,
     _ray<  rook, 1, 0>::value, _ray<  rook, 1,1>::value, _ray<  rook, 1, 2>::value, _ray<  rook, 1,3>::value, _ray<  rook, 1,4>::value, _ray<  rook, 1,5>::value, _ray<  rook, 1, 6>::value, _ray<  rook, 1,7>::value,
     _ray<  rook, 2, 0>::value, _ray<  rook, 2,1>::value, _ray<  rook, 2, 2>::value, _ray<  rook, 2,3>::value, _ray<  rook, 2,4>::value, _ray<  rook, 2,5>::value, _ray<  rook, 2, 6>::value, _ray<  rook, 2,7>::value,
@@ -1366,6 +1367,7 @@ const std::array<std::array<std::array<U64, 8>, 64>, 3> rays = {
     _ray<  rook,61, 0>::value, _ray<  rook,61,1>::value, _ray<  rook,61, 2>::value, _ray<  rook,61,3>::value, _ray<  rook,61,4>::value, _ray<  rook,61,5>::value, _ray<  rook,61, 6>::value, _ray<  rook,61,7>::value,
     _ray<  rook,62, 0>::value, _ray<  rook,62,1>::value, _ray<  rook,62, 2>::value, _ray<  rook,62,3>::value, _ray<  rook,62,4>::value, _ray<  rook,62,5>::value, _ray<  rook,62, 6>::value, _ray<  rook,62,7>::value,
     _ray<  rook,63, 0>::value, _ray<  rook,63,1>::value, _ray<  rook,63, 2>::value, _ray<  rook,63,3>::value, _ray<  rook,63,4>::value, _ray<  rook,63,5>::value, _ray<  rook,63, 6>::value, _ray<  rook,63,7>::value,
+
     _ray< queen, 0, 0>::value, _ray< queen, 0,1>::value, _ray< queen, 0, 2>::value, _ray< queen, 0,3>::value, _ray< queen, 0,4>::value, _ray< queen, 0,5>::value, _ray< queen, 0, 6>::value, _ray< queen, 0,7>::value,
     _ray< queen, 1, 0>::value, _ray< queen, 1,1>::value, _ray< queen, 1, 2>::value, _ray< queen, 1,3>::value, _ray< queen, 1,4>::value, _ray< queen, 1,5>::value, _ray< queen, 1, 6>::value, _ray< queen, 1,7>::value,
     _ray< queen, 2, 0>::value, _ray< queen, 2,1>::value, _ray< queen, 2, 2>::value, _ray< queen, 2,3>::value, _ray< queen, 2,4>::value, _ray< queen, 2,5>::value, _ray< queen, 2, 6>::value, _ray< queen, 2,7>::value,
@@ -1551,12 +1553,10 @@ bool initialized = false;
 
 // Arrays for magic numbers
 Magic BMagics[64];
-
 Magic RMagics[64];
 
 // Arrays for all possible sliding attack patterns
 U64 BishopAttacks[5248];
-
 U64 RookAttacks[102400];
 
 // PRNG for producing magic numbers
@@ -1571,6 +1571,7 @@ std::uniform_int_distribution<U64> dist;
 // Define here to prevent compilier from attempting to inline
 game::~game() = default;
 
+// Return true if given char identifies material/file (in SAN)
 bool ispiece(char c){ return pieces.find(c) != std::string::npos; }
 
 bool isfile(char c){ return files.find(c) != std::string::npos; }
@@ -1621,12 +1622,14 @@ std::string bb2s(U64 bb, char c){
     return viz;
 }
 
+// Line between two squares (optionally inclusive)
 U64 line(const square src, const square dst, bool endp){
     U64 res = lines[src][dst];
     if(endp){ res |= (1ULL << src) | (1ULL << dst); }
     return res;
 }
 
+// Sliding piece movements corresponding to the given occupancy
 U64 slide_atk(const square src, const ptype pt, const U64 occ){
     U64 res = 0ULL;
     for(int i=0; i<8; ++i){
@@ -1642,13 +1645,14 @@ U64 slide_atk(const square src, const ptype pt, const U64 occ){
     return res;
 }
 
+// Empty board attack patterns
 U64 attack(const square src, const ptype pt, const color c){
     switch(pt){
         case pawn:
             switch(c){
                 case white: return wpattack[src];
                 case black: return bpattack[src];
-                default:    return wpattack[src] & bpattack[src];
+                default:    return wpattack[src] | bpattack[src];
             }
         case knight:        return nattack[src];
         case bishop:        return battack[src];
@@ -1658,7 +1662,7 @@ U64 attack(const square src, const ptype pt, const color c){
     }
 }
 
-// Sliding attack masks (same as `attack` but exludes edge squares)
+// Sliding attack masks (same as `attack` for sliding pieces but exludes edge squares)
 U64 attackm(square src, ptype pt){
     switch(pt){
         case bishop: return battackm[src];
@@ -1682,18 +1686,24 @@ U64 search_pins(const bitboard bb){
         color c = static_cast<color>(i);
         U64 kloc = bb(king, !c),
             same = bb(c),
-            oppt = bb(!c);
-        square ksq = bitscan(kloc);
+            oppt = bb(!c),
+            lbt;
+        square ksq = bitscan(kloc),
+               x;
 
         for(int j=bishop; j<=queen; ++j){
             ptype pt = static_cast<ptype>(j);
             U64 plocs = bb(pt, c);
 
             while(plocs){
-                square x = lsbpop(plocs);
-                U64 atk = kloc & attack(x, pt),
-                    lbt = line(x, ksq);
-                if(atk && popcnt(lbt & oppt) == 1 && !popcnt(lbt & same)){ pins |= lbt & oppt; }
+                x   = lsbpop(plocs);
+                lbt = line(x, ksq);
+                if(
+                    lbt & attack(x, pt) &&
+                    popcnt(lbt & oppt) == 1 &&
+                    !popcnt(lbt & same)
+
+                ){ pins |= lbt & oppt; }
             }
         }
     }
@@ -1704,7 +1714,7 @@ U64 search_pins(const bitboard bb){
 U64 search_checks(const bitboard bb, const color c){
     // color c = color of player EXECUTING check
 
-    U64 checkers = 0ULL;
+    U64 checkers = 0ULL, atk;
     const U64 kloc = bb(king, !c);
 
     for(int i=pawn; i<king; ++i){
@@ -1715,10 +1725,13 @@ U64 search_checks(const bitboard bb, const color c){
         while(plocs){
 
             square x = lsbpop(plocs);
-            U64 atk = 0ULL;
-            if(pt <= knight){ atk |= attack(x, pt, c); }
-            if(pt == bishop || pt == queen){ atk |= BMagics[x].attacks[BMagics[x].index(bb())]; }
-            if(pt == rook   || pt == queen){ atk |= RMagics[x].attacks[RMagics[x].index(bb())]; }
+            switch(pt){
+                case pawn:
+                case knight: atk = attack(x, pt, c); break;
+                case bishop: atk = BMagics[x].value(bb()); break;
+                case rook:   atk = RMagics[x].value(bb()); break;
+                default:     atk = BMagics[x].value(bb()) | RMagics[x].value(bb());
+            }
 
             if(atk & kloc){ checkers |= mask(x); }
         }
@@ -1778,6 +1791,10 @@ void magic_init(const ptype pt, U64* table, Magic* magics){
 **************************************************/
 namespace { ply missing; }
 
+/*
+    PUBLIC
+*/
+
 Board::Board(){
     if(!initialized){
         magic_init(bishop, BishopAttacks, BMagics);
@@ -1785,6 +1802,16 @@ Board::Board(){
         initialized = true;
     }
     this->reset();
+}
+
+Board::Board(const Board& other){
+
+    this->state = other.state;
+}
+
+Board& Board::operator=(const Board& other){
+    this->state = other.state;
+    return *this;
 }
 
 void Board::reset(){
@@ -1827,10 +1854,20 @@ ptype Board::lookupt(const U64 src) const{
     else                              { return NOTYPE; }
 }
 
-void Board::remove(const U64 src, const ptype pt, const color c){
-    this->board(pt, c) &= ~src;
-    this->board(c)     &= ~src;
-    this->board()      &= ~src;
+bool Board::clearbt(const square sq1, const square sq2) const{
+    if(attack(sq1, king) & (1ULL << sq2)){ return true; }
+    else{
+        U64 lbt = line(sq1, sq2);
+        switch(lbt){
+            case 0:  return false;
+            default: return !(lbt & this->board());
+        }
+    }
+}
+
+void Board::remove(){
+
+    this->board.fill(0ULL);
 }
 
 void Board::remove(const U64 src){
@@ -1839,9 +1876,10 @@ void Board::remove(const U64 src){
     }
 }
 
-void Board::remove(){
-
-    this->board.fill(0ULL);
+void Board::remove(const U64 src, const ptype pt, const color c){
+    this->board(pt, c) &= ~src;
+    this->board(c)     &= ~src;
+    this->board()      &= ~src;
 }
 
 void Board::place(const U64 dst, const ptype pt, const color c){
@@ -1855,224 +1893,15 @@ void Board::move(const U64 src, const U64 dst, const ptype pt, const color c){
     this->place(dst, pt, c);
 }
 
-bool Board::clearbt(const square sq1, const square sq2) const{
-    if(attack(sq1, king) & (1ULL << sq2)){ return true; }
-    else{
-        U64 lbt = line(sq1, sq2);
-        switch(lbt){
-            case 0:  return false;
-            default: return !(lbt & this->board());
-        }
-    }
-}
-
-template<color c>
-void Board::apply(const ply p){
-
-    constexpr color nc = !c;
-
-    // Remove captured material
-    if(p.capture){
-        if(p.dst & this->enpas){ this->remove(push(p.dst, nc), pawn, nc); }
-        else                   { this->remove(p.dst); }
-
-        if(p.dst & this->board(rook, nc)){
-             // Rook capture => update castling availability
-            this->cancas &= (p.dst & rook_castle_src<nc, 1>) ? ~castle<nc, 1> : ~castle<nc, -1>;
-        }
-    }
-
-    // set enpas to 0 unless p == pawn double push
-    if(p.type == pawn && p.dst == double_push(p.src, c)){ this->enpas = push(p.src, c); }
-    else{ this->enpas = 0; }
-
-    // Move piece from src to dst
-    this->move(p.src, p.dst, p.type, c);
-
-    if(p.castle){
-        // Move rook if castling
-        (p.castle < 0) ? this->move(rook_castle_src<c, -1>, rook_castle_dst<c, -1>, rook, c)
-                       : this->move(rook_castle_src<c,  1>, rook_castle_dst<c,  1>, rook, c);
-        this->cancas &= ~castle<c>;
-    }
-
-    if(p.promo){
-        // Promote pawn
-        this->remove(p.dst, pawn, c);
-        this->place(p.dst, p.promo, c);
-    }
-
-    // Update castling availability
-    if(this->cancas & castle<c>){
-        if(p.type == king){ this->cancas &= ~castle<c>; }
-        else
-        if(p.type == rook){
-            if(p.src == rook_castle_src<c,  1>){ this->cancas &= ~castle<c,  1>; }
-            else
-            if(p.src == rook_castle_src<c, -1>){ this->cancas &= ~castle<c, -1>; }
-        }
-    }
-
-    // Check for pins
-    this->pins = search_pins(this->board);
-    this->next = nc;
-
-    // Update bitboard of pieces giving check
-    this->checkers = p.check ? search_checks(this->board, c) : 0ULL;
-    this->check = p.check ? nc : NOCOLOR;
-
-    // Move counters
-    if(c<0){ ++this->full; }
-    if(p.type != pawn && !p.capture){ ++this->half;   }
-    else                            { this->half = 0; }
-}
-
 void Board::update(const ply p){
     if(p == missing){ return; }
+    this->_prev = this->state;
     p.c > 0 ? this->apply<white>(p) : this->apply<black>(p);
 }
 
-template<ptype pt, color c>
-U64 Board::pseudo(const square sq) const{
-    switch(pt){
-        case king:
-        case pawn:
-        case knight: return attack(sq, pt, c);
-        case bishop: return BMagics[sq].value(this->board());
-        case rook:   return RMagics[sq].value(this->board());
-        default:     return BMagics[sq].value(this->board()) | RMagics[sq].value(this->board());
-    }
-}
+void Board::undo(){
 
-template<ptype pt, color c>
-U64 Board::pseudo() const{
-    U64 bb = this->board(pt, c),
-        atk = 0;
-    while(bb){ atk |= this->pseudo<pt, c>(lsbpop(bb)); }
-    return atk;
-}
-
-template<color c>
-U64 Board::pseudo() const{
-    U64 atk = 0;
-    for(int i=pawn; i<=king; ++i){
-        ptype pt = static_cast<ptype>(i);
-        atk |= pt == pawn   ? this->pseudo<  pawn, c>()
-             : pt == knight ? this->pseudo<knight, c>()
-             : pt == bishop ? this->pseudo<bishop, c>()
-             : pt == rook   ? this->pseudo<  rook, c>()
-             : pt == queen  ? this->pseudo< queen, c>()
-             :                this->pseudo<  king, c>();
-    }
-    return atk;
-}
-
-template<color c>
-U64 Board::legal_pawn(const square src, const U64 bsrc, const square kloc, const U64 occ) const{
-
-    constexpr color nc = !c;
-    constexpr U64 dpr = rank(c>0 ? 2 : 5);
-    U64 res = 0;
-
-    // Push
-    res |= push(bsrc, c) & ~occ;
-    // Double Push
-    res |= push(res & dpr, c) & ~occ;
-    // Captures
-    res |= attack(src, pawn, c) & (this->board(nc) | (this->next == c ? this->enpas : 0));
-
-    if(res & this->enpas){
-        // Remove en passant discovered checks (king in check after executing ep capture)
-        U64 _o = (occ ^ bsrc ^ push(this->enpas, nc)) | this->enpas;
-        if(
-            RMagics[kloc].value(_o) & (this->board(rook,   nc) | this->board(queen, nc)) ||
-            BMagics[kloc].value(_o) & (this->board(bishop, nc) | this->board(queen, nc))
-        ){ res &= ~this->enpas; }
-    }
-    return res;
-}
-
-template<color c>
-U64 Board::legal_king(const square src, const U64 bsrc, const U64 occ) const{
-
-    constexpr color nc = !c;
-
-    U64 res = attack(src, king),
-        atk;
-    if(!(res &= ~this->board(c))){ return 0; }
-
-    atk = this->pseudo<nc>();
-    res &= ~atk;
-
-    // Castles
-    if(res && this->check != c && this->cancas & castle<c>){
-        bool ks = this->cancas & castle<c,  1>,
-             qs = this->cancas & castle<c, -1>;
-        // Kingside - both sqaures clear and safe
-        if(ks && ksl<c> == (ksl<c> & ~occ & ~atk)){ res |= bsrc << 2; }
-        // Queenside - all 3 squares clear; 2 squares (traversed by king) safe
-        if(qs && qslc<c> == (qslc<c> & ~occ) && qsls<c> == (qsls<c> & ~atk)){ res |= bsrc >> 2; }
-    }
-    return res;
-}
-
-template<color c>
-U64 Board::check_filter(const ptype pt, const square kloc) const{
-
-    U64 filter = 0,
-        chkrs = this->checkers;
-
-    int N = popcnt(chkrs);
-
-    while(chkrs){
-        square sq = lsbpop(chkrs);
-        if(pt != king && N == 1){
-            // Block or Capture
-            filter |= line(sq, kloc, true);
-            // En Passant capture
-            if(pt == pawn && this->enpas == push(mask(sq), c)){ filter |= this->enpas; }
-        }
-        else
-        if(pt == king && this->lookupt(mask(sq)) > knight){ filter |= axis(sq, kloc) & ~mask(sq); }
-    }
-    return filter;
-}
-
-template<color c>
-U64 Board::legal_bb(const square src, const ptype pt) const{
-
-    U64 res = 0;
-    const U64 occ = this->board(), bsrc = mask(src);
-    const square kloc = bitscan(this->board(king, c));
-
-    switch(pt){
-
-        case pawn:   res |= this->legal_pawn<c>(src, bsrc, kloc, occ); break;
-
-        case knight: res |= attack(src, pt); break;
-
-        case bishop: res |= BMagics[src].value(occ); break;
-
-        case rook:   res |= RMagics[src].value(occ); break;
-
-        case queen:  res |= (BMagics[src].value(occ) | RMagics[src].value(occ)); break;
-
-        default:     res |= this->legal_king<c>(src, bsrc, occ);
-    }
-
-    // Pins
-    if(bsrc & this->pins){ res &= axis(src, kloc); }
-
-    // Check
-    if(this->check == c){
-        U64 filter = this->check_filter<c>(pt, kloc);
-        res &= pt == king ? ~filter : filter;
-    }
-
-    // Squares occupied by same color material
-    res &= ~this->board(c);
-
-    return res;
+    this->state = this->_prev;
 }
 
 U64 Board::legal(const color c) const{
@@ -2094,17 +1923,21 @@ U64 Board::legal(const square src, const ptype pt, const color c) const{
 
 std::vector<ply> Board::legal_plies(const color c){
 
+    const U64 brnk = back_rank(c);
+
     std::vector<ply> plies;
-    plies.reserve(256);
-    ply p;
-    p.c = c;
-    const State _bstate = this->state;
+    plies.reserve(320);
+    ply p = {0ULL, 0ULL, NOTYPE, pawn, c, 0, false, false, false};
+    U64 oppt = this->board(!c);
+
 
     for(int i=pawn; i<=king; ++i){
 
         // for each piece type...
         p.type = static_cast<ptype>(i);
-        U64 bb = this->board(p.type, c), atk;
+        U64 bb = this->board(p.type, c),
+            op = oppt | (!i ? this->enpas : 0),
+            atk;
 
         while(bb){
 
@@ -2121,33 +1954,30 @@ std::vector<ply> Board::legal_plies(const color c){
                 // target square
                 p.dst = mask(lsbpop(atk));
 
-                // capture
-                p.capture = p.dst & (!p.type ? (this->board(!c) | this->enpas) : this->board(!c));
+                // capture/castle
+                switch(p.type){
 
-                // castle
-                if(p.type == king){ p.castle = (p.dst == p.src << 2) ? 1 : ((p.dst == p.src >> 2) ? -1 : 0); }
-                else{ p.castle = 0; }
+                    case king:
+                        p.castle = (p.dst == p.src << 2) ?  1
+                                 : (p.dst == p.src >> 2) ? -1
+                                 : 0;
+                        if(!p.castle){ p.capture = p.dst & op; }
+                        break;
 
-                // promotions
-                bool pmo = !p.type && p.dst & back_rank(c);
-                ptype start = pmo ? knight: pawn,
-                      stop = pmo ? king : knight;
-
-                for(int i=start; i<stop; ++i){
-                    p.promo = static_cast<ptype>(i);
-
-                    // check/mate
-                    this->update(p);
-                    this->checkers = search_checks(this->board, c);
-                    if(this->checkers){
-                        this->check = this->next;
-                        p.check = true;
-                        p.mate = !this->legal(this->next);
-                    }
-                    else{ p.check = p.mate = false; }
-                    this->state = _bstate;
-                    plies.emplace_back(p);
+                    default:
+                        p.castle = 0;
+                        p.capture = p.dst & op;
                 }
+
+                if(!p.type && p.dst & brnk){
+                    // promotions
+                    for(int i=knight; i<king; ++i){
+                        p.promo = static_cast<ptype>(i);
+                        plies.emplace_back(this->lookahead(p));
+                    }
+                    p.promo = pawn;
+                }
+                else{ plies.emplace_back(this->lookahead(p)); }
             }
         }
     }
@@ -2208,7 +2038,7 @@ std::string Board::ply2san(const ply p) const{
     return res;
 }
 
-std::string Board::to_string(){
+std::string Board::to_string() const{
     std::string viz = bviz;
     U64 bb = this->board();
 
@@ -2221,6 +2051,233 @@ std::string Board::to_string(){
     }
     return viz;
 }
+
+ply Board::lookahead(ply p){
+
+    // Update board and search for checks
+    this->update(p);
+    this->checkers = search_checks(this->board, p.c);
+
+    if(this->checkers){
+        this->check = this->next;
+        p.check = true;
+
+        // Determine if game ends in checkmate (king moves are the only answer to double check)
+        p.mate = (popcnt(this->checkers) > 1) ? !this->legal(king, this->next) : !this->legal(this->next);
+
+    }
+    else{ p.check = p.mate = false; }
+
+    // Revert board's state
+    this->undo();
+
+    return p;
+}
+
+/*
+    PRIVATE
+*/
+
+template<color c>
+void Board::apply(const ply p){
+
+    constexpr color nc = !c;
+
+    // Remove captured material
+    if(p.capture){
+        if(p.dst & this->board(rook, nc) & (rook_castle_src<nc,1> | rook_castle_src<nc,-1>)){
+             // Rook capture => update castling availability
+            this->cancas &= (p.dst & rook_castle_src<nc, 1>) ? ~castle<nc, 1> : ~castle<nc, -1>;
+        }
+
+        if(p.dst & this->enpas){ this->remove(push(p.dst, nc), pawn, nc); }
+        else                   { this->remove(p.dst); }
+    }
+
+    // set enpas to 0 unless p == pawn double push
+    if(p.type == pawn && p.dst == double_push(p.src, c)){ this->enpas = push(p.src, c); }
+    else{ this->enpas = 0; }
+
+    // Move piece from src to dst
+    this->move(p.src, p.dst, p.type, c);
+
+    if(p.castle){
+        // Move rook if castling
+        (p.castle < 0) ? this->move(rook_castle_src<c, -1>, rook_castle_dst<c, -1>, rook, c)
+                       : this->move(rook_castle_src<c,  1>, rook_castle_dst<c,  1>, rook, c);
+        this->cancas &= ~castle<c>;
+    }
+
+    if(p.promo){
+        // Promote pawn
+        this->remove(p.dst, pawn, c);
+        this->place(p.dst, p.promo, c);
+    }
+
+    // Update castling availability
+    if(this->cancas & castle<c>){
+        if(p.type == king){ this->cancas &= ~castle<c>; }
+        else
+        if(p.type == rook){
+            if(p.src == rook_castle_src<c,  1>){ this->cancas &= ~castle<c,  1>; }
+            else
+            if(p.src == rook_castle_src<c, -1>){ this->cancas &= ~castle<c, -1>; }
+        }
+    }
+
+    // Check for pins
+    this->pins = search_pins(this->board);
+    this->next = nc;
+
+    // Update bitboard of pieces giving check
+    this->checkers = p.check ? search_checks(this->board, c) : 0ULL;
+    this->check = p.check ? nc : NOCOLOR;
+
+    // Move counters
+    if(c<0){ ++this->full; }
+    if(p.type != pawn && !p.capture){ ++this->half;   }
+    else                            { this->half = 0; }
+}
+
+template<ptype pt, color c>
+U64 Board::pseudo(const square sq) const{
+    switch(pt){
+        case king:
+        case pawn:
+        case knight: return attack(sq, pt, c);
+        case bishop: return BMagics[sq].value(this->board());
+        case rook:   return RMagics[sq].value(this->board());
+        default:     return BMagics[sq].value(this->board()) | RMagics[sq].value(this->board());
+    }
+}
+
+template<ptype pt, color c>
+U64 Board::pseudo() const{
+    U64 bb = this->board(pt, c),
+        atk = 0;
+    while(bb){ atk |= this->pseudo<pt, c>(lsbpop(bb)); }
+    return atk;
+}
+
+template<color c>
+U64 Board::pseudo() const{
+    return this->pseudo<  pawn, c>() |
+           this->pseudo<knight, c>() |
+           this->pseudo<bishop, c>() |
+           this->pseudo<  rook, c>() |
+           this->pseudo< queen, c>() |
+           this->pseudo<  king, c>();
+}
+
+template<color c>
+U64 Board::legal_pawn(const square src, const U64 bsrc, const square kloc, const U64 occ) const{
+
+    constexpr color nc = !c;
+    constexpr U64 dpr = rank(c>0 ? 2 : 5);
+    U64 res = 0;
+
+    // Push
+    res |= push(bsrc, c) & ~occ;
+    // Double Push
+    res |= push(res & dpr, c) & ~occ;
+    // Captures
+    res |= attack(src, pawn, c) & (this->board(nc) | this->enpas);
+
+    if(res & this->enpas){
+        // Remove en passant discovered checks (king in check after executing ep capture)
+        U64 _o = (occ ^ bsrc ^ push(this->enpas, nc)) | this->enpas;
+        if(
+            RMagics[kloc].value(_o) & (this->board(rook,   nc) | this->board(queen, nc)) ||
+            BMagics[kloc].value(_o) & (this->board(bishop, nc) | this->board(queen, nc))
+        ){ res &= ~this->enpas; }
+    }
+    return res;
+}
+
+template<color c>
+U64 Board::legal_king(const square src, const U64 bsrc, const U64 occ) const{
+
+    constexpr color nc = !c;
+
+    U64 res = attack(src, king),
+        atk;
+    if(!(res &= ~this->board(c))){ return 0; }
+
+    atk = this->pseudo<nc>();
+    res &= ~atk;
+
+    // Castles
+    if(res && this->check != c && this->cancas & castle<c>){
+        bool ks = this->cancas & castle<c,  1>,
+             qs = this->cancas & castle<c, -1>;
+        // Kingside - both sqaures clear and safe
+        if(ks && !(ksl<c > & occ) && !(ksl<c > & atk)){ res |= bsrc << 2; }
+        // Queenside - all 3 squares clear; 2 squares (traversed by king) safe
+        if(qs && !(qslc<c> & occ) && !(qsls<c> & atk)){ res |= bsrc >> 2; }
+    }
+    return res;
+}
+
+template<color c>
+U64 Board::check_filter(const ptype pt, const square kloc) const{
+
+    U64 filter = 0,
+        chkrs = this->checkers;
+
+    int N = popcnt(chkrs);
+    bool isking = pt == king;
+
+    while(chkrs){
+        square sq = lsbpop(chkrs);
+        if(!isking && N == 1){
+            // Block or Capture
+            filter |= line(sq, kloc, true);
+            // En Passant capture
+            if(pt == pawn && this->enpas == push(mask(sq), c)){ filter |= this->enpas; }
+        }
+        else
+        if(isking && this->lookupt(mask(sq)) > knight){ filter |= axis(sq, kloc) & ~mask(sq); }
+    }
+    return isking ? ~filter : filter;
+}
+
+template<color c>
+U64 Board::legal_bb(const square src, const ptype pt) const{
+
+    U64 res;
+    const U64 occ = this->board(), bsrc = mask(src);
+    const square kloc = bitscan(this->board(king, c));
+
+    switch(pt){
+
+        case pawn:   res = this->legal_pawn<c>(src, bsrc, kloc, occ); break;
+
+        case knight: res = attack(src, pt); break;
+
+        case bishop: res = BMagics[src].value(occ); break;
+
+        case rook:   res = RMagics[src].value(occ); break;
+
+        case queen:  res = (BMagics[src].value(occ) | RMagics[src].value(occ)); break;
+
+        default:     res = this->legal_king<c>(src, bsrc, occ);
+    }
+
+    // Pins
+    if(bsrc & this->pins){ res &= axis(src, kloc); }
+
+    // Check
+    if(this->check == c){ res &= this->check_filter<c>(pt, kloc); }
+
+    // Squares occupied by same color material
+    res &= ~this->board(c);
+
+    return res;
+}
+
+/*
+    TEMPLATE INSTANCES
+*/
 
 template U64 Board::legal_pawn<white>(const square, const U64, const square, const U64) const;
 template U64 Board::legal_pawn<black>(const square, const U64, const square, const U64) const;
@@ -2289,24 +2346,24 @@ namespace disamb{
             res;
 
         switch(pt){
-            // Pawn movements
             case pawn: {
+                // Pawn movements
                 while(pins){
                     // Remove immovable pins
                     square p = lsbpop(pins);
                     if(!(line(p, bitscan(kloc), true) & dkln)){ cand &= ~mask(p); }
                 }
                 // Find first pawn that can reach target square
-                if(capture && (res = cand & attack(bitscan(dst), pt, !c))){ return res; }
+                if(capture && (res = cand & attack(bitscan(dst), pawn, !c))){ return res; }
                 else
-                if(cand & (res = push(dst, !c)))                          { return res; }
+                if(cand & (res = push(dst, !c)))                            { return res; }
                 else
-                if(cand & (res = double_push(dst, !c)))                   { return res; }
+                if(cand & (res = double_push(dst, !c)))                     { return res; }
                 break;
             }
 
-            // Back-row piece movements
             default: {
+                // Back-row piece movements
                 while(cand){
                     square prosq = lsbpop(cand);
                     U64 pros = mask(prosq);
@@ -2345,16 +2402,8 @@ namespace disamb{
         bool cap = board.board() & dst;
         ply p = {src, dst, pt, pmo, board.next, cas, cap, false, false};
 
-        // Copy state, update, seek check/checkmate, restore state
-        const State _bstate = board.state;
-        board.update(p);
-        board.checkers = search_checks(board.board, p.c);
-        if(board.checkers){
-            board.check = board.next;
-            p.check = true;
-            p.mate = !board.legal(board.next);
-        }
-        board.state = _bstate;
+        // Test ply and determine check/checkmate
+        p = board.lookahead(p);
 
         return p;
     }
@@ -2450,7 +2499,7 @@ namespace fen{
 
             // En Passant
             std::string enpas = *fentok++;
-            if(enpas != "-"){ board.enpas = mask(8*c2rank(enpas[0]) + c2file(enpas[1])); }
+            if(enpas != "-"){ board.enpas = mask(8*c2rank(enpas[1]) + c2file(enpas[0])); }
             else            { board.enpas = 0ULL; }
 
             // Move counters
@@ -2479,7 +2528,7 @@ namespace fen{
                 if(!(loc & occ)){ ++empty; }
                 else{
                     if(empty){ fstr += std::to_string(empty); empty = 0; }
-                    fstr += ptype2c(board.lookupt(loc), board.lookupc(loc));;
+                    fstr += ptype2c(board.lookupt(loc), board.lookupc(loc));
                 }
             }
             if(empty){ fstr += std::to_string(empty); }
