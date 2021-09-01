@@ -1,0 +1,4 @@
+g++ -std=c++17 -O3 -Winline -flto -fno-fat-lto-objects -o bin/nix/parsestream.o -c src/parsestream.cpp
+g++ -std=c++17 -O3 -Winline -mlzcnt -mbmi -mpopcnt -march=x86-64 -flto -fno-fat-lto-objects -o bin/nix/tempus.o -c src/tempus.cpp
+g++ -std=c++17 -O3 -Winline -mlzcnt -mbmi -mpopcnt -march=x86-64 -flto -fno-fat-lto-objects -o bin/nix/chess.o -c src/chess.cpp
+g++ -std=c++17 -O3 -Winline -mlzcnt -mbmi -mpopcnt -march=x86-64 -flto -fno-fat-lto-objects -o bin/nix/chessdb.o -c src/chessdb.cpp
