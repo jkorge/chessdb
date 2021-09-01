@@ -633,17 +633,24 @@ template<typename CharT, typename Traits>
 PGNStream<CharT, Traits>::PGNStream(const CharT* file) : PGNStream(string(file)) {}
 
 template<typename CharT, typename Traits>
+PGNStream<CharT, Traits>::~PGNStream() = default;
+
+template<typename CharT, typename Traits>
 PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(game& g){
     this->read();
-    g.tags = this->_pbuf._tags;
-    g.plies = this->_pbuf._plies;
+    if(!this->eof()){
+        g.tags = this->_pbuf._tags;
+        g.plies = this->_pbuf._plies;
+    }
     return *this;
 }
 
 template<typename CharT, typename Traits>
 PGNStream<CharT, Traits>& PGNStream<CharT, Traits>::operator>>(std::vector<game>& games){
     this->read();
-    games.emplace_back(this->_pbuf._tags, this->_pbuf._plies);
+    if(!this->eof()){
+        games.emplace_back(this->_pbuf._tags, this->_pbuf._plies);
+    }
     return *this;
 }
 
@@ -920,6 +927,9 @@ ChessDBStream<CharT, Traits>::ChessDBStream(const string& file)
 
 template<typename CharT, typename Traits>
 ChessDBStream<CharT, Traits>::ChessDBStream(const CharT* file) : ChessDBStream(string(file)) {}
+
+template<typename CharT, typename Traits>
+ChessDBStream<CharT, Traits>::~ChessDBStream() = default;
 
 template<typename CharT, typename Traits>
 ChessDBStream<CharT, Traits>& ChessDBStream<CharT, Traits>::operator<<(const game& g){

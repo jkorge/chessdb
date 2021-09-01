@@ -33,9 +33,12 @@ std::vector<game> load_pgn(std::string file, int start, int stop=-1){
     else{
         // Read to end of file
         int i = 0;
-        while(!pstr.eof()){
+        while(true){
             pstr >> games;
-            std::cout << ++i << '\r';
+            if(pstr.eof()){ break; }
+            if(!(++i % 1000)){
+                std::cout << i << '\r';
+            }
         }
         prog(1.0, 1.0);
     }

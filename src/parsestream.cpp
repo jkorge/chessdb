@@ -198,7 +198,7 @@ ParseBuf<CharT, Traits>::underflow(){
         this->read();
         this->rparse();
         this->setg(&this->_buf[0], &this->_buf[0], &this->_buf[0]);
-        return 0;
+        return this->_fdev.eof() ? Traits::eof() : 0;
     }
     else{ return Traits::eof(); }
 }
@@ -261,7 +261,7 @@ ParseStream<CharT, Traits>& ParseStream<CharT, Traits>::read(ParseStream<CharT, 
     typename std::basic_istream<CharT, Traits>::sentry sty(*this, true);
     if(sty){
         std::streamsize count = this->rdbuf()->sgetn(s, n);
-        if(!count){ this->setstate(std::ios_base::eofbit); }
+        if(count == 0){ this->setstate(std::ios_base::eofbit); }
     }
     return *this;
 }

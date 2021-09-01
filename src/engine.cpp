@@ -98,10 +98,20 @@ int NTHREADS = std::thread::hardware_concurrency();
                 CLASS DEFINITIONS
 **************************************************/
 
-template<typename T>
-inline void App::print(T val, bool newln){ std::cout << val << (newln ? '\n' : '\0'); }
+/*
+    PRIVATE
+*/
 
-inline void App::print(){ std::cout << std::endl; }
+template<typename T>
+inline void App::print(T val, bool newln){
+
+    std::cout << val << (newln ? '\n' : '\0');
+}
+
+inline void App::print(){
+
+    std::cout << std::endl;
+}
 
 void App::move(){
 
@@ -191,6 +201,7 @@ void App::setboard(){
     // Read FEN string
     std::string fstr;
     std::getline(this->sstr, fstr);
+    if(fstr.empty()){ this->print("No FEN string provided. Board unchanged"); return; }
     fstr.erase(0,1);
 
     // Update board
@@ -301,54 +312,6 @@ void App::help(){
     }
     this->print(std::string(1, '\n') + h);
     this->print();
-}
-
-App::App(){
-
-    this->router["move"]      = &this->move;
-    this->router["undo"]      = &this->undo;
-    this->router["perft"]     = &this->pft;
-    this->router["perftq"]    = &this->pft;
-    this->router["perftdiv"]  = &this->pft;
-    this->router["perftdivq"] = &this->pft;
-    this->router["new"]       = &this->newgame;
-    this->router["setboard"]  = &this->setboard;
-    this->router["showboard"] = &this->show;
-    this->router["fen"]       = &this->fen;
-    this->router["history"]   = &this->history;
-    this->router["threads"]   = &this->set_threads;
-    this->router["help"]      = &this->help;
-
-    this->invalid = this->router.end();
-
-    this->print(this->helpstr);
-    bprint(this->board);
-}
-
-void App::run(){
-    while(true){
-
-        // Read user input
-        this->print(this->prompt, false);
-        std::getline(std::cin, this->cmd);
-        if(!this->cmd.size()){ continue; }
-
-        // Separate command from args
-        this->sstr.clear();
-        this->sstr.str(this->cmd);
-        this->sstr >> this->cmd;
-
-        // Route to function (or end loop)
-        if(this->quit_cmds.find(this->cmd) != this->quit_cmds.end()){ break; }
-        else
-        if(this->router.find(this->cmd) == this->invalid){
-            this->print("Invalid command '", false);
-            this->print(this->cmd, false);
-            this->print("'");
-            continue;
-        }
-        this->router[this->cmd](*this);
-    }
 }
 
 void App::perft(Board root, int depth, bool det, bool div){
@@ -544,4 +507,56 @@ ply App::prest(const std::string p, color c, bool check, bool mate){
     }
 
     return {src, dst, pt, promo, c, 0, capture, check, mate};
+}
+
+/*
+    PUBLIC
+*/
+
+App::App(){
+
+    this->router["move"]      = &App::move;
+    this->router["undo"]      = &App::undo;
+    this->router["perft"]     = &App::pft;
+    this->router["perftq"]    = &App::pft;
+    this->router["perftdiv"]  = &App::pft;
+    this->router["perftdivq"] = &App::pft;
+    this->router["new"]       = &App::newgame;
+    this->router["setboard"]  = &App::setboard;
+    this->router["showboard"] = &App::show;
+    this->router["fen"]       = &App::fen;
+    this->router["history"]   = &App::history;
+    this->router["threads"]   = &App::set_threads;
+    this->router["help"]      = &App::help;
+
+    this->invalid = this->router.end();
+
+    this->print(this->helpstr);
+    bprint(this->board);
+}
+
+void App::run(){
+    while(true){
+
+        // Read user input
+        this->print(this->prompt, false);
+        std::getline(std::cin, this->cmd);
+        if(!this->cmd.size()){ continue; }
+
+        // Separate command from args
+        this->sstr.clear();
+        this->sstr.str(this->cmd);
+        this->sstr >> this->cmd;
+
+        // Route to function (or end loop)
+        if(this->quit_cmds.find(this->cmd) != this->quit_cmds.end()){ break; }
+        else
+        if(this->router.find(this->cmd) == this->invalid){
+            this->print("Invalid command '", false);
+            this->print(this->cmd, false);
+            this->print("'");
+            continue;
+        }
+        this->router[this->cmd](*this);
+    }
 }

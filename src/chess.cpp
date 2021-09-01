@@ -1927,7 +1927,7 @@ std::vector<ply> Board::legal_plies(const color c){
 
     std::vector<ply> plies;
     plies.reserve(320);
-    ply p = {0ULL, 0ULL, NOTYPE, pawn, c, 0, false, false, false};
+    ply p = {0, 0, NOTYPE, pawn, c, 0, false, false, false};
     U64 oppt = this->board(!c);
 
 

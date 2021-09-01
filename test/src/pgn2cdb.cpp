@@ -30,9 +30,10 @@ int main(int argc, char** argv){
     int batch = 0, N = 0;
     unsigned long long Tf, Ti = Tempus::time(), T0 = Tempus::time();
 
-    while(pstr){
+    while(true){
         // Load game
         pstr >> batch_games;
+        if(pstr.eof()){ break; }
 
         if(batch_games.size() == batch_size){
             // Dump batch

@@ -148,6 +148,7 @@ public:
 
     PGNStream(const string&);
     PGNStream(const CharT*);
+    ~PGNStream();
 
     PGNStream<CharT, Traits>& operator>>(game&);
     PGNStream<CharT, Traits>& operator>>(std::vector<game>& games);
@@ -235,6 +236,7 @@ public:
     
     ChessDBStream(const string&);
     ChessDBStream(const CharT*);
+    ~ChessDBStream();
 
     ChessDBStream<CharT, Traits>& operator<<(const game&);
     ChessDBStream<CharT, Traits>& operator>>(game&);

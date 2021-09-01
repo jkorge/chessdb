@@ -153,7 +153,6 @@ static std::atomic<bool> _RFQ_{false};
 // 0ns duration - used with `std::future::wait_for` to check if future object is ready
 constexpr Tempus::Nanosecond zns{0};
 
-
 /**************************************************
                 CLASS DECLARATION
 **************************************************/
@@ -178,7 +177,7 @@ class App{
     // Commands for exiting
     const std::unordered_set<std::string> quit_cmds = {"exit", "quit", "x", "q"};
 
-    // Board object for all operations
+    // Board object
     Board board;
 
     // Container for perft results
@@ -186,8 +185,7 @@ class App{
 
     // Move history
     std::vector<State> states;
-    std::vector<ply> moves,
-                     plies;
+    std::vector<ply> moves, plies;
 
     // Map commands to functions
     std::map<std::string, std::function<void(App&)> > router;
@@ -222,7 +220,7 @@ class App{
 
     void help();
 
-    // Perft entrypoints
+    // Perft functions
     void perft(Board, int, bool, bool);
     void perft1(Board, bool, bool);
 
@@ -234,9 +232,6 @@ class App{
     ply pply(std::string, color);
     ply pcastle(bool, color, bool, bool);
     ply prest(const std::string, color, bool, bool);
-
-    template<bool root>
-    uint64_t perftq(Board, int, bool);
 
 public:
     App();
