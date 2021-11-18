@@ -313,23 +313,19 @@ PGN<CharT, Traits>::~PGN() = default;
 
 template<typename CharT, typename Traits>
 PGN<CharT, Traits>::PGN(const string& filename) : ParseBuf<CharT,Traits>(filename, "rb"){
-    ptype pt;
-    for(int i=pawn; i<=king; ++i){
-        pt = static_cast<ptype>(i);
-        switch(pt){
-            case pawn:   this->ply_map[pt].reserve(psz); break;
-            case knight: this->ply_map[pt].reserve(nsz); break;
-            case bishop: this->ply_map[pt].reserve(bsz); break;
-            case rook:   this->ply_map[pt].reserve(rsz); break;
-            case queen:  this->ply_map[pt].reserve(qsz); break;
-            default:     this->ply_map[pt].reserve(ksz);
-        }
-    }
+
+    this->ply_map[pawn].reserve(psz);
+    this->ply_map[knight].reserve(nsz);
+    this->ply_map[bishop].reserve(bsz);
+    this->ply_map[rook].reserve(rsz);
+    this->ply_map[queen].reserve(qsz);
+    this->ply_map[king].reserve(ksz);
+
     /**************************************************
                             PAWNS
     **************************************************/
 
-    pt = pawn;
+    ptype pt = pawn;
     for(square dst=0; dst<64; ++dst){
 
         int f = dst%8;

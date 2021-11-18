@@ -117,6 +117,7 @@ private:
     void read();
     int_type rparse();
 
+    // ctor util
     void brp(U64, U64, ptype, bool, bool, bool);
 
     // Parsing functions
