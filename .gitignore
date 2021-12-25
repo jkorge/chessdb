@@ -1,6 +1,7 @@
 bin
 data
 lib
+obj
 
 test/*
 !test/src
