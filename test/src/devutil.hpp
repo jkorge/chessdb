@@ -72,7 +72,7 @@ struct table{
         if(idx){ std::cout << '|' << std::setw(4) << std::left << ""; }
         table<N, W, idx>::_row(val, args...);
         table<N, W, idx>::sep();
-        table<N, W, idx>::index = 0;
+        table<N, W, idx>::index = 1;
     }
 
     template<typename T, typename... Ts>
