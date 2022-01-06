@@ -214,6 +214,8 @@ constexpr U64 MAINDIAG_     = 0x8040201008040201,
               ANTIDIAG_     = 0x0102040810204080,
               RANK_         = 0xff,
               FILE_         = 0x0101010101010101,
+              BACK_RANK_B_  = RANK_,
+              BACK_RANK_W_  = RANK_ << 56,
 
 // 0, 1, All squares
               ONE_          = 0x01,
@@ -322,6 +324,7 @@ constexpr int c2file(char f){
         case 'e': return 4;
         case 'f': return 5;
         case 'g': return 6;
+        case 'h':
         default:  return 7;
     }
 }
@@ -335,6 +338,7 @@ constexpr int c2rank(char r){
         case '5': return 4;
         case '6': return 5;
         case '7': return 6;
+        case '8':
         default:  return 7;
     }
 }
@@ -360,6 +364,7 @@ constexpr char file2c(int f){
         case 4:  return 'e';
         case 5:  return 'f';
         case 6:  return 'g';
+        case 7:
         default: return 'h';
     }
 }
@@ -373,6 +378,7 @@ constexpr char rank2c(int r){
         case 4:  return '5';
         case 5:  return '6';
         case 6:  return '7';
+        case 7:
         default: return '8';
     }
 }
@@ -416,23 +422,26 @@ constexpr int bbvizidx(square sq){ return 2 + 25*(7 - sq/8) + 3*(sq%8); }
 // Square for pushing pawns
 constexpr U64 push(U64 src, color c){
     switch(c){
-        case black: return src >> 8;
-        default:    return src << 8;
+        case white: return src << 8;
+        case black:
+        default:    return src >> 8;
     }
 }
 
 constexpr U64 double_push(U64 src, color c){
     switch(c){
-        case black: return src >> 16;
-        default:    return src << 16;
+        case white: return src << 16;
+        case black:
+        default:    return src >> 16;
     }
 }
 
 // Rank at "back" of board, relative to given player's color
 constexpr U64 back_rank(color c){
     switch(c){
-        case black: return RANK_;
-        default:    return RANK_ << 56;
+        case white: return BACK_RANK_W_;
+        case black:
+        default:    return BACK_RANK_B_;
     }
 }
 
@@ -589,6 +598,7 @@ public:
     // Get color/type info for given square
     color lookupc(const U64) const;
     ptype lookupt(const U64) const;
+
     // Line b/t squares is empty
     bool clearbt(const square, const square) const;
 
@@ -596,12 +606,16 @@ public:
     void remove();
     void remove(const U64);
     void remove(const U64, const ptype, const color);
+
     // Place material on board
     void place(const U64, const ptype, const color);
+
     // Move material from src to dst
     void move(const U64, const U64, const ptype, const color);
+
     // Update board state with ply
     void update(const ply);
+
     // Undo most recent update
     void undo();
 
@@ -609,16 +623,18 @@ public:
     U64 legal(const color) const;
     U64 legal(const ptype, const color) const;
     U64 legal(const square, const ptype, const color) const;
+
     // Generate vector of legal plies
     std::vector<ply> legal_plies(const color);
 
     // Write ply in Standard Algebraic Notation
     std::string ply2san(const ply) const;
+
     // String visualization of board
     std::string to_string() const;
 
-    // Determine if ply gives check/mate
-    ply lookahead(ply p);
+    // Determine if ply gives check/mate and set ply members accordingly
+    void lookahead(ply& p);
 
 private:
 

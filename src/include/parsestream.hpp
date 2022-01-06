@@ -28,6 +28,7 @@ public:
 
     FileBase();
     FileBase(const string&, const string&);
+    FileBase(std::FILE*&&);
     ~FileBase();
 
     void open();
@@ -80,6 +81,7 @@ protected:
 public:
     ParseBuf();
     ParseBuf(const string&, const string&);
+    ParseBuf(std::FILE*&&);
     ~ParseBuf();
 
 };
@@ -102,6 +104,7 @@ public:
 
     ParseStream();
     ParseStream(const string&);
+    ParseStream(std::FILE*&&);
     ~ParseStream();
 
     ParseStream<CharT, Traits>& read(char_type* = nullptr, std::streamsize=0);

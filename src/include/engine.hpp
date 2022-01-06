@@ -3,7 +3,6 @@
 #include <atomic>
 #include <bitset>
 #include <future>
-#include <iomanip>
 #include <iostream>
 #include <locale>
 #include <string>
@@ -11,29 +10,19 @@
 #include <unordered_set>
 
 #include "chessdb.hpp"
-
-/**************************************************
-                FUNCTION DECLARATIONS
-**************************************************/
-
-// Print a bunch of '-'
-inline std::string bar(int length){ return std::string(length, '-'); }
-
-// Print a visualization of a Board
-inline void bprint(Board& board){ std::cout << board.to_string() << '\n'; }
-
-// SIGINT handler
-void stop(int);
-
-// Select chars from string where bits in bitset are == 1
-template<int N>
-std::string bitmask_index(const std::string, std::bitset<N>);
+#include "table.hpp"
 
 /**************************************************
         VARIABLES, STRUCTS, & TYPEDEFS
 **************************************************/
 
-// Array typedef to contain results
+// template params => num. columns, column width, include index
+typedef table<6, 20, true> idtb;
+typedef table<6, 20, false> dtb;
+typedef table<3, 20, true> itb;
+typedef table<3, 20, false> tb;
+
+// Array subclass for containing perft results
 typedef struct stats : std::array<uint64_t, 5>{
     stats operator+(const stats& other) const{
         return {
@@ -55,98 +44,6 @@ typedef struct stats : std::array<uint64_t, 5>{
     }
 } stats;
 
-// printing utils
-struct comma_sep : std::numpunct<char> { string_type do_grouping() const{ return "\3"; } };
-
-template<int N, int W, bool idx=false>
-struct table{
-    static std::string bar_unit;
-    static int index;
-
-    static void _row(){ std::cout << "|\n"; }
-    static void rrow(){ std::cout << "|\r"; }
-
-    template<typename T, typename... Ts>
-    static void row(T val, Ts... args){
-        if(idx){ std::cout << '|' << std::setw(4) << std::left << table<N, W, idx>::index++; }
-        table<N, W>::_row(val, args...);
-    }
-
-    template<typename T, typename... Ts>
-    static void _row(T val, Ts... args){
-        std::cout << '|' << std::setw(W) << std::left << val;
-        table<N, W>::_row(args...);
-    }
-
-    template<typename T, typename... Ts>
-    static void header(T val, Ts... args){
-        table<N, W, idx>::sep();
-        if(idx){ std::cout << '|' << std::setw(4) << std::left << ""; }
-        table<N, W, idx>::_row(val, args...);
-        table<N, W, idx>::sep();
-        table<N, W, idx>::index = 0;
-    }
-
-    template<typename T, typename... Ts>
-    static void rrow(T val, Ts... args){
-        std::cout << '|' << std::setw(W) << std::left << val;
-        table<N, W>::rrow(args...);
-    }
-
-    static void prow(const ply& p){
-        table<N, W>::row(
-            color2s(p.c),
-            ptype2s(p.type),
-            ptype2s(p.promo),
-            coord2s(p.src),
-            coord2s(p.dst),
-            (p.castle ? (p.castle>0 ? "ks" : "qs") : "__"),
-            p.capture,
-            p.check,
-            p.mate
-        );
-    }
-
-    static void prrow(const ply& p){
-        table<N, W>::rrow(
-            color2s(p.c),
-            ptype2s(p.type),
-            ptype2s(p.promo),
-            coord2s(p.src),
-            coord2s(p.dst),
-            (p.castle ? (p.castle>0 ? "ks" : "qs") : "__"),
-            p.capture,
-            p.check,
-            p.mate
-        );
-    }
-
-    static void sep(){
-        std::string tmp(1, '|');
-        for(int i=0; i<N; ++i){ tmp += table<N, W, idx>::bar_unit; }
-        tmp += bar(idx ? N+4 : N-1) + '|';
-        std::cout << tmp << '\n';
-    }
-
-    static void sep(int n){
-        std::string tmp(1, '|');
-        for(int i=0; i<n; ++i){ tmp += table<N, W, idx>::bar_unit; }
-        tmp += bar(idx ? n+4 : n-1) + '|';
-        std::cout << tmp << '\n';
-    }
-};
-
-template<int N, int W, bool idx>
-std::string table<N, W, idx>::bar_unit = bar(W);
-
-template<int N, int W, bool idx>
-int table<N, W, idx>::index = 1;
-
-typedef table<6, 20, true> idtb;
-typedef table<6, 20, false> dtb;
-typedef table<3, 20, true> itb;
-typedef table<3, 20, false> tb;
-
 // SIGINT sets this to true and stops perft recursions
 static std::atomic<bool> _RFQ_{false};
 
@@ -154,11 +51,35 @@ static std::atomic<bool> _RFQ_{false};
 constexpr Tempus::Nanosecond zns{0};
 
 /**************************************************
+                FUNCTION DECLARATIONS
+**************************************************/
+
+// Print a visualization of a Board
+inline void bprint(Board& board){ std::cout << board.to_string() << '\n'; }
+
+// SIGINT handler
+void stop(int);
+
+// Select chars from string where bits in bitset are == 1
+template<int N>
+std::string bitmask_index(const std::string, std::bitset<N>);
+
+// Recursive engine for perft
+template<typename T>
+T search(Board, int);
+
+template<typename T>
+void _count(T& res, Board& board, int depth, const ply& p);
+
+template<typename T, typename Function>
+void _search(T& res, Board& board, int depth, Function f);
+
+typedef void (*statsFunction)(stats&, Board&, int, const ply&);
+typedef void (*intFunction)(uint64_t&, Board&, int, const ply&);
+
+/**************************************************
                 CLASS DECLARATION
 **************************************************/
-// Recursive engines for perft
-uint64_t search(Board, int);
-stats searchn(Board, int);
 
 class App{
 
@@ -170,7 +91,7 @@ class App{
     const std::string prompt{"> "},
                       helpstr{
                         "Available commands:\n"
-                        "\n\tmove\n\tundo\n\tperft\n\tthreads\n\tnew\n\tshowboard\n\tsetboard\n\tfen\n\texit\n\n"
+                        "\n\tnew\n\tshowboard\n\tsetboard\n\tfen\n\tmove\n\tundo\n\thistory\n\tperft\n\tthreads\n\tcls\n\texit\n\n"
                         "Type 'help <command>' for more info on each command\n"
                       };
 
@@ -216,6 +137,8 @@ class App{
 
     void clear();
 
+    void cls();
+
     void set_threads();
 
     void help();
@@ -235,6 +158,7 @@ class App{
 
 public:
     App();
+    ~App();
 
     void run();
 

@@ -11,7 +11,10 @@ template<typename CharT, typename Traits>
 FileBase<CharT, Traits>::FileBase(const string& fname, const string& mode) : _fname(fname), _mode(mode){ this->open(); }
 
 template<typename CharT, typename Traits>
-FileBase<CharT, Traits>::~FileBase(){ this->close(); }
+FileBase<CharT, Traits>::FileBase(std::FILE*&& _fp) : _M_file(_fp) {}
+
+template<typename CharT, typename Traits>
+FileBase<CharT, Traits>::~FileBase() = default;
 
 template<>
 void FileBase<char>::open(){
@@ -87,6 +90,10 @@ void FileBase<CharT, Traits>::xsgetn(
         Find delim and cut string
     */
     int idx = tmp.find(delim);
+    if(idx == string::npos){
+        idx = tmp.find_last_not_of(' ');
+        if(idx != string::npos){ ++idx; }
+    }
     tmp = tmp.substr(0, idx);
     if(n){
         // Count CR removed from tmp and increase delim counter by 1 for each LF
@@ -156,8 +163,10 @@ template<typename CharT, typename Traits>
 ParseBuf<CharT, Traits>::ParseBuf(const string& file, const string& mode) : std::basic_streambuf<CharT, Traits>(), _fdev(file, mode) {}
 
 template<typename CharT, typename Traits>
-ParseBuf<CharT, Traits>::~ParseBuf() { this->close(); }
+ParseBuf<CharT, Traits>::ParseBuf(std::FILE*&& _fp) : std::basic_streambuf<CharT, Traits>(), _fdev(std::forward<std::FILE*>(_fp)) {}
 
+template<typename CharT, typename Traits>
+ParseBuf<CharT, Traits>::~ParseBuf() = default;
 
 template<typename CharT, typename Traits>
 void ParseBuf<CharT, Traits>::close(){ this->_fdev.close(); }
@@ -193,14 +202,15 @@ ParseBuf<CharT, Traits>::uflow(){ return this->underflow(); }
 template<typename CharT, typename Traits>
 typename ParseBuf<CharT, Traits>::int_type
 ParseBuf<CharT, Traits>::underflow(){
+    int_type res = Traits::eof();
     if(!this->_fdev.eof()){
         this->sync();
         this->read();
         this->rparse();
         this->setg(&this->_buf[0], &this->_buf[0], &this->_buf[0]);
-        return this->_fdev.eof() ? Traits::eof() : 0;
+        res = this->_fdev.eof() ? Traits::eof() : 0;
     }
-    else{ return Traits::eof(); }
+    return res;
 }
 
 
@@ -254,6 +264,9 @@ template<typename CharT, typename Traits>
 ParseStream<CharT, Traits>::ParseStream(const string& file) : std::basic_iostream<CharT, Traits>(&_pbuf), _pbuf(file, get_mode(file)) {}
 
 template<typename CharT, typename Traits>
+ParseStream<CharT, Traits>::ParseStream(std::FILE*&& _fp) : std::basic_iostream<CharT, Traits>(&_pbuf), _pbuf(std::forward<std::FILE*>(_fp)) {}
+
+template<typename CharT, typename Traits>
 ParseStream<CharT, Traits>::~ParseStream() = default;
 
 template<typename CharT, typename Traits>
@@ -273,11 +286,13 @@ ParseStream<CharT, Traits>& ParseStream<CharT, Traits>::write(const ParseStream<
     return *this;
 }
 
-template class ParseStream<char>;
-// template class ParseStream<wchar_t>;
+////////////////////////////////////////////////////////////////////////////
 
 template class ParseBuf<char>;
 // template class ParseBuf<wchar_t>;
+
+template class ParseStream<char>;
+// template class ParseStream<wchar_t>;
 
 template class FileBase<char>;
 // template class FileBase<wchar_t>;

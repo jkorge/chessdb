@@ -117,7 +117,8 @@ private:
     void read();
     int_type rparse();
 
-    // ctor util
+    // ctor utils
+    void init();
     void brp(U64, U64, ptype, bool, bool, bool);
 
     // Parsing functions
@@ -127,7 +128,9 @@ private:
 
 public:
     PGN(const string&);
+    PGN(std::FILE*&&);
     ~PGN();
+
 };
 
 
@@ -148,6 +151,7 @@ class PGNStream : public ParseStream<CharT, Traits>{
 public:
 
     PGNStream(const string&);
+    PGNStream(std::FILE*&&);
     PGNStream(const CharT*);
     ~PGNStream();
 
@@ -156,6 +160,7 @@ public:
 
     game next();
     void close();
+
 };
 
 /**************************************************
@@ -178,7 +183,6 @@ public:
 
     // Map game index to starting byte and num plies
     std::unordered_map<uint32_t, std::pair<uint64_t, uint16_t> > index;
-
 
 protected:
     game rg;

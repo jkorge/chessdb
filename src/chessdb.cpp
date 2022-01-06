@@ -126,6 +126,7 @@ namespace encode{
             case bishop: _action |= action<bishop>(s, d);                     break;
             case rook:   _action |= action<rook  >(s, d);                     break;
             case queen:  _action |= action<queen >(s, d);                     break;
+            case king:
             default:     _action |= action<king  >(s, d);
         }
         return _action;
@@ -243,6 +244,7 @@ namespace decode{
             case bishop: return action<bishop>(a);
             case rook:   return action<rook>(a);
             case queen:  return action<queen>(a, p);
+            case king:
             default:     return action<king>(a);
         }
     }
@@ -255,6 +257,7 @@ namespace decode{
             case bishop: return action<bishop>(a);
             case rook:   return action<rook>(a);
             case queen:  return action<queen>(a, p);
+            case king:
             default:     return action<king>(a);
         }
     }
@@ -288,6 +291,7 @@ namespace decode{
             case bishop: delta = action<bishop>(_action        ); break;
             case rook:   delta = action<rook  >(_action        ); break;
             case queen:  delta = action<queen >(_action, _piece); break;
+            case king:
             default:     delta = action<king  >(_action        );
         }
 
@@ -312,7 +316,13 @@ template<typename CharT, typename Traits>
 PGN<CharT, Traits>::~PGN() = default;
 
 template<typename CharT, typename Traits>
-PGN<CharT, Traits>::PGN(const string& filename) : ParseBuf<CharT,Traits>(filename, "rb"){
+PGN<CharT, Traits>::PGN(const string& filename) : ParseBuf<CharT,Traits>(filename, "rb"){ this->init(); }
+
+template<typename CharT, typename Traits>
+PGN<CharT, Traits>::PGN(std::FILE*&& _fp) : ParseBuf<CharT,Traits>(std::forward<std::FILE*>(_fp)){ this->init(); }
+
+template<typename CharT, typename Traits>
+void PGN<CharT, Traits>::init(){
 
     this->ply_map[pawn].reserve(psz);
     this->ply_map[knight].reserve(nsz);
@@ -626,6 +636,11 @@ PGNStream<CharT, Traits>::PGNStream(const string& file)
     _pbuf(file) { this->rdbuf(&this->_pbuf); }
 
 template<typename CharT, typename Traits>
+PGNStream<CharT, Traits>::PGNStream(std::FILE*&& _fp)
+    : ParseStream<CharT, Traits>(),
+    _pbuf(std::forward<std::FILE*>(_fp)) { this->rdbuf(&this->_pbuf); }
+
+template<typename CharT, typename Traits>
 PGNStream<CharT, Traits>::PGNStream(const CharT* file) : PGNStream(string(file)) {}
 
 template<typename CharT, typename Traits>
@@ -673,7 +688,6 @@ template<typename CharT, typename Traits>
 ChessDB<CharT, Traits>::~ChessDB(){
     // Dump remaining stats
     this->detach();
-    // Close file
     this->close();
 }
 
@@ -711,8 +725,6 @@ void ChessDB<CharT, Traits>::seek_index(){ this->_fdev.seek(this->IDXPOS); }
 
 template<typename CharT, typename Traits>
 void ChessDB<CharT, Traits>::seek_tags(){ this->_fdev.seek(this->IDXPOS + this->NGAMES * IDXSZ); }
-
-
 
 /*
     WRITE FUNCS

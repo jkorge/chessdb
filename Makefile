@@ -13,7 +13,7 @@ OBJSPARSE = $(SRCPARSE:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 LIBPARSE = $(LIBDIR)/libparsestream.a
 
 SRCENGINE = $(SRCDIR)/engine.cpp
-OBJSENGINE = $(SRCENGINE:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+HDRENGINE = $(INCDIR)/engine.hpp
 ifeq ($(OS),Windows_NT)
 	ENGINE = $(BINDIR)/engine.exe
 else
@@ -23,6 +23,13 @@ endif
 CXX = g++
 CXXFLAGS = -std=c++17 -O3 -Winline -mlzcnt -mbmi -mpopcnt -march=x86-64 -flto -fno-fat-lto-objects
 LDFLAGS = -Llib -lchess -lparsestream
+
+$(ENGINE): $(HDRENGINE) $(SRCENGINE) $(LIBPARSE) $(LIBCHESS) | $(BINDIR)
+ifeq ($(OS), Windows_NT)
+	$(CXX) $(CXXFLAGS) -o $@ $(SRCENGINE) icon.res $(LDFLAGS)
+else
+	$(CXX) $(CXXFLAGS) -o $@ $(SRCENGINE) $(LDFLAGS) -lpthread
+endif
 
 $(OBJDIR):
 	mkdir $@
@@ -36,18 +43,13 @@ $(BINDIR):
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(INCDIR)/%.hpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
+obj/chessdb.o: obj/chess.o $(LIBPARSE)
+
 $(LIBPARSE): $(OBJSPARSE) | $(LIBDIR)
 	ar crs $(LIBPARSE) $(OBJSPARSE)
 
 $(LIBCHESS): $(OBJSCHESS) | $(LIBDIR)
 	ar crs $(LIBCHESS) $(OBJSCHESS)
-
-$(ENGINE): $(LIBPARSE) $(LIBCHESS) $(OBJSENGINE) | $(BINDIR)
-ifeq ($(OS), Windows_NT)
-	$(CXX) $(CXXFLAGS) -o $@ $(SRCENGINE) $(LDFLAGS)
-else
-	$(CXX) $(CXXFLAGS) -o $@ $(SRCENGINE) $(LDFLAGS) -lpthread
-endif
 
 clean:
 ifeq ($(OS),Windows_NT)
@@ -64,6 +66,6 @@ parse: $(LIBPARSE)
 
 chess: $(LIBCHESS)
 
-engine: $(ENGINE)
+engine: $(INCDIR)/table.hpp $(ENGINE)
 
 .PHONY: parse chess engine

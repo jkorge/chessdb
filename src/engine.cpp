@@ -1,5 +1,11 @@
 #include "include/engine.hpp"
 
+#ifdef _WIN32
+std::string _cls("cls");
+#else
+std::string _cls("clear");
+#endif
+
 /**************************************************
                         MAIN
 **************************************************/
@@ -29,62 +35,56 @@ std::string bitmask_index(const std::string txt, std::bitset<N> msk){
     return res;
 }
 
-// recurse over legal plies from board position @ root up to MAX_DEPTH
-uint64_t search(Board board, int depth){
-    if(_RFQ_){ return {0}; }
+template<>
+inline void _count<uint64_t>(uint64_t& res, Board& board, int depth, const ply& p){
+    // Count legal moves
+    U64 brnk = back_rank(board.next),
+        bb, b;
 
-    uint64_t res = 0;
-    --depth;
-
-    if(depth <= 1){
-        // Count legal moves
-        U64 brnk = back_rank(board.next),
-            bb, b;
-
-        for(int i=pawn; i<=king; ++i){
-            ptype pt = static_cast<ptype>(i);
-            bb = board.board(pt, board.next);
-            while(bb){
-                b = board.legal(lsbpop(bb), pt, board.next);
-                res += popcnt(b);
-                // Add three for each pawn-promoting move (already counted the move once; +3 for remaining promotions)
-                if(!pt && (b &= brnk)){ res += 3*popcnt(b); }
-            }
+    for(int i=pawn; i<=king; ++i){
+        ptype pt = static_cast<ptype>(i);
+        bb = board.board(pt, board.next);
+        while(bb){
+            b = board.legal(lsbpop(bb), pt, board.next);
+            res += popcnt(b);
+            // Add three for each pawn-promoting move (already counted the move once; +3 for remaining promotions)
+            if(!pt && (b &= brnk)){ res += 3*popcnt(b); }
         }
     }
-    else{
-        for(const ply& p : board.legal_plies(board.next)){
-            
-            board.update(p);
-            res += search(board, depth);
-            board.undo();
-        }
-    }
-
-    return res;
 }
 
-// search + track extra stats
-stats searchn(Board board, int depth){
+template<>
+inline void _count<stats>(stats& res, Board& board, int depth, const ply& p){
+    ++res[0];
+    res[1] += p.capture;
+    res[2] += p.check;
+    res[3] += p.mate;
+}
+
+template<typename T>
+inline void _recurse(T& res, Board& board, int depth, const ply& p){
+    board.update(p);
+    res += search<T>(board, depth);
+    board.undo();
+}
+
+template<>
+inline void _search(stats& res, Board& board, int depth, statsFunction f){
+    for(const ply& p : board.legal_plies(board.next)){ f(res, board, depth, p); }
+}
+
+template<>
+inline void _search(uint64_t& res, Board& board, int depth, intFunction f){
+    if(depth <= 1){ f(res, board, depth, ply()); }
+    else          { for(const ply& p : board.legal_plies(board.next)){ f(res, board, depth, p); } }
+}
+
+template<typename T>
+T search(Board board, int depth){
     if(_RFQ_){ return {0}; }
-
-    stats res = {0};
+    T res = {0};
     --depth;
-
-    for(const ply& p : board.legal_plies(board.next)){
-        if(depth <= 1){
-            ++res[0];
-            res[1] += p.capture;
-            res[2] += p.check;
-            res[3] += p.mate;
-        }
-        else{
-            board.update(p);
-            res += searchn(board, depth);
-            board.undo();
-        }
-    }
-
+    _search(res, board, depth, (depth <= 1) ? _count<T> : _recurse<T>);
     return res;
 }
 
@@ -139,6 +139,12 @@ void App::move(){
 }
 
 void App::history(){
+    if(!this->sstr.eof()){
+        std::string sub;
+        this->sstr >> sub;
+        if(sub == "erase" && this->moves.size()){ this->clear(); }
+    }
+    else
     if(!this->moves.size()){ this->print(""); }
     else{
         std::string res = (this->states[0].next == black) ? "... " : "";
@@ -248,11 +254,36 @@ void App::clear(){
     this->moves.clear();
 }
 
+void App::cls(){
+
+    std::system(_cls.data());
+}
+
 void App::help(){
     std::string h;
     if(this->sstr.eof()){ h = this->helpstr; }
     else{
         this->sstr >> h;
+        if(h == "new"){
+            h = "Reset the board for a new game. Clears move history\n"
+                "  Usage: new";
+        }
+        else
+        if(h == "showboard"){
+            h = "Display the current board configuration\n"
+                "  Usage: showboard";
+        }
+        else
+        if(h == "setboard"){
+            h = "Arrange material on the board according to a Forsyth-Edwards Notation record\n"
+                "  Usage: setboard <FEN>\n"
+                "  Example: setboard r1b1k2r/ppp2p1P/2n1p3/3pq3/N2n4/3B2P1/PPPN3P/R2QK2R w KQkq - 1 15";
+        }
+        else
+        if(h == "fen"){
+            h = "Display a Forsyth-Edwards Notation record for the current board";
+        }
+        else
         if(h == "move"){
             h = "Move material on the board according to a ply written in Standard Algebraic Notation\n"
                 "https://en.wikipedia.org/wiki/Algebraic_notation_(chess)\n"
@@ -273,6 +304,12 @@ void App::help(){
                 "           undo -1 (undo all moves)";
         }
         else
+        if(h == "history"){
+            h = "Display a history of moves in Standard Algebraic Notation\n"
+                "Use the subcommand `erase` to wipe the current history (does not affect current position)\n"
+                "  Usage: history OR history erase\n";
+        }
+        else
         if(h == "perft" || h == "perftq"){
             h = "Searches the game tree from the current position out to N plies and reports stats for all possible outcomes\n"
                 "Use perftq to suppress stats (except the total number of outcomes)"
@@ -280,30 +317,14 @@ void App::help(){
                 "  Usage: <perft/perftq> <N>";
         }
         else
-        if(h == "new"){
-            h = "Reset the board for a new game. Clears move history\n"
-                "  Usage: new";
-        }
-        else
-        if(h == "setboard"){
-            h = "Arrange material on the board according to a Forsyth-Edwards Notation record\n"
-                "  Usage: setboard <FEN>\n"
-                "  Example: setboard r1b1k2r/ppp2p1P/2n1p3/3pq3/N2n4/3B2P1/PPPN3P/R2QK2R w KQkq - 1 15";
-        }
-        else
-        if(h == "showboard"){
-            h = "Display the current board configuration\n"
-                "  Usage: showboard";
-        }
-        else
-        if(h == "fen"){
-            h = "Get a Forsyth-Edwards Notation record for the current board";
-        }
-        else
         if(h == "threads"){
             h = "Set the number of threads to use for perft\n"
                 "   Example: threads 10 (use 10 threads)\n"
                 "            threads 1  (single threaded)";
+        }
+        else
+        if(h == "cls"){
+            h = "Clears the screen\n";
         }
         else
         if(h == "exit" || h == "quit" || h == "x" || h == "q"){
@@ -324,8 +345,8 @@ void App::perft(Board root, int depth, bool det, bool div){
     auto func = [det](Board board, int depth, std::promise<stats>&& prms){
         stats res;
         uint64_t t0 = Tempus::time();
-        if(det){ res = searchn(board, depth); }
-        else   { res[0] = search(board, depth); }
+        if(det){ res    = search<stats   >(board, depth); }
+        else   { res[0] = search<uint64_t>(board, depth); }
         res[4] = Tempus::time() - t0;
         prms.set_value(res);
     };
@@ -527,6 +548,7 @@ App::App(){
     this->router["fen"]       = &App::fen;
     this->router["history"]   = &App::history;
     this->router["threads"]   = &App::set_threads;
+    this->router["cls"]       = &App::cls;
     this->router["help"]      = &App::help;
 
     this->invalid = this->router.end();
@@ -535,8 +557,11 @@ App::App(){
     bprint(this->board);
 }
 
+App::~App() = default;
+
 void App::run(){
     while(true){
+        if(_RFQ_){ break; }
 
         // Read user input
         this->print(this->prompt, false);

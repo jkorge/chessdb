@@ -178,7 +178,7 @@ int main(int argc, char** argv){
         stop = 100;
 
     // Filenames
-    std::string src_file = "/Users/jkorg/Desktop/chess/data/otb/OTB.pgn",
+    std::string src_file = "data/otb/OTB.pgn",
                 dst_file = "testdb.cdb";
 
     for(int i=1; i<argc; ++i){

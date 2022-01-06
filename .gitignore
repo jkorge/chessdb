@@ -6,7 +6,6 @@ obj
 test/*
 !test/src
 test/src/*
-!test/src/perft.cpp
 !test/src/pgn2cdb.cpp
 !test/src/devutil.hpp
 !test/src/cvtest.cpp
@@ -14,4 +13,3 @@ test/src/*
 **/logs
 **/deprecated
 *.sublime-*
-*.res

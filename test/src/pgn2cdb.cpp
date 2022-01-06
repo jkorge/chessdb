@@ -6,7 +6,7 @@ typedef table<4, 20, true> tbl;
 typedef table<5, 20, false> tab;
 
 int main(int argc, char** argv){
-    std::string src_file = "/Users/jkorg/Desktop/chess/data/otb/OTB.pgn",
+    std::string src_file = "data/otb/OTB.pgn",
                 dst_file = "OTB.cdb";
 
     int batch_size = 100000;

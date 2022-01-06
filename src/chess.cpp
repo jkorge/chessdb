@@ -1658,6 +1658,7 @@ U64 attack(const square src, const ptype pt, const color c){
         case bishop:        return battack[src];
         case rook:          return rattack[src];
         case queen:         return qattack[src];
+        case king:
         default:            return kattack[src];
     }
 }
@@ -1667,6 +1668,7 @@ U64 attackm(square src, ptype pt){
     switch(pt){
         case bishop: return battackm[src];
         case rook:   return rattackm[src];
+        case queen:
         default:     return battackm[src] | rattackm[src];
     }
 }
@@ -1730,6 +1732,7 @@ U64 search_checks(const bitboard bb, const color c){
                 case knight: atk = attack(x, pt, c); break;
                 case bishop: atk = BMagics[x].value(bb()); break;
                 case rook:   atk = RMagics[x].value(bb()); break;
+                case queen:
                 default:     atk = BMagics[x].value(bb()) | RMagics[x].value(bb());
             }
 
@@ -1923,64 +1926,46 @@ U64 Board::legal(const square src, const ptype pt, const color c) const{
 
 std::vector<ply> Board::legal_plies(const color c){
 
-    const U64 brnk = back_rank(c);
-
     std::vector<ply> plies;
-    plies.reserve(320);
-    ply p = {0, 0, NOTYPE, pawn, c, 0, false, false, false};
-    U64 oppt = this->board(!c);
+    plies.reserve(50);
 
+    U64 src, dst, brnk = back_rank(c);
+    ptype type;
+    int castle;
+    bool capture;
 
     for(int i=pawn; i<=king; ++i){
+        type = static_cast<ptype>(i);
+        U64 srcb = this->board(type, c),
+            oppt = this->board(!c) | (i==0 ? this->enpas : 0),
+            attk;
 
-        // for each piece type...
-        p.type = static_cast<ptype>(i);
-        U64 bb = this->board(p.type, c),
-            op = oppt | (!i ? this->enpas : 0),
-            atk;
+        while(srcb){
+            src = mask(lsbpop(srcb));
+            attk = this->legal(bitscan(src), type, c);
+            while(attk){
+                dst = mask(lsbpop(attk));
+                castle = (type != king)    ?  0
+                       : (dst == src << 2) ?  1
+                       : (dst == src >> 2) ? -1
+                       :                      0;
+                capture = dst & oppt;
 
-        while(bb){
-
-            // origin square
-            square sq = lsbpop(bb);
-            p.src = mask(sq);
-
-            // legal move bitboard
-            atk = this->legal(sq, p.type, c);
-
-            // iterate over legal moves
-            while(atk){
-
-                // target square
-                p.dst = mask(lsbpop(atk));
-
-                // capture/castle
-                switch(p.type){
-
-                    case king:
-                        p.castle = (p.dst == p.src << 2) ?  1
-                                 : (p.dst == p.src >> 2) ? -1
-                                 : 0;
-                        if(!p.castle){ p.capture = p.dst & op; }
-                        break;
-
-                    default:
-                        p.castle = 0;
-                        p.capture = p.dst & op;
-                }
-
-                if(!p.type && p.dst & brnk){
+                if(i==0 && dst & brnk){
                     // promotions
-                    for(int i=knight; i<king; ++i){
-                        p.promo = static_cast<ptype>(i);
-                        plies.emplace_back(this->lookahead(p));
-                    }
-                    p.promo = pawn;
+                    plies.emplace_back(src, dst, type, knight, c, castle, capture, false, false);
+                    plies.emplace_back(src, dst, type, bishop, c, castle, capture, false, false);
+                    plies.emplace_back(src, dst, type, rook,   c, castle, capture, false, false);
+                    plies.emplace_back(src, dst, type, queen,  c, castle, capture, false, false);
                 }
-                else{ plies.emplace_back(this->lookahead(p)); }
+                else{
+                    plies.emplace_back(src, dst, type, pawn,   c, castle, capture, false, false);
+                }
             }
         }
     }
+
+    for(std::vector<ply>::iterator it=plies.begin(); it!=plies.end(); ++it){ this->lookahead(*it); }
 
     return plies;
 }
@@ -2052,7 +2037,7 @@ std::string Board::to_string() const{
     return viz;
 }
 
-ply Board::lookahead(ply p){
+void Board::lookahead(ply& p){
 
     // Update board and search for checks
     this->update(p);
@@ -2070,8 +2055,6 @@ ply Board::lookahead(ply p){
 
     // Revert board's state
     this->undo();
-
-    return p;
 }
 
 /*
@@ -2147,6 +2130,7 @@ U64 Board::pseudo(const square sq) const{
         case knight: return attack(sq, pt, c);
         case bishop: return BMagics[sq].value(this->board());
         case rook:   return RMagics[sq].value(this->board());
+        case queen:
         default:     return BMagics[sq].value(this->board()) | RMagics[sq].value(this->board());
     }
 }
@@ -2260,6 +2244,7 @@ U64 Board::legal_bb(const square src, const ptype pt) const{
 
         case queen:  res = (BMagics[src].value(occ) | RMagics[src].value(occ)); break;
 
+        case king:
         default:     res = this->legal_king<c>(src, bsrc, occ);
     }
 
@@ -2403,7 +2388,7 @@ namespace disamb{
         ply p = {src, dst, pt, pmo, board.next, cas, cap, false, false};
 
         // Test ply and determine check/checkmate
-        p = board.lookahead(p);
+        board.lookahead(p);
 
         return p;
     }
@@ -2430,6 +2415,8 @@ namespace fen{
             case 'R': return rook;
             case 'q':
             case 'Q': return queen;
+            case 'k':
+            case 'K':
             default:  return king;
         }
     }
@@ -2441,6 +2428,7 @@ namespace fen{
             case bishop:    return c<0 ? 'b' : 'B';
             case rook:      return c<0 ? 'r' : 'R';
             case queen:     return c<0 ? 'q' : 'Q';
+            case king:
             default:        return c<0 ? 'k' : 'K';
         }
     }
