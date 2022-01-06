@@ -1,2 +1,0 @@
-ar crs lib/win/libparsestream.a bin/win/parsestream.o
-ar crs lib/win/libchess.a bin/win/tempus.o bin/win/chess.o bin/win/chessdb.o

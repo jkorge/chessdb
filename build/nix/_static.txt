@@ -1,2 +1,0 @@
-ar crs lib/nix/libparsestream.a bin/nix/parsestream.o
-ar crs lib/nix/libchess.a bin/nix/tempus.o bin/nix/chess.o bin/nix/chessdb.o
