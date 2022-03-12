@@ -210,11 +210,14 @@ void App::setboard(){
     if(fstr.empty()){ this->print("No FEN string provided. Board unchanged"); return; }
     fstr.erase(0,1);
 
-    // Update board
-    fen::parse(fstr, this->board);
-
-    // Clear history
-    this->clear();
+    try{
+        // Update board & clear history
+        fen::parse(fstr, this->board);
+        this->clear();
+    }
+    catch(const std::invalid_argument& exc){
+        this->print(exc.what());
+    }
 }
 
 void App::newgame(){
@@ -312,7 +315,7 @@ void App::help(){
         else
         if(h == "perft" || h == "perftq"){
             h = "Searches the game tree from the current position out to N plies and reports stats for all possible outcomes\n"
-                "Use perftq to suppress stats (except the total number of outcomes)"
+                "Use perftq to suppress stats (except the total number of outcomes)\n"
                 "N > 5 is NOT recommended\n"
                 "  Usage: <perft/perftq> <N>";
         }
@@ -323,7 +326,7 @@ void App::help(){
                 "            threads 1  (single threaded)";
         }
         else
-        if(h == "cls"){
+        if(h == "cls" || h == "clear"){
             h = "Clears the screen\n";
         }
         else
@@ -549,6 +552,7 @@ App::App(){
     this->router["history"]   = &App::history;
     this->router["threads"]   = &App::set_threads;
     this->router["cls"]       = &App::cls;
+    this->router["clear"]     = &App::cls;
     this->router["help"]      = &App::help;
 
     this->invalid = this->router.end();

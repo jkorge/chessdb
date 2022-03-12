@@ -91,7 +91,7 @@ class App{
     const std::string prompt{"> "},
                       helpstr{
                         "Available commands:\n"
-                        "\n\tnew\n\tshowboard\n\tsetboard\n\tfen\n\tmove\n\tundo\n\thistory\n\tperft\n\tthreads\n\tcls\n\texit\n\n"
+                        "\n\tnew\n\tshowboard\n\tsetboard\n\tfen\n\tmove\n\tundo\n\thistory\n\tperft\n\tthreads\n\tclear/cls\n\texit\n\n"
                         "Type 'help <command>' for more info on each command\n"
                       };
 

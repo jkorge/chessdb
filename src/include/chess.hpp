@@ -7,6 +7,7 @@
 #include <cstdlib>
 
 #include <array>
+#include <exception>
 #include <random>
 #include <regex>
 #include <string>

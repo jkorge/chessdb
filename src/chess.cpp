@@ -1909,7 +1909,7 @@ void Board::undo(){
 
 U64 Board::legal(const color c) const{
     U64 res = 0;
-    for(int j=pawn; j<=king; ++j){ res |= this->legal(static_cast<ptype>(j), c); }
+    for(int i=pawn; i<=king; ++i){ res |= this->legal(static_cast<ptype>(i), c); }
     return res;
 }
 
@@ -1930,36 +1930,36 @@ std::vector<ply> Board::legal_plies(const color c){
     plies.reserve(50);
 
     U64 src, dst, brnk = back_rank(c);
-    ptype type;
+    ptype pt;
     int castle;
     bool capture;
 
     for(int i=pawn; i<=king; ++i){
-        type = static_cast<ptype>(i);
-        U64 srcb = this->board(type, c),
-            oppt = this->board(!c) | (i==0 ? this->enpas : 0),
+        pt = static_cast<ptype>(i);
+        U64 srcb = this->board(pt, c),
+            oppt = this->board(!c) | (pt == pawn ? this->enpas : 0),
             attk;
 
         while(srcb){
             src = mask(lsbpop(srcb));
-            attk = this->legal(bitscan(src), type, c);
+            attk = this->legal(bitscan(src), pt, c);
             while(attk){
                 dst = mask(lsbpop(attk));
-                castle = (type != king)    ?  0
+                castle = (pt != king)    ?  0
                        : (dst == src << 2) ?  1
                        : (dst == src >> 2) ? -1
                        :                      0;
                 capture = dst & oppt;
 
-                if(i==0 && dst & brnk){
+                if(pt == pawn && dst & brnk){
                     // promotions
-                    plies.emplace_back(src, dst, type, knight, c, castle, capture, false, false);
-                    plies.emplace_back(src, dst, type, bishop, c, castle, capture, false, false);
-                    plies.emplace_back(src, dst, type, rook,   c, castle, capture, false, false);
-                    plies.emplace_back(src, dst, type, queen,  c, castle, capture, false, false);
+                    plies.emplace_back(src, dst, pt, knight, c, castle, capture, false, false);
+                    plies.emplace_back(src, dst, pt, bishop, c, castle, capture, false, false);
+                    plies.emplace_back(src, dst, pt, rook,   c, castle, capture, false, false);
+                    plies.emplace_back(src, dst, pt, queen,  c, castle, capture, false, false);
                 }
                 else{
-                    plies.emplace_back(src, dst, type, pawn,   c, castle, capture, false, false);
+                    plies.emplace_back(src, dst, pt, pawn,   c, castle, capture, false, false);
                 }
             }
         }
@@ -2327,12 +2327,12 @@ namespace disamb{
             pins = cand & board.pins,
             kloc = board.board(king, c),
             dkln = line(bitscan(dst), bitscan(kloc), true) & ~kloc,
-            occ  = board.board(),
-            res;
+            occ  = board.board();
 
         switch(pt){
             case pawn: {
                 // Pawn movements
+                U64 res;
                 while(pins){
                     // Remove immovable pins
                     square p = lsbpop(pins);
@@ -2403,6 +2403,8 @@ namespace fen{
 
     const std::string new_game("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
+    const std::regex fmt("(([pnbrqkPNBRQK1-8]{1,8})/{0,1}){8} (w|b) (-|[KQkq]{1,4}) (-|[a-f][1-8]) [0-9]+ [0-9]+");
+
     ptype c2ptype(char p){
         switch(p){
             case 'p':
@@ -2436,10 +2438,10 @@ namespace fen{
     // Arrange pieces on board according to FEN string
     void arrange(std::string fs, Board& board){
 
-        int rank = 7, file =0;
-        std::regex_token_iterator<std::string::iterator> boardtok(fs.begin(), fs.end(), delim, -1);
+        int rank = 7, file = 0;
+        std::regex_token_iterator<std::string::iterator> boardtok(fs.begin(), fs.end(), delim, -1), endtok;
 
-        while(boardtok != std::regex_token_iterator<std::string::iterator>()){
+        while(boardtok != endtok){
             std::string rs = *boardtok++;
 
             for(std::string::iterator it=rs.begin(); it!=rs.end(); ++it){
@@ -2450,7 +2452,6 @@ namespace fen{
                     U64 loc = mask(8*rank + file);
 
                     board.place(loc, pt, c);
-
                     ++file;
                 }
             }
@@ -2462,8 +2463,10 @@ namespace fen{
     // Configure board members to match FEN string
     void parse(std::string fs, Board& board){
 
+        if(!std::regex_match(fs.begin(), fs.end(), fmt)){ throw std::invalid_argument("Invalid FEN string"); }
+
         if(!fs.compare(new_game)){
-            // FEN matches setup for new game - no processing needed
+            // FEN for new game - no processing needed
             board.reset();
         }
         else{

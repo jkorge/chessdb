@@ -413,8 +413,7 @@ void PGN<CharT, Traits>::init(){
     pt = king;
     std::string str = "K";
     for(square src=0; src<64; ++src){
-        U64 bb = attack(src, pt);
-        while(bb){
+        for(U64 bb=attack(src, pt); bb; ){
             square dst = lsbpop(bb);
             std::string dsts = coord2s(dst);
 
@@ -495,8 +494,8 @@ void PGN<CharT, Traits>::brp(U64 src, U64 dst, ptype pt, bool cap, bool chk, boo
             this->san_map[str + file2c(f) + rank2c(r) + dsts] = &this->ply_map[pt].back();
         }
 
-        rs[tst/8] = true;
-        fs[tst%8] = true;
+        rs[r] = true;
+        fs[f] = true;
         both[tst] = true;
     }
 }
