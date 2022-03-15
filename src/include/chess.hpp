@@ -50,14 +50,14 @@ typedef enum pgntag{
     playerb,
     result,
 
-    // Other common (and informative) Keys
+    // Other common (and informative) tags
     eco,
     fenstr,
     mode,
     time_control,
     termination,
 
-    // Player Rating Keys
+    // Player Ratings
     white_elo,
     black_elo,
     white_uscf,
@@ -135,7 +135,7 @@ typedef struct bitboard : std::array<U64, 15>{
 typedef struct coords : std::array<int, 2>{
     coords() : std::array<int, 2>{0} {}
     coords(const square x) : std::array<int, 2>{x/8, x%8} {}
-    coords(const U64 src); // defined below under `INLINE FUNCTIONS`
+    coords(const U64 src) : coords((square)_tzcnt_u64(src)) {}
     coords(const int r, const int f) : std::array<int, 2>{r, f} {}
     coords operator+(const coords& other) const{ return {this->at(0) + other.at(0), this->at(1) + other.at(1)}; }
 } coords;
@@ -190,17 +190,54 @@ typedef struct Magic{
                 GLOBAL CONSTANTS
 **************************************************/
 
-template<color c, int side=0>
-constexpr BYTE castle = c>0 ? (side>0 ? 0b1000 : side<0 ? 0b0100 : 0b1100)
-                            : (side>0 ? 0b0010 : side<0 ? 0b0001 : 0b0011);
+// Castling rights (KQkq)
+template<color c=NOCOLOR, int side=0>
+constexpr BYTE castle = 0b1111;
+
+template<>
+constexpr BYTE castle<white, -1> = 0b0100;
+
+template<>
+constexpr BYTE castle<white,  0> = 0b1100;
+
+template<>
+constexpr BYTE castle<white,  1> = 0b1000;
+
+template<>
+constexpr BYTE castle<black, -1> = 0b0001;
+
+template<>
+constexpr BYTE castle<black,  0> = 0b0011;
+
+template<>
+constexpr BYTE castle<black,  1> = 0b0010;
+
+// Rook src and dst during castling
+template<color c, int side>
+constexpr U64 rook_castle_src = 0ULL;
+
+template<>
+constexpr U64 rook_castle_src<white, -1> = 0x0000000000000001ULL;
+
+template<>
+constexpr U64 rook_castle_src<white,  1> = 0x0000000000000080ULL;
+
+template<>
+constexpr U64 rook_castle_src<black, -1> = 0x0100000000000000ULL;
+
+template<>
+constexpr U64 rook_castle_src<black,  1> = 0x8000000000000000ULL;
 
 template<color c, int side>
-constexpr U64 rook_castle_src = c>0 ? (side>0 ? 0x0000000000000080ULL : 0x0000000000000001ULL)
-                                    : (side>0 ? 0x8000000000000000ULL : 0x0100000000000000ULL);
+constexpr U64 rook_castle_dst = 0ULL;
 
-template<color c, int side>
-constexpr U64 rook_castle_dst = side>0 ? (rook_castle_src<c, side> >> 2) : (rook_castle_src<c, side> << 3);
+template<color c>
+constexpr U64 rook_castle_dst<c, -1> = rook_castle_src<c, -1> << 3;
 
+template<color c>
+constexpr U64 rook_castle_dst<c, 1> = rook_castle_src<c,  1> >> 2;
+
+// King's traversal during castling
 template<color c>
 constexpr U64 ksl  = 0x60ULL << (c>0 ? 0 : 56);
 
@@ -211,97 +248,93 @@ template<color c>
 constexpr U64 qsls = 0x0cULL << (c>0 ? 0 : 56);
 
 // Board axes
-constexpr U64 MAINDIAG_     = 0x8040201008040201,
-              ANTIDIAG_     = 0x0102040810204080,
-              RANK_         = 0xff,
-              FILE_         = 0x0101010101010101,
-              BACK_RANK_B_  = RANK_,
-              BACK_RANK_W_  = RANK_ << 56,
+constexpr U64 MAINDIAG_     = 0x8040201008040201;
+constexpr U64 ANTIDIAG_     = 0x0102040810204080;
+constexpr U64 RANK_         = 0xff;
+constexpr U64 FILE_         = 0x0101010101010101;
+constexpr U64 BACK_RANK_B_  = RANK_;
+constexpr U64 BACK_RANK_W_  = RANK_ << 56;
 
 // 0, 1, All squares
-              ONE_          = 0x01,
-              ZERO_         = 0x00,
-              ALL_          = 0xffffffffffffffff,
+constexpr U64 ONE_          = 0x01;
+constexpr U64 ZERO_         = 0x00;
+constexpr U64 ALL_          = 0xffffffffffffffff;
 
 // Squares @ ends of BB
-              A1            = 0x01,
-              H8            = A1 << 63,
+constexpr U64 A1            = 0x01;
+constexpr U64 H8            = A1 << 63;
 
 // White starting coordinates
-              white_pawns   = 0x000000000000ff00,
-              white_knights = 0x0000000000000042,
-              white_bishops = 0x0000000000000024,
-              white_rooks   = 0x0000000000000081,
-              white_queen   = 0x0000000000000008,
-              white_king    = 0x0000000000000010,
+constexpr U64 white_pawns   = 0x000000000000ff00;
+constexpr U64 white_knights = 0x0000000000000042;
+constexpr U64 white_bishops = 0x0000000000000024;
+constexpr U64 white_rooks   = 0x0000000000000081;
+constexpr U64 white_queen   = 0x0000000000000008;
+constexpr U64 white_king    = 0x0000000000000010;
 
 // Black starting coordinates
-              black_pawns   = white_pawns   << 40,
-              black_knights = white_knights << 56,
-              black_bishops = white_bishops << 56,
-              black_rooks   = white_rooks   << 56,
-              black_queen   = white_queen   << 56,
-              black_king    = white_king    << 56,
+constexpr U64 black_pawns   = white_pawns   << 40;
+constexpr U64 black_knights = white_knights << 56;
+constexpr U64 black_bishops = white_bishops << 56;
+constexpr U64 black_rooks   = white_rooks   << 56;
+constexpr U64 black_queen   = white_queen   << 56;
+constexpr U64 black_king    = white_king    << 56;
 
 // Starting occupancies
-              white_mat = white_pawns | white_knights | white_bishops | white_rooks | white_queen | white_king,
-              black_mat = black_pawns | black_knights | black_bishops | black_rooks | black_queen | black_king,
-              occupancy =   white_mat | black_mat;
+constexpr U64 white_mat = white_pawns | white_knights | white_bishops | white_rooks | white_queen | white_king;
+constexpr U64 black_mat = black_pawns | black_knights | black_bishops | black_rooks | black_queen | black_king;
+constexpr U64 occupancy =   white_mat | black_mat;
 
 // Collect start coords and occupancies for newgame bitboard
-constexpr bitboard newgame = {white_pawns, white_knights, white_bishops, white_rooks, white_queen, white_king,
-                              black_pawns, black_knights, black_bishops, black_rooks, black_queen, black_king,
-                              white_mat, black_mat, occupancy};
+constexpr bitboard newgame = {
+    white_pawns, white_knights, white_bishops, white_rooks, white_queen, white_king,
+    black_pawns, black_knights, black_bishops, black_rooks, black_queen, black_king,
+    white_mat, black_mat, occupancy
+};
 
-constexpr char bcell[]{"[  ]"},
-               bbcell[]{" . "};
+constexpr char bcell[]{"[  ]"};
+constexpr char bbcell[]{" . "};
 
+// Board axes
 extern const std::array<U64, 64> rmasks;
-
 extern const std::array<U64, 64> fmasks;
-
 extern const std::array<U64, 64> dmasks;
-
 extern const std::array<U64, 64> amasks;
 
+// Empty-board attack patterns
 extern const std::array<U64, 64> wpattack;
-
 extern const std::array<U64, 64> bpattack;
-
 extern const std::array<U64, 64> nattack;
-
 extern const std::array<U64, 64> battack;
-
 extern const std::array<U64, 64> rattack;
-
 extern const std::array<U64, 64> qattack;
-
 extern const std::array<U64, 64> kattack;
 
+// Lines between squares
 extern const std::array<std::array<U64, 64>, 64> axes;
-
 extern const std::array<std::array<U64, 64>, 64> lines;
 
+// Directional rays
 extern const std::array<std::array<std::array<U64, 8>, 64>, 3> rays;
 
+// Magic bitboard attack patterns (includes endpoints)
 extern const std::array<U64, 64> battackm;
-
 extern const std::array<U64, 64> rattackm;
 
+// Piece, rank, and file IDs
 extern const std::string pieces;
-
 extern const std::string files;
-
 extern const std::string ranks;
 
+// New line shorthand
 extern const std::string endl;
 
+// Strings for visualizing boards
 extern const std::string bviz;
-
 extern const std::string bbviz;
 
+// Tag enums <-> Strings
 extern std::map<std::string, pgntag> s2tag;
-
 extern std::map<pgntag, std::string> tag2s;
 
 // Arrays for magic numbers
@@ -412,12 +445,10 @@ constexpr U64 mask(const square x){ return 1ULL << x; }
 
 // Board axes
 constexpr U64 rank(const int r){ return RANK_ << (8*r); }
-
 constexpr U64 file(const int f){ return FILE_ << f; }
 
 // Printing utils
 constexpr int bvizidx(square sq){ return 36 + 35*(7 - sq/8) + 4*(sq%8); }
-
 constexpr int bbvizidx(square sq){ return 2 + 25*(7 - sq/8) + 3*(sq%8); }
 
 // Square for pushing pawns
@@ -459,9 +490,6 @@ inline square bitscanr(const U64 src){ return 63 - _lzcnt_u64(src); }
 // Count number of 1 bits
 inline int popcnt(const U64 x){ return _mm_popcnt_u64(x); }
 
-// Coords constructor - depends on bitscan
-inline coords::coords(const U64 src) : coords::coords(bitscan(src)) {}
-
 // Bitscan, flip ls1b, return bitscan result
 inline square lsbpop(U64& x){ square s = bitscan(x); lsbflip(x); return s; }
 
@@ -473,11 +501,8 @@ inline U64 axis(const square sq1, const square sq2){ return axes[sq1][sq2]; }
 
 // Board axes of the given square
 inline U64 rankof(const square sq){ return rmasks[sq]; }
-
 inline U64 fileof(const square sq){ return fmasks[sq]; }
-
 inline U64 diagof(const square sq){ return dmasks[sq]; }
-
 inline U64 adagof(const square sq){ return amasks[sq]; }
 
 /**************************************************
@@ -486,23 +511,18 @@ inline U64 adagof(const square sq){ return amasks[sq]; }
 
 // Return true if given char identifies material/file (in SAN)
 bool ispiece(char);
-
 bool isfile(char);
 
 // Convert to string
 std::string ptype2s(ptype);
-
 std::string color2s(color);
-
 std::string coord2s(square);
-
 std::string coord2s(U64);
-
-square s2coord(std::string);
-
 std::string pgndict2s(const pgndict&);
-
 std::string bb2s(U64, char='1');
+
+// Convert from string
+square s2coord(std::string);
 
 // Line between two squares (optionally inclusive)
 U64 line(const square, const square, bool=false);
@@ -536,28 +556,18 @@ void magic_init(const ptype, U64*, Magic*);
 // Makes lookahead easier (ie. copy state, apply update, replace state)
 struct State{
 
-    // Bitboard array
     bitboard board = {0};
-
-    // Bitboards for pinned material, en-passant capturable squares, and material giving check
-    U64 pins = 0,
-        enpas = 0,
-        checkers = 0;
-
-    // Next to move and player in check
-    color next = white,
-          check = NOCOLOR;
-
-    // Move counters
-    short half{0},
-          full{1};
-
-    // Bitmap of castling availability (KQkq)
-    BYTE cancas = castle<white> | castle<black>;
+    U64 pins = 0;
+    U64 enpas = 0;
+    U64 checkers = 0;
+    color next = white;
+    color check = NOCOLOR;
+    short half = 0;
+    short full = 1;
+    BYTE cancas = castle<>;
 
     State() = default;
     State(const State& other){ *this = other; }
-
     constexpr State& operator=(const State& other){
         std::memcpy(this, &other, sizeof(other));
         return *this;
@@ -570,19 +580,15 @@ public:
     State state;
     State _prev;
 
-    // References to state members; makes code less verbose
+    // References to state members
     bitboard& board = state.board;
-
     U64& pins       = state.pins;
     U64& enpas      = state.enpas;
     U64& checkers   = state.checkers;
-
     color& next     = state.next;
     color& check    = state.check;
-
     short& half     = state.half;
     short& full     = state.full;
-
     BYTE& cancas    = state.cancas;
 
     // Constructors
@@ -669,9 +675,7 @@ private:
 **************************************************/
 
 namespace disamb{
-    
     U64 pgn(const U64, const U64, ptype, color, const Board&, bool);
-
     ply uci(std::string, const Board&);
 }
 
@@ -681,19 +685,14 @@ namespace disamb{
 namespace fen{
 
     constexpr char castles[5] = {'q', 'k', 'Q', 'K'};
-
     extern const std::regex delim;
-
+    extern const std::regex fmt;
     extern const std::string new_game;
 
     ptype c2ptype(char);
-
     char ptype2c(ptype, color);
-
     void arrange(std::string, Board&);
-
     void parse(std::string, Board&);
-
     std::string from_board(const Board&);
 }
 

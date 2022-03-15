@@ -1466,11 +1466,8 @@ const std::array<U64, 64> rattackm = {
 };
 
 const std::string pieces = "KQRBN";
-
 const std::string files = "abcdefgh";
-
 const std::string ranks = "12345678";
-
 const std::string endl(1, '\n');
 
 const std::string bviz = endl
@@ -1568,7 +1565,7 @@ std::uniform_int_distribution<U64> dist;
                 FUNCTION DEFINITIONS
 **************************************************/
 
-// Define here to prevent compilier from attempting to inline
+// Suppress inline warnings
 game::~game() = default;
 
 // Return true if given char identifies material/file (in SAN)
@@ -2399,10 +2396,8 @@ namespace disamb{
 **************************************************/
 namespace fen{
 
-    const std::regex delim("/");
-
     const std::string new_game("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-
+    const std::regex delim("/");
     const std::regex fmt("(([pnbrqkPNBRQK1-8]{1,8})/{0,1}){8} (w|b) (-|[KQkq]{1,4}) (-|[a-f][1-8]) [0-9]+ [0-9]+");
 
     ptype c2ptype(char p){
@@ -2439,7 +2434,8 @@ namespace fen{
     void arrange(std::string fs, Board& board){
 
         int rank = 7, file = 0;
-        std::regex_token_iterator<std::string::iterator> boardtok(fs.begin(), fs.end(), delim, -1), endtok;
+        std::regex_token_iterator<std::string::iterator> boardtok(fs.begin(), fs.end(), delim, -1),
+                                                         endtok;
 
         while(boardtok != endtok){
             std::string rs = *boardtok++;
@@ -2450,7 +2446,6 @@ namespace fen{
                     color c = std::islower(*it) ? black : white;
                     ptype pt = c2ptype(*it);
                     U64 loc = mask(8*rank + file);
-
                     board.place(loc, pt, c);
                     ++file;
                 }
@@ -2463,48 +2458,50 @@ namespace fen{
     // Configure board members to match FEN string
     void parse(std::string fs, Board& board){
 
-        if(!std::regex_match(fs.begin(), fs.end(), fmt)){ throw std::invalid_argument("Invalid FEN string"); }
-
+        if(!std::regex_match(fs.begin(), fs.end(), fmt)){
+            // String doesn't match FEN format
+            throw std::invalid_argument("Invalid FEN string");
+        }
+        else
         if(!fs.compare(new_game)){
             // FEN for new game - no processing needed
             board.reset();
+            return;
         }
-        else{
-            board.clear();
-            std::regex ws("\\s");
-            std::regex_token_iterator<std::string::iterator> fentok(fs.begin(), fs.end(), ws, -1);
 
-            // First field in FEN string contains board arrangment
-            arrange(*fentok++, board);
+        board.clear();
+        std::regex ws("\\s");
+        std::regex_token_iterator<std::string::iterator> fentok(fs.begin(), fs.end(), ws, -1);
 
-            // Next player to move
-            board.next = (*fentok++) == 'b' ? black : white;
+        // First field in FEN string contains board arrangment
+        arrange(*fentok++, board);
 
-            // Castling availability
-            std::string cas = *fentok++;
-            BYTE i = 1;
-            for(const char* c=castles; c!=std::end(castles); ++c){
-                if(cas.find(*c) != std::string::npos){ board.cancas |= i; }
-                i <<= 1;
-            }
+        // Next player to move
+        board.next = (*fentok++) == 'b' ? black : white;
 
-            // En Passant
-            std::string enpas = *fentok++;
-            if(enpas != "-"){ board.enpas = mask(8*c2rank(enpas[1]) + c2file(enpas[0])); }
-            else            { board.enpas = 0ULL; }
-
-            // Move counters
-            board.half = std::stoi(*fentok++);
-            board.full = std::stoi(*fentok++);
-
-            // Check for pins
-            board.pins = search_pins(board.board);
-
-            // Check for...check
-            board.checkers = search_checks(board.board, !board.next);
-            if(board.checkers){ board.check = board.next; }
-
+        // Castling availability
+        std::string cas = *fentok++;
+        BYTE i = 1;
+        for(const char* c=castles; c!=std::end(castles); ++c){
+            if(cas.find(*c) != std::string::npos){ board.cancas |= i; }
+            i <<= 1;
         }
+
+        // En Passant
+        std::string enpas = *fentok++;
+        if(enpas != "-"){ board.enpas = mask(8*c2rank(enpas[1]) + c2file(enpas[0])); }
+        else            { board.enpas = 0ULL; }
+
+        // Move counters
+        board.half = std::stoi(*fentok++);
+        board.full = std::stoi(*fentok++);
+
+        // Check for pins
+        board.pins = search_pins(board.board);
+
+        // Check for...check
+        board.checkers = search_checks(board.board, !board.next);
+        if(board.checkers){ board.check = board.next; }
     }
 
     std::string from_board(const Board& board){
