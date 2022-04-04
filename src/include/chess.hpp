@@ -193,84 +193,84 @@ typedef struct Magic{
 // Castling rights (KQkq)
 template<color c=NOCOLOR, int side=0>
 constexpr BYTE castle = 0b1111;
-
 template<>
 constexpr BYTE castle<white, -1> = 0b0100;
-
 template<>
 constexpr BYTE castle<white,  0> = 0b1100;
-
 template<>
 constexpr BYTE castle<white,  1> = 0b1000;
-
 template<>
 constexpr BYTE castle<black, -1> = 0b0001;
-
 template<>
 constexpr BYTE castle<black,  0> = 0b0011;
-
 template<>
 constexpr BYTE castle<black,  1> = 0b0010;
 
 // Rook src and dst during castling
 template<color c, int side>
 constexpr U64 rook_castle_src = 0ULL;
-
 template<>
 constexpr U64 rook_castle_src<white, -1> = 0x0000000000000001ULL;
-
 template<>
 constexpr U64 rook_castle_src<white,  1> = 0x0000000000000080ULL;
-
 template<>
 constexpr U64 rook_castle_src<black, -1> = 0x0100000000000000ULL;
-
 template<>
 constexpr U64 rook_castle_src<black,  1> = 0x8000000000000000ULL;
 
 template<color c, int side>
 constexpr U64 rook_castle_dst = 0ULL;
-
 template<color c>
 constexpr U64 rook_castle_dst<c, -1> = rook_castle_src<c, -1> << 3;
-
 template<color c>
 constexpr U64 rook_castle_dst<c, 1> = rook_castle_src<c,  1> >> 2;
 
 // King's traversal during castling
 template<color c>
-constexpr U64 ksl  = 0x60ULL << (c>0 ? 0 : 56);
+constexpr U64 ksl  = 0ULL;
+template<>
+constexpr U64 ksl<white>    = 0x0000000000000060ULL;
+template<>
+constexpr U64 ksl<black>    = 0x6000000000000000ULL;
 
 template<color c>
-constexpr U64 qslc = 0x0eULL << (c>0 ? 0 : 56);
+constexpr U64 qslc = 0ULL;
+template<>
+constexpr U64 qslc<white>   = 0x000000000000000eULL;
+template<>
+constexpr U64 qslc<black>   = 0x0e00000000000000ULL;
 
 template<color c>
-constexpr U64 qsls = 0x0cULL << (c>0 ? 0 : 56);
+constexpr U64 qsls = 0ULL;
+template<>
+constexpr U64 qsls<white>   = 0x000000000000000cULL;
+template<>
+constexpr U64 qsls<black>   = 0x0c00000000000000ULL;
 
 // Board axes
-constexpr U64 MAINDIAG_     = 0x8040201008040201;
-constexpr U64 ANTIDIAG_     = 0x0102040810204080;
-constexpr U64 RANK_         = 0xff;
-constexpr U64 FILE_         = 0x0101010101010101;
+constexpr U64 MAINDIAG_     = 0x8040201008040201ULL;
+constexpr U64 ANTIDIAG_     = 0x0102040810204080ULL;
+constexpr U64 RANK_         = 0x00000000000000ffULL;
+constexpr U64 FILE_         = 0x0101010101010101ULL;
 constexpr U64 BACK_RANK_B_  = RANK_;
 constexpr U64 BACK_RANK_W_  = RANK_ << 56;
 
 // 0, 1, All squares
-constexpr U64 ONE_          = 0x01;
-constexpr U64 ZERO_         = 0x00;
-constexpr U64 ALL_          = 0xffffffffffffffff;
+constexpr U64 ONE_          = 0x0000000000000001ULL;
+constexpr U64 ZERO_         = 0x0000000000000000ULL;
+constexpr U64 ALL_          = 0xffffffffffffffffULL;
 
 // Squares @ ends of BB
-constexpr U64 A1            = 0x01;
-constexpr U64 H8            = A1 << 63;
+constexpr U64 A1            = 0x0000000000000001ULL;
+constexpr U64 H8            = 0x1000000000000000ULL;
 
 // White starting coordinates
-constexpr U64 white_pawns   = 0x000000000000ff00;
-constexpr U64 white_knights = 0x0000000000000042;
-constexpr U64 white_bishops = 0x0000000000000024;
-constexpr U64 white_rooks   = 0x0000000000000081;
-constexpr U64 white_queen   = 0x0000000000000008;
-constexpr U64 white_king    = 0x0000000000000010;
+constexpr U64 white_pawns   = 0x000000000000ff00ULL;
+constexpr U64 white_knights = 0x0000000000000042ULL;
+constexpr U64 white_bishops = 0x0000000000000024ULL;
+constexpr U64 white_rooks   = 0x0000000000000081ULL;
+constexpr U64 white_queen   = 0x0000000000000008ULL;
+constexpr U64 white_king    = 0x0000000000000010ULL;
 
 // Black starting coordinates
 constexpr U64 black_pawns   = white_pawns   << 40;
